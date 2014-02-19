@@ -1,14 +1,27 @@
 import nengo
 import numpy as np
 
-model = nengo.Network('Communication Channel')
+D = 2
 
-model.make_node('input', np.sin)
-model.make_ensemble('A', neurons=100, dimensions=1)
-model.make_ensemble('B', neurons=90, dimensions=1)
-model.connect('input', 'A', filter=0.01)
-model.connect('A', 'B', filter=0.01)
+model = nengo.Model('Communication Channel')
+with model:
+    input = nengo.Node(np.sin, label='input')
+    a = nengo.Ensemble(100, D, label='a')
+    b = nengo.Ensemble(90, D, label='b')
+    def printout(t, x):
+        print t, x
+    output = nengo.Node(printout, size_in=D, label='output')
+    
+    nengo.Connection(input, a, filter=0.01, transform=[[1]]*D)
+    nengo.Connection(a, b, filter=0.01)
+    nengo.Connection(b, b, transform=0.9, filter=0.1)
+    nengo.Connection(b, output, filter=0.01)
+    
+import nengo_spinnaker
+sim = nengo_spinnaker.Simulator(model)
 
-
+sim.builder.print_connections()
+#sim = nengo.Simulator(model)
+#sim.run(0.1)
 
 
