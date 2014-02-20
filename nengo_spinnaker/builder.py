@@ -29,8 +29,7 @@ import nengo.build_utils
 
 class NodeData:
     """Constructed information for a Node."""
-    def __init__(self, ens, rng, id):
-        self.id = id
+    def __init__(self, ens, rng):
         self.filters = []
     def get_target(self, filter):
         if filter not in self.filters:
@@ -39,14 +38,16 @@ class NodeData:
 
 class EnsembleData:
     """Constructed information for an Ensemble."""
-    def __init__(self, ens, rng, id):
-        self.id = id                # my identifier
+    def __init__(self, ens, rng):
         self.filters = []           # list of input tau filter values
         self.decoders_by_func = {}  # cache for decoders of different funcs
         self.decoder_list = []      # list of actual decoders (with transform)
         self.ens = ens              # the ensemble we're associated with
+        self.label = ens.label
     
         self.N = ens.neurons.n_neurons     # number of neurons
+        self.D_in = ens.dimensions
+        self.D_out = 0
         
         # Create random number generator
         if ens.seed is None:
@@ -119,9 +120,11 @@ class EnsembleData:
         
         # check if the decoder already exists for this function and transform
         start = 0
+        count = 0
         for d,t,f in self.decoder_list:
             if t == c.transform and c.function == f:
-                return start
+                return count, start
+            count += 1    
             start += d.shape[1]    
                 
         # check if the decoder already exists for this function       
@@ -145,13 +148,17 @@ class EnsembleData:
         # combine the decoder with the transform and record it in the list
         decoder = np.dot(decoder, c.transform.T)
         self.decoder_list.append((decoder, c.transform, c.function))
-        return start
+        self.D_out += decoder.shape[1]
+        return count, start
+        
+    def get_merged_decoders(self):
+        d = [item[0] for item in self.decoder_list]
+        return np.hstack(d)
         
 
             
     def text_data(self):
         r = []
-        r.append('  id=%d'%self.id)
         r.append('  N=%d'%self.N)
         r.append('  tau_rc=%g'%self.tau_rc)
         r.append('  tau_ref=%g'%self.tau_ref)
@@ -163,16 +170,16 @@ class EnsembleData:
         
 class OnboardConnectionData:
     def __init__(self, c, pre, post):
-        self.pre = pre.id
-        self.post = post.id
-        self.offset = pre.get_decoder_location(c)
+        self.pre = pre
+        self.post = post
+        self.index, self.offset = pre.get_decoder_location(c)
         self.length = c.dimensions
         self.target_buffer = post.get_target(c.filter)
         
 class ExternalConnectionData:
     def __init__(self, c, pre, post):
-        self.pre = pre.id
-        self.post = post.id
+        self.pre = pre
+        self.post = post
         self.target_buffer = post.get_target(c.filter)
         
 
@@ -193,29 +200,37 @@ class Builder:
         # parse the objects
         for obj in objs:
             if isinstance(obj, nengo.Ensemble):
-                self.ensembles[obj] = EnsembleData(obj, rng, 
-                                                        id=len(self.ensembles))
+                self.ensembles[obj] = EnsembleData(obj, rng)
                 self.items[obj] = self.ensembles[obj]
             elif isinstance(obj, nengo.Node):
-                self.nodes[obj] = NodeData(obj, rng, id=-1-len(self.nodes))
+                self.nodes[obj] = NodeData(obj, rng)
                 self.items[obj] = self.nodes[obj]
             else:
                 raise Exception('Unknown object in model: %s'%obj)
         
         
-        self.onboard_connections = []   # connections handled by SpiNNaker
-        self.external_connections = []  # connections handled by host
+        self.conn_n2n = []
+        self.conn_n2e = []
+        self.conn_e2e = []
+        self.conn_e2n = []
         
         # parse the connections
         for c in connections:
             if isinstance(c.pre, nengo.Ensemble):
                 data = OnboardConnectionData(c, self.ensembles[c.pre], 
                                                         self.items[c.post])
-                self.onboard_connections.append(data)
+                if isinstance(c.post, nengo.Ensemble):
+                    self.conn_e2e.append(data)
+                else:    
+                    self.conn_e2n.append(data)
                 
             elif isinstance(c.pre, nengo.Node):
-                self.external_connections.append(ExternalConnectionData(c, 
-                        self.nodes[c.pre], self.items[c.post]))
+                data = ExternalConnectionData(c, 
+                        self.nodes[c.pre], self.items[c.post])
+                if isinstance(c.post, nengo.Ensemble):
+                    self.conn_n2e.append(data)
+                else:    
+                    self.conn_n2n.append(data)
         
 
     def print_ensembles(self):        
@@ -223,5 +238,5 @@ class Builder:
             print ens.text_data()
             
     def print_connections(self):        
-        for c in self.onboard_connections:
+        for c in self.conn_e2e:
             print c.pre, c.post, c.offset, c.length, c.target_buffer
