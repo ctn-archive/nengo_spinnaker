@@ -69,6 +69,7 @@ class EnsembleVertex( graph.Vertex ):
         
         
         def uint(x):
+            return x[0]
             return struct.unpack('>I', x)[0]
 
         
