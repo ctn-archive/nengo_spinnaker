@@ -27,7 +27,7 @@ class TransmitVertex( graph.Vertex ):
         x, y, p = processor.get_coordinates()
         executableTarget = lib_map.ExecutableTarget(
             dao.get_binaries_directory() + os.sep
-            + 'nengo-tx.aplx', x, y, p)
+            + 'nengo_tx.aplx', x, y, p)
 
 
         spec = lib_dsg.DataSpec(processor, dao)

@@ -44,7 +44,7 @@ class EnsembleVertex( graph.Vertex ):
         x, y, p = processor.get_coordinates()
         executableTarget = lib_map.ExecutableTarget(
             dao.get_binaries_directory() + os.sep
-            + 'nengo-ensemble.aplx', x, y, p)
+            + 'nengo_ensemble.aplx', x, y, p)
             
         
         N = subvertex.n_neurons
