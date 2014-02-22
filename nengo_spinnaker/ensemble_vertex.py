@@ -23,7 +23,7 @@ class EnsembleVertex( graph.Vertex ):
         self.data = data                    
     
     def model_name(self):
-        return 'nengo-ensemble'
+        return 'nengo_ensemble'
     
     def get_requirements_per_atom(self):
         chip_memory = 4 + self.data.D_in*4 + self.data.D_out*4

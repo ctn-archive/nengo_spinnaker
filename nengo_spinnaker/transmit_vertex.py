@@ -12,7 +12,7 @@ class TransmitVertex( graph.Vertex ):
                             label=label)
 
     def model_name(self):
-        return 'nengo-tx'
+        return 'nengo_tx'
     
     def get_requirements_per_atom(self):
         chip_memory = 0
