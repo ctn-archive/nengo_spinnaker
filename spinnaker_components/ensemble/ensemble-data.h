@@ -23,14 +23,15 @@ United Kingdom                      Canada
 *****************************************************************************/
 
 #include "common-impl.h"
+#include "common-typedefs.h"
 
 #ifndef __ENSEMBLE_DATA_H__
 #define __ENSEMBLE_DATA_H__
 
-bool copy_in_system_region( uint *addr ); // Copy in global data
-bool copy_in_bias( uint *addr );          // Copy in bias data
-bool copy_in_encoders( uint *addr );      // Copy in encoders
-bool copy_in_decoders( uint *addr );      // Copy in decoders
-bool copy_in_decoder_keys( uint *addr );  // Copy in decoder keys
+bool copy_in_system_region( address_t addr ); // Copy in global data
+bool copy_in_bias( address_t addr );          // Copy in bias data
+bool copy_in_encoders( address_t addr );      // Copy in encoders
+bool copy_in_decoders( address_t addr );      // Copy in decoders
+bool copy_in_decoder_keys( address_t addr );  // Copy in decoder keys
 
 #endif

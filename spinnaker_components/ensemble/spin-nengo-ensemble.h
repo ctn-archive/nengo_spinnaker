@@ -30,6 +30,7 @@ United Kingdom                      Canada
 #include "spin1_api.h"
 #include "stdfix-full-iso.h"
 #include "ensemble-data.h"
+#include "common-typedefs.h"
 
 typedef accum value_t;
 typedef accum current_t;

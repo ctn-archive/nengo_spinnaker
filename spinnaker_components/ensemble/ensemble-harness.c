@@ -48,14 +48,14 @@ int c_main( void )
   io_printf( IO_STD, "Testing...\n" );
 
   // Setup buffers, etc.
-  // test_initialise( );
-  uint *address = (uint *) system_load_sram();
-  copy_in_system_region( address );
+  address_t address = system_load_sram();
+  copy_in_system_region( region_start( 1, address ) );
   initialise_buffers( );
-  copy_in_bias( address );
-  copy_in_encoders( address );
-  copy_in_decoders( address );
-  copy_in_decoder_keys( address );
+  copy_in_bias         ( region_start( 2, address ) );
+  copy_in_encoders     ( region_start( 3, address ) );
+  copy_in_decoders     ( region_start( 4, address ) );
+  copy_in_decoder_keys ( region_start( 5, address ) );
+
   io_printf( IO_STD, "N: %d, D_in: %d, D_out: %d, dt: %d, t_rc: %f,"
              " t_ref: %d steps, filter: %f\n",
              n_neurons, n_input_dimensions, n_output_dimensions, dt,
