@@ -31,6 +31,7 @@ void c_main( void )
 
   // Set up routing tables
   if( leadAp ){
+    io_printf( IO_STD, "TX leadAp = 0x%02x\n", leadAp );
     system_lead_app_configured( );
   }
 
