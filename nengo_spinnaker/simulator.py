@@ -5,6 +5,7 @@ import sys
 
 from . import ensemble_vertex   
 from . import transmit_vertex
+from . import receive_vertex
 from . import decoder_edge        
 from . import input_edge        
 
@@ -36,7 +37,8 @@ class Simulator:
         self.dao.add_vertex(self.tx_vertex)
         
         # make a Rx
-        # TODO
+        self.rx_vertex = receive_vertex.ReceiveVertex()
+        self.dao.add_vertex(self.rx_vertex)
         
         
         # create edges
@@ -45,7 +47,7 @@ class Simulator:
         for c in self.builder.conn_e2n:
             self.dao.add_edge(decoder_edge.DecoderEdge(c, c.pre.vertex, self.tx_vertex))
         for c in self.builder.conn_n2e:
-            self.dao.add_edge(input_edge.InputEdge(c, self.rx_vertex, c.post.vertex))
+            self.dao.add_edge(input_edge.InputEdge(self.rx_vertex, c.post.vertex))
             
     def pacman_place_and_route(self):
         controller = control.Controller(sys.modules[__name__], 
