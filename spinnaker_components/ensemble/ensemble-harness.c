@@ -62,7 +62,10 @@ int c_main( void )
              t_rc, t_ref, filter
   );
   
-  spin1_set_mc_table_entry(0, 0, 0xFFFFFFE0, 0x00000100);
+  // Set up routing tables
+  if( leadAp ){
+    system_lead_app_configured();
+  }
 
   // Setup timer tick, start
   spin1_set_timer_tick( dt );
