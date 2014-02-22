@@ -23,5 +23,6 @@ United Kingdom                      Canada
 *****************************************************************************/
 
 #include "spin1_api.h"
+#include "common-impl.h"
 
 void mc_packet_received( uint key, uint payload );

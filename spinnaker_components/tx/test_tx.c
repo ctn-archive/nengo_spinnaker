@@ -26,6 +26,14 @@ United Kingdom                      Canada
 
 void c_main( void )
 {
+  // Load core map
+  system_load_core_map( );
+
+  // Set up routing tables
+  if( leadAp ){
+    system_lead_app_configured( );
+  }
+
   // Setup the mc_packet_received callback
   //spin1_set_timer_tick( 10000 );
   spin1_callback_on( MC_PACKET_RECEIVED, mc_packet_received, 0 );
@@ -34,7 +42,7 @@ void c_main( void )
 
 void mc_packet_received( uint key, uint payload )
 {
-  io_printf( IO_STD, "MC: 0x%08x, %d\n", key, payload );
+  io_printf( IO_STD, "MC: 0x%08x, 0x%08x\n", key, payload );
 
   // Construct the message
   sdp_msg_t sdp_message;
