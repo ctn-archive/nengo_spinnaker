@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------
 # Code derived from Andrew Rowley, University of Manchester
 
-APPS = ensemble dimsource tx
+APPS = ensemble tx rx
 
 all :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)"  ); done
