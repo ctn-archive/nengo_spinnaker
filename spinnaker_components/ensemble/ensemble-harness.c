@@ -64,8 +64,11 @@ int c_main( void )
   
   // Set up routing tables
   if( leadAp ){
-    system_lead_app_configured();
+    system_lead_app_configured( );
   }
+
+  // Load core map
+  system_load_core_map( );
 
   // Setup timer tick, start
   spin1_set_timer_tick( dt );
