@@ -28,8 +28,8 @@ uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
      *v_ref_voltage, *output_keys;
 current_t *i_bias;
 accum *encoders, *decoders;
-value_t *ibuf_accumulator, *ibuf_filtered, *output_values, t_rc, filter,
-        *decoded_values;
+value_t *ibuf_accumulator, *ibuf_filtered, *output_values, one_over_t_rc,
+        filter, *decoded_values;
 
 int c_main( void )
 {
@@ -56,10 +56,10 @@ int c_main( void )
   copy_in_decoders     ( region_start( 4, address ) );
   copy_in_decoder_keys ( region_start( 5, address ) );
 
-  io_printf( IO_STD, "N: %d, D_in: %d, D_out: %d, dt: %d, t_rc: %f,"
+  io_printf( IO_STD, "N: %d, D_in: %d, D_out: %d, dt: %d, one_over_t_rc: %f,"
              " t_ref: %d steps, filter: %f\n",
              n_neurons, n_input_dimensions, n_output_dimensions, dt,
-             t_rc, t_ref, filter
+             one_over_t_rc, t_ref, filter
   );
   
   // Set up routing tables

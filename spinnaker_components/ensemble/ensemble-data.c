@@ -39,7 +39,7 @@ bool copy_in_system_region( address_t addr ){
   n_neurons           = addr[2];
   dt                  = addr[3];
   t_ref               = addr[4];
-  t_rc                = addr[5];
+  one_over_t_rc       = addr[5];
   filter              = addr[6];
 
   return true;
