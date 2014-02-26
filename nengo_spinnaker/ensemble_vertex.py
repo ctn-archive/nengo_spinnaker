@@ -50,7 +50,7 @@ class EnsembleVertex( graph.Vertex ):
         N = subvertex.n_neurons
             
         # size is measured in bytes    
-        spec.reserveMemRegion(REGIONS.SYSTEM, size=7*4)   
+        spec.reserveMemRegion(REGIONS.SYSTEM, size=8*4)
         spec.reserveMemRegion(REGIONS.BIAS, size=N*4)  
         spec.reserveMemRegion(REGIONS.ENCODERS, size=N*self.data.D_in*4)  
         spec.reserveMemRegion(REGIONS.DECODERS, size=N*self.data.D_out*4)  
@@ -80,6 +80,7 @@ class EnsembleVertex( graph.Vertex ):
         
         decay = np.exp(-dt/filter)
         spec.write(data=uint(parameters.S1615(decay).converted))
+        spec.write(data=uint(parameters.S1615(1.-decay).converted))
                 
         spec.switchWriteFocus(REGIONS.BIAS)
         for i in range(N):

@@ -89,7 +89,7 @@ void initialise_buffers( void )
   // Input buffers / voltages
   in_buff = input_buffer_initialise( n_input_dimensions );
   in_buff->filter = filter;
-  in_buff->n_filter = 1.0k - filter; // TODO: Compute on the host and pass in
+  in_buff->n_filter = n_filter;
   v_ref_voltage = spin1_malloc( sizeof(uint) * n_neurons );
 
   // Output buffers

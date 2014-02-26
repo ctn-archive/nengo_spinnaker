@@ -33,6 +33,7 @@ bool copy_in_system_region( address_t addr ){
    * 5. tau_ref
    * 6. tau_rc
    * 7. Filter decay constant
+   * 8. 1 - Filter decay constant
    */
   n_input_dimensions  = addr[0];
   n_output_dimensions = addr[1];
@@ -41,6 +42,7 @@ bool copy_in_system_region( address_t addr ){
   t_ref               = addr[4] << 28;
   one_over_t_rc       = addr[5];
   filter              = addr[6];
+  n_filter            = addr[7];
 
   return true;
 }
