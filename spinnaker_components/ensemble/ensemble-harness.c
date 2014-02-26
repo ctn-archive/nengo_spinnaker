@@ -28,7 +28,7 @@ uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
      *v_ref_voltage, *output_keys;
 current_t *i_bias;
 accum *encoders, *decoders;
-value_t *output_values, one_over_t_rc, filter, *decoded_values, n_filter;
+value_t *output_values, one_over_t_rc, *decoded_values;
 
 filtered_input_buffer_t *in_buff;
 
@@ -60,7 +60,7 @@ int c_main( void )
   io_printf( IO_STD, "N: %d, D_in: %d, D_out: %d, dt: %d, one_over_t_rc: %f,"
              " t_ref: %d steps, filter: %f\n",
              n_neurons, n_input_dimensions, n_output_dimensions, dt,
-             one_over_t_rc, t_ref >> 28, filter
+             one_over_t_rc, t_ref >> 28, in_buff->filter
   );
   
   // Set up routing tables
@@ -86,10 +86,7 @@ void initialise_buffers( void )
   output_keys = spin1_malloc( sizeof( uint ) * n_output_dimensions );
   i_bias = spin1_malloc( sizeof(current_t) * n_neurons );
 
-  // Input buffers / voltages
-  in_buff = input_buffer_initialise( n_input_dimensions );
-  in_buff->filter = filter;
-  in_buff->n_filter = n_filter;
+  // Voltages
   v_ref_voltage = spin1_malloc( sizeof(uint) * n_neurons );
 
   // Output buffers

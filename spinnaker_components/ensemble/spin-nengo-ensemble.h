@@ -55,8 +55,6 @@ extern uint n_neurons;               //! Number of neurons N
 extern uint dt;                      //! Machine time step      [useconds]
 extern uint t_ref;                   //! Refractory period -1    [steps]
 extern value_t one_over_t_rc;        //! 1 / Membrane time constant [/seconds]
-extern value_t filter;               //! Input decay factor
-extern value_t n_filter;             //! 1 - input decay factor
 
 extern current_t * i_bias;           //! Population biases : 1 x N
 

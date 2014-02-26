@@ -32,6 +32,7 @@ bool copy_in_system_region( address_t addr ){
    * 4. dt in useconds
    * 5. tau_ref
    * 6. tau_rc
+   * -- Filtered input buffer
    * 7. Filter decay constant
    * 8. 1 - Filter decay constant
    */
@@ -41,8 +42,10 @@ bool copy_in_system_region( address_t addr ){
   dt                  = addr[3];
   t_ref               = addr[4] << 28;
   one_over_t_rc       = addr[5];
-  filter              = addr[6];
-  n_filter            = addr[7];
+
+  in_buff = input_buffer_initialise( n_input_dimensions );
+  in_buff->filter     = addr[6];
+  in_buff->n_filter   = addr[7];
 
   return true;
 }
