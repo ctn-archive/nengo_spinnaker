@@ -28,8 +28,9 @@ uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
      *v_ref_voltage, *output_keys;
 current_t *i_bias;
 accum *encoders, *decoders;
-value_t *ibuf_accumulator, *ibuf_filtered, *output_values, one_over_t_rc,
-        filter, *decoded_values;
+value_t *output_values, one_over_t_rc, filter, *decoded_values;
+
+filtered_input_buffer_t *in_buff;
 
 int c_main( void )
 {
@@ -86,8 +87,9 @@ void initialise_buffers( void )
   i_bias = spin1_malloc( sizeof(current_t) * n_neurons );
 
   // Input buffers / voltages
-  ibuf_accumulator = spin1_malloc( sizeof(value_t) * n_input_dimensions );
-  ibuf_filtered = spin1_malloc( sizeof(value_t) * n_input_dimensions );
+  in_buff = input_buffer_initialise( n_input_dimensions );
+  in_buff->filter = filter;
+  in_buff->n_filter = 1.0k - filter; // TODO: Compute on the host and pass in
   v_ref_voltage = spin1_malloc( sizeof(uint) * n_neurons );
 
   // Output buffers

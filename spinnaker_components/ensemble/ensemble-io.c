@@ -32,7 +32,7 @@ void incoming_spike_callback( uint key, uint payload )
    *   that dimension.
    */
   uint dimension = key & 0x0000000f;
-  ibuf_accumulator[ dimension ] += kbits( payload );
+  in_buff->accumulator[ dimension ] += kbits( payload );
 }
 
 /*

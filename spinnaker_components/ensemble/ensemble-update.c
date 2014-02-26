@@ -43,13 +43,7 @@ void timer_callback( uint arg0, uint arg1 )
   uint n_current_output_dimension = 0;
   
   // For every input dimension, decay the input value and zero the accumulator.
-  for( uint d = 0; d < n_input_dimensions; d++ ) {
-    /* START CRITICAL SECTION */
-    ibuf_filtered[d] = ibuf_filtered[d] * filter
-                     + ibuf_accumulator[d] * (1 - filter);
-    ibuf_accumulator[d] = 0;
-    /* END CRITICAL SECTION */
-  }
+  input_buffer_step( in_buff );
 
   // Perform neuron updates, interspersed with decoding and transmitting
   for( uint n = 0; n < n_neurons; n++ ) {
@@ -81,7 +75,7 @@ void timer_callback( uint arg0, uint arg1 )
 
     // Encode the input and add to the membrane current
     for( uchar d = 0; d < n_input_dimensions; d++ ) {
-      i_membrane += neuron_encoder(n, d) * ibuf_filtered[d];
+      i_membrane += neuron_encoder(n, d) * in_buff->filtered[d];
     }
 
     v_voltage = neuron_voltage(n);

@@ -32,6 +32,8 @@ United Kingdom                      Canada
 #include "ensemble-data.h"
 #include "common-typedefs.h"
 
+#include "dimensional-io.h"
+
 typedef accum value_t;
 typedef accum current_t;
 typedef accum voltage_t;
@@ -61,8 +63,7 @@ extern accum * encoders; //! Encoder values : N x D_{in} (including gains)
 extern accum * decoders; //! Decoder values : N x SUM( d in D_{outs} )
 
 /* Buffers *******************************************************************/
-extern value_t * ibuf_accumulator; //! Input buffers : 1 x D_{in}
-extern value_t * ibuf_filtered;    //! Filtered input buffers : 1 x D_{in}
+extern filtered_input_buffer_t *in_buff; //! Filtered input buffer
 extern uint * v_ref_voltage;       //! 4b refractory state, remainder voltages
 extern value_t * output_values;    //! Output buffers : 1 x D_{out}
 
