@@ -52,7 +52,7 @@ extern uint n_neurons;               //! Number of neurons N
 
 extern uint dt;                      //! Machine time step      [useconds]
 extern uint t_ref;                   //! Refractory period -1    [steps]
-extern value_t t_rc;                 //! Membrane time constant [seconds]
+extern value_t one_over_t_rc;        //! 1 / Membrane time constant [/seconds]
 extern value_t filter;               //! Input decay factor
 
 extern current_t * i_bias;           //! Population biases : 1 x N
@@ -93,7 +93,7 @@ static inline uint neuron_refractory( uint n )
 
 //! Put the given neuron in a refractory state (zero voltage, set timer)
 static inline void set_neuron_refractory( uint n )
-  { v_ref_voltage[n] = t_ref << 28; };
+  { v_ref_voltage[n] = t_ref; };
 
 //! Decrement the refractory time for the given neuron
 static inline void decrement_neuron_refractory( uint n )

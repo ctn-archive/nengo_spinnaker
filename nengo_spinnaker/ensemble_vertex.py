@@ -71,8 +71,8 @@ class EnsembleVertex( graph.Vertex ):
         def uint(x):
             return x
         
-        # tau_rc in seconds
-        spec.write(data=uint(parameters.S1615(self.data.tau_rc).converted))
+        # 1/tau_rc in 1/seconds
+        spec.write(data=uint(parameters.S1615(1. / self.data.tau_rc).converted))
         # filter decay constant
         # TODO: handle multiple filters
         
