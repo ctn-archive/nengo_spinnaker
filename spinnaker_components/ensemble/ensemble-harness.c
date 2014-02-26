@@ -28,7 +28,7 @@ uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
      *v_ref_voltage, *output_keys;
 current_t *i_bias;
 accum *encoders, *decoders;
-value_t *output_values, one_over_t_rc, filter, *decoded_values;
+value_t *output_values, one_over_t_rc, filter, *decoded_values, n_filter;
 
 filtered_input_buffer_t *in_buff;
 
