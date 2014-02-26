@@ -93,7 +93,7 @@ static inline uint neuron_refractory( uint n )
 
 //! Put the given neuron in a refractory state (zero voltage, set timer)
 static inline void set_neuron_refractory( uint n )
-  { v_ref_voltage[n] = t_ref << 28; };
+  { v_ref_voltage[n] = t_ref; };
 
 //! Decrement the refractory time for the given neuron
 static inline void decrement_neuron_refractory( uint n )

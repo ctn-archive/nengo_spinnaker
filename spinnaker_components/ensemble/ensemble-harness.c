@@ -59,7 +59,7 @@ int c_main( void )
   io_printf( IO_STD, "N: %d, D_in: %d, D_out: %d, dt: %d, one_over_t_rc: %f,"
              " t_ref: %d steps, filter: %f\n",
              n_neurons, n_input_dimensions, n_output_dimensions, dt,
-             one_over_t_rc, t_ref, filter
+             one_over_t_rc, t_ref >> 28, filter
   );
   
   // Set up routing tables
