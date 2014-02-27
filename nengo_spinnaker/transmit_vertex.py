@@ -1,5 +1,5 @@
 from pacman103.lib import graph
-from pacman103.lib import lib_dsg
+from pacman103.lib import data_spec_gen
 from pacman103.lib import lib_map
 from pacman103.front.common import enums
 import os
@@ -30,7 +30,7 @@ class TransmitVertex( graph.Vertex ):
             + 'nengo_tx.aplx', x, y, p)
 
 
-        spec = lib_dsg.DataSpec(processor, dao)
+        spec = data_spec_gen.DataSpec(processor, dao)
         spec.initialise(IDENTIFIER, dao)
         spec.comment('Nengo transmitter')
         # End the writing of this specification:
