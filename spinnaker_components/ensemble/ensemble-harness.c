@@ -33,15 +33,6 @@ value_t *ibuf_accumulator, *ibuf_filtered, *output_values, one_over_t_rc,
 
 int c_main( void )
 {
-  /* Initialise system as in the standard harness, see JK re correctly
-   * integrating this code at some point. (We don't use delay buffers,
-   * have dimension buffers, etc.)
-   *
-   *   - Setup routing table entries
-   *   - Setup timer and callbacks
-   *   - Any work to move neuron parameters into the correct locations.
-   */
-
   // Setup callbacks, etc.
   spin1_callback_on( MC_PACKET_RECEIVED, incoming_spike_callback, -1 );
   spin1_callback_on( TIMER_TICK, timer_callback, 2 );
