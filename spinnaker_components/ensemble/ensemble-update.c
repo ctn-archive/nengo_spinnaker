@@ -38,7 +38,7 @@ void timer_callback( uint arg0, uint arg1 )
   // Consider changing this so that we:
   // 1. Use a power of 2 for the gap between transmitting
   // 2. Compute this elsewhere
-  uint neurons_per_packet = n_output_dimensions / n_neurons;
+  uint neurons_per_packet = n_neurons / n_output_dimensions;
   uint n_counter = neurons_per_packet;
   uint n_current_output_dimension = 0;
   
