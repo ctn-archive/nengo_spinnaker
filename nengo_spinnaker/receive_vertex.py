@@ -6,7 +6,7 @@ import os
 from pacman103.lib import parameters
 
 REGIONS = enums.enum1(
-    'SYSTEM'
+    'SYSTEM',
     'KEYS',
     'INITIAL_VALUES'
 )
