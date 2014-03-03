@@ -9,7 +9,7 @@ Authors:
  Terry Stewart			    -- University of Waterloo
 
 Date:
- 17-22 February 2014
+ 17-22 February, 3 March 2014
 
 ******************************************************************************
 
@@ -24,26 +24,16 @@ United Kingdom                      Canada
 
 #include "rx.h"
 
-int c_main( void )
-{
-  // Read in values
-  address_t address = system_load_sram();
-  copy_in_system_region ( region_start( 1, address ) );
-  copy_in_keys          ( region_start( 2, address ) );
-  copy_in_initial_values( region_start( 3, address ) );
+void timer_callback( uint simulation_time, uint none ) {
+  // Output the current value
+  spin1_send_mc_packet( keys[ n_current_output],
+                        bitsk( values[ n_current_output ] ),
+                        WITH_PAYLOAD
+  );
 
-  // Routing and core map
-  if( leadAp ){
-    system_lead_app_configured();
+  // Increment the current output counter
+  n_current_output++;
+  if( n_current_output >= n_dimensions ){
+    n_current_output = 0;
   }
-
-  system_load_core_map();
-
-  // Enable callbacks
-  spin1_set_timer_tick( ticks_per_output );
-  spin1_callback_on( TIMER_TICK, timer_callback, 0 );
-  spin1_callback_on( SDP_PACKET_RX, sdp_packet_received, -2 );
-
-  // Go!
-  spin1_start( );
 }

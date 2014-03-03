@@ -9,6 +9,6 @@
 # ----------------------------------------------------------------------------
 
 APP = nengo_rx
-SOURCES = rx-harness.c
+SOURCES = rx-harness.c rx-data.c rx-sdp.c rx-update.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

@@ -9,7 +9,7 @@ Authors:
  Terry Stewart			    -- University of Waterloo
 
 Date:
- 17-22 February 2014
+ 17-22 February, 3 March 2014
 
 ******************************************************************************
 
@@ -24,26 +24,28 @@ United Kingdom                      Canada
 
 #include "rx.h"
 
-int c_main( void )
-{
-  // Read in values
-  address_t address = system_load_sram();
-  copy_in_system_region ( region_start( 1, address ) );
-  copy_in_keys          ( region_start( 2, address ) );
-  copy_in_initial_values( region_start( 3, address ) );
+uint n_dimensions, dt, ticks_per_output, n_current_output, *keys;
+value_t *values;
 
-  // Routing and core map
-  if( leadAp ){
-    system_lead_app_configured();
-  }
+void copy_in_system_region( address_t addr ) {
+  n_dimensions = addr[0]; // Number of dimensions to represent
+  dt = addr[1];           // Time step in us
 
-  system_load_core_map();
+  // Calculate the number of ticks between transmitting each output
+  // packet.
+  // Zero the index of the current output
+  ticks_per_output = dt / n_dimensions;
+  n_current_output = 0;
 
-  // Enable callbacks
-  spin1_set_timer_tick( ticks_per_output );
-  spin1_callback_on( TIMER_TICK, timer_callback, 0 );
-  spin1_callback_on( SDP_PACKET_RX, sdp_packet_received, -2 );
+  // Allocate space for keys and values
+  keys = spin1_malloc( sizeof( uint ) * n_dimensions );
+  values = spin1_malloc( sizeof( value_t ) * n_dimensions );
+}
 
-  // Go!
-  spin1_start( );
+void copy_in_keys( address_t addr ) {
+  spin1_memcpy( keys, addr, n_dimensions * sizeof( uint ) );
+}
+
+void copy_in_initial_values( address_t addr ) {
+  spin1_memcpy( values, addr, n_dimensions * sizeof( value_t ) );
 }
