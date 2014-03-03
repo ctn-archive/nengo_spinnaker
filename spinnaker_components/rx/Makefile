@@ -9,6 +9,6 @@
 # ----------------------------------------------------------------------------
 
 APP = nengo_rx
-SOURCES = dimension_source.c
+SOURCES = rx-harness.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

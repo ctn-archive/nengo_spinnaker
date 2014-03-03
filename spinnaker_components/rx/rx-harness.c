@@ -22,7 +22,7 @@ United Kingdom                      Canada
 
 *****************************************************************************/
 
-#include "dimension_source.h"
+#include "rx.h"
 
 uint key;
 
