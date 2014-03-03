@@ -1,30 +1,25 @@
-/*****************************************************************************
-
-SpiNNaker and Nengo Integration
-
-******************************************************************************
-
-Authors:
- Andrew Mundy <mundya@cs.man.ac.uk> -- University of Manchester
- Terry Stewart			    -- University of Waterloo
-
-Date:
- 17-22 February 2014
-
-******************************************************************************
-
-Advanced Processors Technologies,   Computational Neuroscience Research Group,
-School of Computer Science,         Centre for Theoretical Neuroscience,
-University of Manchester,           University of Waterloo,
-Oxford Road,                        200 University Avenue West,
-Manchester, M13 9PL,                Waterloo, ON, N2L 3G1,
-United Kingdom                      Canada
-
-*****************************************************************************/
-
-/*
- * SpiNNaker Nengo Ensemble Implementation
- * ---------------------------------------
+/**
+ * \addtogroup Ensemble
+ * \brief An implementation of the Nengo LIF neuron with multidimensional
+ *        input capabilities.
+ *
+ * The Ensemble component implements a LIF neuron model which accepts and
+ * transmits multidimensional values.  As in the NEF each neuron in the
+ * Ensemble has an *Encoder* which is provided by the Nengo framework running
+ * on the host. On each time step the encoders are used to convert the real
+ * value presented to the ensemble into currents applied to input of each
+ * simulated neuron. Spikes are accumulated and converted into real values
+ * using *decoders* (again provided by the host). Decoded values are output
+ * in an interleaved fashion during the neuron update loop.
+ *
+ * \author Andrew Mundy <mundya@cs.man.ac.uk>
+ * \author Terry Stewart
+ * 
+ * \copyright Advanced Processor Technologies, School of Computer Science,
+ *   University of Manchester
+ * \copyright Computational Neuroscience Research Group, Centre for
+ *   Theoretical Neuroscience, University of Waterloo
+ * @{
  */
 
 #include "spin1_api.h"
@@ -45,26 +40,26 @@ void incoming_spike_callback( uint key, uint payload );
 void initialise_buffers( void );
 
 /* Parameters ****************************************************************/
-extern uint n_input_dimensions;      //! Number of input dimensions D_{in}
-extern uint n_output_dimensions;     //! Number of output dimensions D_{out}
-extern uint * output_keys;           //! Output dimension keys 1 x D_{out}
-extern uint n_neurons;               //! Number of neurons N
+extern uint n_input_dimensions;  //!< Number of input dimensions \f$D_{in}\f$
+extern uint n_output_dimensions; //!< Number of output dimensions \f$D_{out}\f$
+extern uint * output_keys;       //!< Output dimension keys \f$1 \times D_{out}\f$
+extern uint n_neurons;           //!< Number of neurons \f$N\f$
 
-extern uint dt;                      //! Machine time step      [useconds]
-extern uint t_ref;                   //! Refractory period -1    [steps]
-extern value_t one_over_t_rc;        //! 1 / Membrane time constant [/seconds]
-extern value_t filter;               //! Input decay factor
+extern uint dt;                  //!< Machine time step  / useconds
+extern uint t_ref;               //!< Refractory period \f$\tau_{ref} - 1\f$ / steps
+extern value_t one_over_t_rc;    //!< \f$\tau_{rc}^{-1}\f$
+extern value_t filter;           //!< Input decay factor
 
-extern current_t * i_bias;           //! Population biases : 1 x N
+extern current_t * i_bias;       //!< Population biases \f$1 \times N\f$
 
-extern accum * encoders; //! Encoder values : N x D_{in} (including gains)
-extern accum * decoders; //! Decoder values : N x SUM( d in D_{outs} )
+extern accum * encoders; //!< Encoder values \f$N \times D_{in}\f$ (including gains)
+extern accum * decoders; //!< Decoder values \f$N \times \sum D_{outs}\f$
 
 /* Buffers *******************************************************************/
-extern value_t * ibuf_accumulator; //! Input buffers : 1 x D_{in}
-extern value_t * ibuf_filtered;    //! Filtered input buffers : 1 x D_{in}
-extern uint * v_ref_voltage;       //! 4b refractory state, remainder voltages
-extern value_t * output_values;    //! Output buffers : 1 x D_{out}
+extern value_t * ibuf_accumulator; //!< Input buffers \f$1 \times D_{in}\f$
+extern value_t * ibuf_filtered;    //!< Filtered input buffers \f$1 \times D_{in}\f$
+extern uint * v_ref_voltage;       //!< 4b refractory state, remainder voltages
+extern value_t * output_values;    //!< Output buffers \f$1 \times D_{out}\f$
 
 /* Static inline access functions ********************************************/
 // -- Encoder(s) and decoder(s)
@@ -98,3 +93,5 @@ static inline void set_neuron_refractory( uint n )
 //! Decrement the refractory time for the given neuron
 static inline void decrement_neuron_refractory( uint n )
   { v_ref_voltage[n] -= 0x10000000; };
+
+/** @}*/

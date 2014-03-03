@@ -1,41 +1,29 @@
-/*****************************************************************************
-
-SpiNNaker and Nengo Integration
-
-******************************************************************************
-
-Authors:
- Andrew Mundy <mundya@cs.man.ac.uk> -- University of Manchester
- Terry Stewart			    -- University of Waterloo
-
-Date:
- 17-22 February 2014
-
-******************************************************************************
-
-Advanced Processors Technologies,   Computational Neuroscience Research Group,
-School of Computer Science,         Centre for Theoretical Neuroscience,
-University of Manchester,           University of Waterloo,
-Oxford Road,                        200 University Avenue West,
-Manchester, M13 9PL,                Waterloo, ON, N2L 3G1,
-United Kingdom                      Canada
-
-*****************************************************************************/
+/*
+ * Authors:
+ *   - Andrew Mundy <mundya@cs.man.ac.uk>
+ *   - Terry Stewart
+ * 
+ * Copyright:
+ *   - Advanced Processor Technologies, School of Computer Science,
+ *      University of Manchester
+ *   - Computational Neuroscience Research Group, Centre for
+ *      Theoretical Neuroscience, University of Waterloo
+ */
 
 #include "spin-nengo-ensemble.h"
 
+/**
+ * \brief Handle an incoming "spike" or dimension.
+ * \param key Multicast key associated with the "spike"
+ * \param payload Partial value of the dimension to be accumulated
+ *
+ * Each arriving multicast packet contains a part of the value for a given
+ * dimension for the given timestep.  On receipt of a packet the input
+ * dimension referred to is taken from the bottom nibble of the key and the
+ * value of the payload is added to the accumulator for this dimension.
+ */
 void incoming_spike_callback( uint key, uint payload )
 {
-  /*
-   * - Determine the dimension this packet relates to from the key
-   * - Add the value of the payload (cast to accum) to the received value for
-   *   that dimension.
-   */
   uint dimension = key & 0x0000000f;
   ibuf_accumulator[ dimension ] += kbits( payload );
 }
-
-/*
- * Possible TODO:
- * - On timer2 (if possible) transmit the decoded value for a dimension.
- */

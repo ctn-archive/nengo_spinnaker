@@ -1,29 +1,48 @@
-/*****************************************************************************
-
-SpiNNaker and Nengo Integration
-
-******************************************************************************
-
-Authors:
- Andrew Mundy <mundya@cs.man.ac.uk> -- University of Manchester
- Terry Stewart			    -- University of Waterloo
-
-Date:
- 17-22 February 2014
-
-******************************************************************************
-
-Advanced Processors Technologies,   Computational Neuroscience Research Group,
-School of Computer Science,         Centre for Theoretical Neuroscience,
-University of Manchester,           University of Waterloo,
-Oxford Road,                        200 University Avenue West,
-Manchester, M13 9PL,                Waterloo, ON, N2L 3G1,
-United Kingdom                      Canada
-
-*****************************************************************************/
+/*
+ * Authors:
+ *   - Andrew Mundy <mundya@cs.man.ac.uk>
+ *   - Terry Stewart
+ * 
+ * Copyright:
+ *   - Advanced Processor Technologies, School of Computer Science,
+ *      University of Manchester
+ *   - Computational Neuroscience Research Group, Centre for
+ *      Theoretical Neuroscience, University of Waterloo
+ */
 
 #include "spin-nengo-ensemble.h"
 
+/**
+ * \brief Filter input values, perform neuron update and transmit any output
+ *        packets.
+ * \param arg0 Unused parameter
+ * \param arg1 Unused parameter
+ *
+ * The following steps are performed by this code:
+ * 1. Decay the input values
+ * 2. Simulate neurons
+ * 3. Simultaneously accumulate output values and transmit
+ *
+ * Decay Input Values
+ * ------------------
+ *  The previous input values stored in ::ibuf_filtered are multiplied by
+ *  ::filter to provide a decay of stored values.  Following this the values
+ *  accumulated in ::ibuf_accumulator are multiplied by \f$1 - filter\f$ and
+ *  added to the filtered values.  The values in ::ibuf_accumulator are then
+ *  zeroed.
+ *
+ * Simulate Neurons
+ * ----------------
+ *  Neurons are then simulated using Euler's Method as in most implementations
+ *  of the NEF.  When a neuron spikes it is immediately decoded and its
+ *  contribution to the output of the Ensemble added to ::output_values.
+ *
+ * Interleaved Packet Transmission
+ * -------------------------------
+ *  Once every \f$N / D_{out}\f$ neurons an output value is transmitted. The
+ *  key is taken from ::output_keys using an index.  After transmission, the
+ *  value associated with the given dimension in ::output_values is zeroed.
+ */
 void timer_callback( uint arg0, uint arg1 )
 {
   /*
