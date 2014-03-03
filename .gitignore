@@ -58,3 +58,5 @@ nosetests.xml
 *.aplx
 *.elf
 
+# Documentation
+*/docs/*
