@@ -7,7 +7,9 @@ from pacman103.lib import parameters
 
 REGIONS = enums.enum1(
     'SYSTEM'
-    )
+    'KEYS',
+    'INITIAL_VALUES'
+)
 
 class ReceiveVertex( graph.Vertex ):
     def __init__(self, constraints=None, label=None):
@@ -24,6 +26,15 @@ class ReceiveVertex( graph.Vertex ):
     
         return lib_map.Resources(cycles, data_memory, chip_memory)
 
+    @property
+    def n_dims( self ):
+        """The number of dimensions this Rx component will represent.
+        Must be less than 256.  This is the sum of the number of input
+        dimensions for all receiving Ensembles.
+
+        TODO: Rename this attribute or do it differently somehow..?"""
+        return sum( map( lambda e : e.postvertex.data.D_in, self.out_edges ) )
+
     def generateDataSpec(self, processor, subvertex, dao):
         IDENTIFIER = 0xABCE
         
@@ -35,12 +46,40 @@ class ReceiveVertex( graph.Vertex ):
         spec = data_spec_gen.DataSpec(processor, dao)
         spec.initialise(IDENTIFIER, dao)
         spec.comment('Nengo receiver')
+        spec.reserveMemRegion( REGIONS.SYSTEM, size = 2 * 4 )
+        spec.reserveMemRegion( REGIONS.KEYS, size = self.n_dims * 4 )
+        spec.reserveMemRegion( REGIONS.INITIAL_VALUES, size = self.n_dims * 4 )
 
-        spec.reserveMemRegion(REGIONS.SYSTEM, size=4)
+        spec.comment(
+            """System Parameters
+            1. Number of dimensions to represent.
+            2. System time step in us
+            """
+        )
         spec.switchWriteFocus(REGIONS.SYSTEM)
-        key = (x << 24) | (y << 16) | ((p-1) << 11)
-        #TODO: be less hacky`
-        spec.write(data=key)
+        spec.write( data = self.n_dims )
+        spec.write( data = 0.001 * 10**6 ) # TODO: adjust time resolution of sim
+
+        spec.comment(
+        """Dimension related routing keys"""
+        )
+        spec.switchWriteFocus(REGIONS.KEYS)
+        for d in range( self.n_dims ):
+            # TODO
+            """
+            We need a routing key for each output edge and dimension.
+            This needs to be in the same format as that for the EnsembleVertex.
+            The issue then is keeping track of things that this RxVertex is
+            connection to.
+            """
+            raise NotImplementedError
+
+        spec.comment(
+            """Initial values for dimensions, defaulting to 0."""
+        )
+        spec.switchWriteFocus(REGIONS.INITIAL_VALUES)
+        for d in range( self.n_dims ):
+            spec.write( data = 0x00000000 )
 
         # End the writing of this specification:
         spec.endSpec()
