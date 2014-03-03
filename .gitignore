@@ -53,10 +53,12 @@ nosetests.xml
 *.exe
 *.out
 *.app
-
-
 *.aplx
 *.elf
 
 # Documentation
 */docs/*
+
+# Spurious dot/txt files
+*.dot
+spinnaker_components/*/nengo_*.txt
