@@ -29,7 +29,7 @@ class ReceiveVertex( graph.Vertex ):
     @property
     def n_dims( self ):
         """The number of dimensions this Rx component will represent.
-        Must be less than 256.  This is the sum of the number of input
+        Must be less than 256/4 = 64.  This is the sum of the number of input
         dimensions for all receiving Ensembles.
 
         TODO: Rename this attribute or do it differently somehow..?"""
