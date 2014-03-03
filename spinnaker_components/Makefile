@@ -9,9 +9,14 @@
 # Code derived from Andrew Rowley, University of Manchester
 
 APPS = ensemble tx rx
+COMPLETE_SOURCE = ./*/*.c ./*/*.h
 
 all :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)"  ); done
 
+docs : ${COMPLETE_SOURCE}
+	doxygen
+
 clean :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)" clean  ); done
+	rm -rf ./docs/
