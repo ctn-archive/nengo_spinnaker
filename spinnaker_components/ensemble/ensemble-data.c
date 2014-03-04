@@ -37,6 +37,9 @@ bool copy_in_system_region( address_t addr ){
   one_over_t_rc       = kbits( addr[5] );
   filter              = kbits( addr[6] );
 
+  // Calculate the number of microseconds between transmitting output packets
+  us_per_output = dt / n_output_dimensions;
+
   return true;
 }
 
