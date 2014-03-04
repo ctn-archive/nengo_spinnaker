@@ -12,7 +12,23 @@ from . import input_edge
 
 from . import builder
 
+import numpy as np
+import time as pytime
+import socket
+import struct
 
+class NodeRunner:
+    def __init__(self, node_data, dt=0.001):
+        self.node = node_data.node
+        self.filter = node_data.filters[0]
+        self.decay = np.exp(-dt/self.filter)
+        self.value = np.zeros(self.node.size_in)
+    def handle_input(self, t, key, value):
+        self.value[key]= self.value[key]*decay + value*(1-decay)
+        if key == self.node.size_in - 1:
+            self.node.output(t, self.value)
+            
+            
 class Simulator:
     def __init__(self, model, dt=0.001, seed=None):
         self.builder = builder.Builder(model, dt=dt, seed=seed)
@@ -24,7 +40,19 @@ class Simulator:
         
         
     def run(self, time):
-        pass    
+        port = 17899
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind(('', port))
+        start = pytime.time()
+        t = 0
+        while t<time:
+            data, addr = s.recvfrom(512)
+            t = pytime.time() - start
+            key, value = struct.unpack('<Ii', data[14:22])            
+            value = value/(65536.0)
+            print t, key, value
+            
+    
         
     def make_pacman_vertices(self):
     
@@ -32,6 +60,11 @@ class Simulator:
         for ens in self.builder.ensembles.values():
             ens.vertex = ensemble_vertex.EnsembleVertex(ens)
             self.dao.add_vertex(ens.vertex)
+        
+        self.node_runners = []
+        for node in self.builder.nodes.values():
+            self.node_runners.append(NodeRunner(node))
+            
         
         # make a Tx
         self.tx_vertex = transmit_vertex.TransmitVertex()
