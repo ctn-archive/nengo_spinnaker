@@ -58,7 +58,7 @@ void mc_packet_received( uint key, uint payload )
   sdp_message.arg1 = key;
   sdp_message.arg2 = payload;
 
-  sdp_message.length = sizeof (sdp_hdr_t) + sizeof (sdp_hdr_t);
+  sdp_message.length = sizeof (sdp_hdr_t) + sizeof (cmd_hdr_t);
 
   spin1_send_sdp_msg( &sdp_message, 1000 );
 }
