@@ -29,8 +29,9 @@ import nengo.build_utils
 
 class NodeData:
     """Constructed information for a Node."""
-    def __init__(self, ens, rng):
+    def __init__(self, node, rng):
         self.filters = []
+        self.node = node
     def get_target(self, filter):
         if filter not in self.filters:
             self.filters.append(filter)
