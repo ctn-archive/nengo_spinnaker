@@ -50,6 +50,8 @@ class EnsembleData:
         self.N = ens.neurons.n_neurons     # number of neurons
         self.D_in = ens.dimensions
         self.D_out = 0
+
+        self.constant_input = np.zeros( self.D_in )
         
         # Create random number generator
         if ens.seed is None:
