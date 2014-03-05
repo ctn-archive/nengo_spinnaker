@@ -103,7 +103,7 @@ class ReceiveVertex( graph.Vertex ):
         
         key = (x << 24) | (y << 16) | ((p-1) << 11) | ( i << 6 )
         
-        mask = 0xFFFFFFC0
+        mask = 0xFFFFFFE0
         
         return key, mask
     
