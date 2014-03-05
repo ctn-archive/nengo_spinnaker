@@ -1,26 +1,14 @@
-/*****************************************************************************
-
-SpiNNaker and Nengo Integration
-
-******************************************************************************
-
-Authors:
- Andrew Mundy <mundya@cs.man.ac.uk> -- University of Manchester
- Terry Stewart			    -- University of Waterloo
-
-Date:
- 17-22 February, 3 March 2014
-
-******************************************************************************
-
-Advanced Processors Technologies,   Computational Neuroscience Research Group,
-School of Computer Science,         Centre for Theoretical Neuroscience,
-University of Manchester,           University of Waterloo,
-Oxford Road,                        200 University Avenue West,
-Manchester, M13 9PL,                Waterloo, ON, N2L 3G1,
-United Kingdom                      Canada
-
-*****************************************************************************/
+/*
+ * Authors:
+ *   - Andrew Mundy <mundya@cs.man.ac.uk>
+ *   - Terry Stewart
+ * 
+ * Copyright:
+ *   - Advanced Processor Technologies, School of Computer Science,
+ *      University of Manchester
+ *   - Computational Neuroscience Research Group, Centre for
+ *      Theoretical Neuroscience, University of Waterloo
+ */
 
 #include "rx.h"
 
