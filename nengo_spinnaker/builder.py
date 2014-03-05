@@ -45,6 +45,7 @@ class EnsembleData:
         self.decoder_list = []      # list of actual decoders (with transform)
         self.ens = ens              # the ensemble we're associated with
         self.label = ens.label
+        self.vertex = None
     
         self.N = ens.neurons.n_neurons     # number of neurons
         self.D_in = ens.dimensions
