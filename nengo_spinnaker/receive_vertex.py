@@ -64,15 +64,14 @@ class ReceiveVertex( graph.Vertex ):
         """Dimension related routing keys"""
         )
         spec.switchWriteFocus(REGIONS.KEYS)
-        for d in range( self.n_dims ):
-            # TODO
+        for e in self.out_edges:
             """
             We need a routing key for each output edge and dimension.
             This needs to be in the same format as that for the EnsembleVertex.
-            The issue then is keeping track of things that this RxVertex is
-            connection to.
             """
-            raise NotImplementedError
+            for d in range( e.postvertex.data.D_in ):
+                key = self.generate_routing_info( e.subedges[0] ) | (d)
+                spec.write( data = key )
 
         spec.comment(
             """Initial values for dimensions, defaulting to 0."""
@@ -98,10 +97,13 @@ class ReceiveVertex( graph.Vertex ):
         
     def generate_routing_info(self, subedge):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
+
+        # Get the index of this edge in the list of subedges we have
+        i = self.out_edges.index( subedge.edge )
         
-        key = (x << 24) | (y << 16) | ((p-1) << 11)
+        key = (x << 24) | (y << 16) | ((p-1) << 11) | ( i << 6 )
         
-        mask = 0xFFFFFFE0
+        mask = 0xFFFFFFC0
         
         return key, mask
     
