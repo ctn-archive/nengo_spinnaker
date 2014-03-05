@@ -1,4 +1,4 @@
-/*
+/**
  * Authors:
  *   - Andrew Mundy <mundya@cs.man.ac.uk>
  *   - Terry Stewart
