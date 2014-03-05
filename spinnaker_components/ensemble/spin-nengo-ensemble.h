@@ -43,6 +43,7 @@ typedef accum voltage_t;
 int c_main( void );
 void timer_callback( uint arg0, uint arg1 );
 void incoming_spike_callback( uint key, uint payload );
+void outgoing_dimension_callback( uint index, uint arg1 );
 
 /* Initialisation functions **************************************************/
 void initialise_buffers( void );
@@ -52,6 +53,9 @@ extern uint n_input_dimensions;  //!< Number of input dimensions \f$D_{in}\f$
 extern uint n_output_dimensions; //!< Number of output dimensions \f$D_{out}\f$
 extern uint * output_keys;       //!< Output dimension keys \f$1 \times D_{out}\f$
 extern uint n_neurons;           //!< Number of neurons \f$N\f$
+
+extern uint us_per_output;       //!< Microsecond delay between transmitting
+                                 //   decoded output
 
 extern uint dt;                  //!< Machine time step  / useconds
 extern uint t_ref;               //!< Refractory period \f$\tau_{ref} - 1\f$ / steps

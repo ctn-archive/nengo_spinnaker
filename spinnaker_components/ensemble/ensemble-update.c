@@ -36,12 +36,6 @@
  *  Neurons are then simulated using Euler's Method as in most implementations
  *  of the NEF.  When a neuron spikes it is immediately decoded and its
  *  contribution to the output of the Ensemble added to ::output_values.
- *
- * Interleaved Packet Transmission
- * -------------------------------
- *  Once every \f$N / D_{out}\f$ neurons an output value is transmitted. The
- *  key is taken from ::output_keys using an index.  After transmission, the
- *  value associated with the given dimension in ::output_values is zeroed.
  */
 void timer_callback( uint arg0, uint arg1 )
 {
@@ -54,13 +48,6 @@ void timer_callback( uint arg0, uint arg1 )
   current_t i_membrane;
   voltage_t v_delta, v_voltage;
 
-  // Consider changing this so that we:
-  // 1. Use a power of 2 for the gap between transmitting
-  // 2. Compute this elsewhere
-  uint neurons_per_packet = n_neurons / n_output_dimensions;
-  uint n_counter = neurons_per_packet;
-  uint n_current_output_dimension = 0;
-  
   // For every input dimension, decay the input value and zero the accumulator.
   for( uint d = 0; d < n_input_dimensions; d++ ) {
     /* START CRITICAL SECTION */
@@ -70,25 +57,8 @@ void timer_callback( uint arg0, uint arg1 )
     /* END CRITICAL SECTION */
   }
 
-  // Perform neuron updates, interspersed with decoding and transmitting
+  // Perform neuron updates
   for( uint n = 0; n < n_neurons; n++ ) {
-    // If this neuron is a multiple of neurons_per_packet then transmit a
-    // dimension packet.
-    n_counter--;
-    if( n_counter == 0 ){
-      // Transmit the packet with the appropriate key
-      spin1_send_mc_packet(
-        output_keys[ n_current_output_dimension ],
-        bitsk(output_values[ n_current_output_dimension ]),
-        WITH_PAYLOAD
-      );
-
-      // Zero the output buffer and increment the output dimension counter
-      output_values[ n_current_output_dimension ] = 0;
-      n_current_output_dimension++;
-      n_counter = neurons_per_packet;
-    }
-
     // If this neuron is refractory then skip any further processing
     if( neuron_refractory( n ) != 0 ) {
       decrement_neuron_refractory( n );
