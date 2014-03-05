@@ -25,7 +25,7 @@ United Kingdom                      Canada
 #include "spin-nengo-ensemble.h"
 
 uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
-     *v_ref_voltage, *output_keys;
+     *v_ref_voltage, *output_keys, us_per_output;
 current_t *i_bias;
 accum *encoders, *decoders;
 value_t *ibuf_accumulator, *ibuf_filtered, *output_values, one_over_t_rc,
@@ -61,6 +61,10 @@ int c_main( void )
 
   // Load core map
   system_load_core_map( );
+
+  // Setup Timer2, initialise output loop
+  timer_register( SLOT_8 ); // TODO: Confirm this via testing / ST
+  timer_schedule_proc( outgoing_dimension_callback, 0, 0, us_per_output );
 
   // Setup timer tick, start
   spin1_set_timer_tick( dt );
