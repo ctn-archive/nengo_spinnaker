@@ -82,6 +82,15 @@ class EnsembleVertex( graph.Vertex ):
         spec.write(data=uint(parameters.S1615(decay).converted))
                 
         spec.switchWriteFocus(REGIONS.BIAS)
+        spec.comment( "# *** Bias Currents, including any constant inputs. ***" )
+        # Encode any constant inputs, and add to the biases
+        additional_bias = np.dot(
+            self.data.encoders,
+            self.data.constant_input
+        )
+        self.data.bias += additional_bias
+
+        # Write the bias currents
         for i in range(N):
             spec.write(data=uint(parameters.S1615(self.data.bias[i]).converted))
         

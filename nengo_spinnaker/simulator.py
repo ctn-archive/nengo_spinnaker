@@ -2,6 +2,7 @@ from pacman103.core import dao
 from pacman103.core import control
 from pacman103 import conf
 import sys
+import numpy as np
 
 from . import ensemble_vertex   
 from . import transmit_vertex
@@ -47,7 +48,15 @@ class Simulator:
         for c in self.builder.conn_e2n:
             self.dao.add_edge(decoder_edge.DecoderEdge(c, c.pre.vertex, self.tx_vertex))
         for c in self.builder.conn_n2e:
-            self.dao.add_edge(input_edge.InputEdge(self.rx_vertex, c.post.vertex))
+            """If the Node is a constant, then don't bother adding this edge.
+            Instead, add the value of the Node to the constant_input of the
+            receiving ensemble."""
+            if isinstance( c.pre.node.output, np.ndarray ):
+                c.post.constant_input += c.pre.node.output
+            else:
+                self.dao.add_edge(
+                    input_edge.InputEdge(self.rx_vertex, c.post.vertex)
+                )
             
     def pacman_place_and_route(self):
         controller = control.Controller(sys.modules[__name__], 
