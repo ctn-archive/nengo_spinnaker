@@ -1,5 +1,5 @@
 from pacman103.lib import graph
-from pacman103.lib import lib_dsg
+from pacman103.lib import data_spec_gen
 from pacman103.lib import lib_map
 from pacman103.front.common import enums
 import os
@@ -37,7 +37,7 @@ class EnsembleVertex( graph.Vertex ):
         IDENTIFIER = 0xABCD
         print 'generate', self.data.label
         
-        spec = lib_dsg.DataSpec(processor, dao)
+        spec = data_spec_gen.DataSpec(processor, dao)
         spec.initialise(IDENTIFIER, dao)
         spec.comment('NEF Ensemble vertex information')
         

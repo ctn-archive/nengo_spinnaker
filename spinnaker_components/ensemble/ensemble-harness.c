@@ -25,7 +25,7 @@ United Kingdom                      Canada
 #include "spin-nengo-ensemble.h"
 
 uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
-     *v_ref_voltage, *output_keys;
+     *v_ref_voltage, *output_keys, us_per_output;
 current_t *i_bias;
 accum *encoders, *decoders;
 value_t *output_values, one_over_t_rc, *decoded_values;
@@ -34,15 +34,6 @@ filtered_input_buffer_t *in_buff;
 
 int c_main( void )
 {
-  /* Initialise system as in the standard harness, see JK re correctly
-   * integrating this code at some point. (We don't use delay buffers,
-   * have dimension buffers, etc.)
-   *
-   *   - Setup routing table entries
-   *   - Setup timer and callbacks
-   *   - Any work to move neuron parameters into the correct locations.
-   */
-
   // Setup callbacks, etc.
   spin1_callback_on( MC_PACKET_RECEIVED, incoming_spike_callback, -1 );
   spin1_callback_on( TIMER_TICK, timer_callback, 2 );
@@ -71,6 +62,10 @@ int c_main( void )
 
   // Load core map
   system_load_core_map( );
+
+  // Setup Timer2, initialise output loop
+  timer_register( SLOT_8 ); // TODO: Confirm this via testing / ST
+  timer_schedule_proc( outgoing_dimension_callback, 0, 0, us_per_output );
 
   // Setup timer tick, start
   spin1_set_timer_tick( dt );

@@ -1,5 +1,5 @@
 from pacman103.lib import graph
-from pacman103.lib import lib_dsg
+from pacman103.lib import data_spec_gen
 from pacman103.lib import lib_map
 from pacman103.front.common import enums
 import os
@@ -32,7 +32,7 @@ class ReceiveVertex( graph.Vertex ):
             dao.get_binaries_directory() + os.sep
             + 'nengo_rx.aplx', x, y, p)
  
-        spec = lib_dsg.DataSpec(processor, dao)
+        spec = data_spec_gen.DataSpec(processor, dao)
         spec.initialise(IDENTIFIER, dao)
         spec.comment('Nengo receiver')
 
