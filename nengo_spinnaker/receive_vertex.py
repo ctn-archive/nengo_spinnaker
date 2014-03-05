@@ -70,7 +70,7 @@ class ReceiveVertex( graph.Vertex ):
             This needs to be in the same format as that for the EnsembleVertex.
             """
             for d in range( e.postvertex.data.D_in ):
-                key = self.generate_routing_info( e.subedges[0] ) | (d)
+                key = self.generate_routing_info( e.subedges[0] )[0] | (d)
                 spec.write( data = key )
 
         spec.comment(
