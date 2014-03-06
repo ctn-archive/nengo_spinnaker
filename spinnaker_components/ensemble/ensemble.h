@@ -30,80 +30,92 @@
  * @{
  */
 
+#ifndef __ENSEMBLE_H__
+#define __ENSEMBLE_H__
+
 #include "spin1_api.h"
 #include "stdfix-full-iso.h"
-#include "ensemble-data.h"
 #include "common-typedefs.h"
 
-typedef accum value_t;
-typedef accum current_t;
-typedef accum voltage_t;
+#include "nengo_typedefs.h"
 
-/* Main and callbacks ********************************************************/
-int c_main( void );
-void timer_callback( uint arg0, uint arg1 );
-void incoming_spike_callback( uint key, uint payload );
-void outgoing_dimension_callback( uint index, uint arg1 );
+#include "ensemble-data.h"
+#include "ensemble-input.h"
+#include "ensemble-output.h"
 
-/* Initialisation functions **************************************************/
-void initialise_buffers( void );
+/* Parameters and Buffers ***************************************************/
+extern uint g_n_neurons;        //!< Number of neurons \f$N\f$
 
-/* Parameters ****************************************************************/
-extern uint n_input_dimensions;  //!< Number of input dimensions \f$D_{in}\f$
-extern uint n_output_dimensions; //!< Number of output dimensions \f$D_{out}\f$
-extern uint * output_keys;       //!< Output dimension keys \f$1 \times D_{out}\f$
-extern uint n_neurons;           //!< Number of neurons \f$N\f$
+extern uint g_dt;               //!< Machine time step  / useconds
+extern uint g_t_ref;            //!< Refractory period \f$\tau_{ref} - 1\f$ / steps
+extern value_t g_one_over_t_rc; //!< \f$\tau_{rc}^{-1}\f$
 
-extern uint us_per_output;       //!< Microsecond delay between transmitting
-                                 //   decoded output
+extern current_t * gp_i_bias;   //!< Population biases \f$1 \times N\f$
 
-extern uint dt;                  //!< Machine time step  / useconds
-extern uint t_ref;               //!< Refractory period \f$\tau_{ref} - 1\f$ / steps
-extern value_t one_over_t_rc;    //!< \f$\tau_{rc}^{-1}\f$
-extern value_t filter;           //!< Input decay factor
+extern accum * gp_encoders;     //!< Encoder values \f$N \times D_{in}\f$
+                                //  (including gains)
+extern accum * gp_decoders;     //!< Decoder values \f$N \times\sum D_{outs}\f$
+extern uint * gp_v_ref_voltage; //!< 4b refractory state, remainder voltages
 
-extern current_t * i_bias;       //!< Population biases \f$1 \times N\f$
+/* Functions ****************************************************************/
+/**
+ * \brief Initialise the ensemble.
+ */
+void initialise_ensemble(
+  uint n_neurons,           //!< Number of neurons
+  uint dt,                  //!< Machine timestep in microseconds
+  uint n_input_dimensions,  //!< Number of input dimensions
+  uint n_output_dimensions, //!< Number of output dimensions
+  uint t_ref,               //!< Refactory period in steps
+  value_t one_over_t_rc,    //!< one_over_t_rc
+  value_t filter            //!< filter
+);
 
-extern accum * encoders; //!< Encoder values \f$N \times D_{in}\f$ (including gains)
-extern accum * decoders; //!< Decoder values \f$N \times \sum D_{outs}\f$
-
-/* Buffers *******************************************************************/
-extern value_t * ibuf_accumulator; //!< Input buffers \f$1 \times D_{in}\f$
-extern value_t * ibuf_filtered;    //!< Filtered input buffers \f$1 \times D_{in}\f$
-extern uint * v_ref_voltage;       //!< 4b refractory state, remainder voltages
-extern value_t * output_values;    //!< Output buffers \f$1 \times D_{out}\f$
+/**
+ * \brief Filter input values, perform neuron update and transmit any output
+ *        packets.
+ * \param arg0 Unused parameter
+ * \param arg1 Unused parameter
+ *
+ * Neurons are then simulated using Euler's Method as in most implementations
+ * of the NEF.  When a neuron spikes it is immediately decoded and its
+ * contribution to the output of the Ensemble added to ::output_values.
+ */
+void ensemble_update( uint arg0, uint arg1 );
 
 /* Static inline access functions ********************************************/
 // -- Encoder(s) and decoder(s)
 //! Get the encoder value for the given neuron and dimension
 static inline accum neuron_encoder( uint n, uint d )
-  { return encoders[ n * n_input_dimensions + d ]; };
+  { return gp_encoders[ n * g_n_input_dimensions + d ]; };
 
 static inline accum neuron_decoder( uint n, uint d )
-  { return decoders[ n * n_output_dimensions + d ]; };
+  { return gp_decoders[ n * g_n_output_dimensions + d ]; };
 
 // -- Voltages and refractory periods
 //! Get the membrane voltage for the given neuron
 static inline voltage_t neuron_voltage( uint n )
-  { return kbits( v_ref_voltage[n] & 0x0fffffff ); };
+  { return kbits( gp_v_ref_voltage[n] & 0x0fffffff ); };
 
 //! Set the membrane voltage for the given neuron
 static inline void set_neuron_voltage( uint n, voltage_t v )
-  { v_ref_voltage[n] = (
-      ( v_ref_voltage[n] & 0xf0000000 )
+  { gp_v_ref_voltage[n] = (
+      ( gp_v_ref_voltage[n] & 0xf0000000 )
     | ( bitsk( v ) & 0x0fffffff ) );
   };
 
 //! Get the refractory status of a given neuron
 static inline uint neuron_refractory( uint n )
-  { return ( v_ref_voltage[n] & 0xf0000000 ) >> 28; };
+  { return ( gp_v_ref_voltage[n] & 0xf0000000 ) >> 28; };
 
 //! Put the given neuron in a refractory state (zero voltage, set timer)
 static inline void set_neuron_refractory( uint n )
-  { v_ref_voltage[n] = t_ref; };
+  { gp_v_ref_voltage[n] = g_t_ref; };
 
 //! Decrement the refractory time for the given neuron
 static inline void decrement_neuron_refractory( uint n )
-  { v_ref_voltage[n] -= 0x10000000; };
+  { gp_v_ref_voltage[n] -= 0x10000000; };
 
-/** @}*/
+#endif
+
+/** @} */
