@@ -22,6 +22,6 @@ sim = nengo_spinnaker.Simulator(model)
 
 sim.builder.print_connections()
 #sim = nengo.Simulator(model)
-#sim.run(0.1)
+sim.run(10)
 
 

@@ -12,7 +12,26 @@ from . import input_edge
 
 from . import builder
 
+import numpy as np
+import time as pytime
+import socket
+import struct
 
+class NodeRunner:
+    def __init__(self, node_data, dt=0.001):
+        self.node = node_data.node
+        self.filter = node_data.filters[0]
+        if self.filter is None:
+            self.decay = 0
+        else:
+            self.decay = np.exp(-dt/self.filter)
+        self.value = np.zeros(self.node.size_in)
+    def handle_input(self, t, key, value):
+        self.value[key]= self.value[key]*self.decay + value*(1-self.decay)
+        if key == self.node.size_in - 1:
+            self.node.output(t, self.value)
+            
+            
 class Simulator:
     def __init__(self, model, dt=0.001, seed=None):
         self.builder = builder.Builder(model, dt=dt, seed=seed)
@@ -24,7 +43,30 @@ class Simulator:
         
         
     def run(self, time):
-        pass    
+        
+        # build a map from SDP keys to nodes
+        node_inputs = {}
+        for edge in self.tx_edges:
+            for i in range(edge.conn.post.node.size_in):
+                node_inputs[edge.key + i] = (edge.conn.post, i)
+
+
+        port = 17899
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.bind(('', port))
+        start = pytime.time()
+        t = 0
+        while t<time:
+            data, addr = s.recvfrom(512)
+            t = pytime.time() - start
+            key, value = struct.unpack('<Ii', data[14:22])            
+            value = value/(65536.0)
+            if key in node_inputs:
+                #print key, value, node_inputs.keys()
+                node, index = node_inputs[key]
+                self.node_runners[node].handle_input(t, index, value)
+            
+    
         
     def make_pacman_vertices(self):
     
@@ -33,9 +75,15 @@ class Simulator:
             ens.vertex = ensemble_vertex.EnsembleVertex(ens)
             self.dao.add_vertex(ens.vertex)
         
+        self.node_runners = {}
+        for node in self.builder.nodes.values():
+            self.node_runners[node] = NodeRunner(node)
+            
+        
         # make a Tx
         self.tx_vertex = transmit_vertex.TransmitVertex()
         self.dao.add_vertex(self.tx_vertex)
+        self.tx_edges = []
         
         # make a Rx
         self.rx_vertex = receive_vertex.ReceiveVertex()
@@ -46,7 +94,10 @@ class Simulator:
         for c in self.builder.conn_e2e:
             self.dao.add_edge(decoder_edge.DecoderEdge(c, c.pre.vertex, c.post.vertex))
         for c in self.builder.conn_e2n:
-            self.dao.add_edge(decoder_edge.DecoderEdge(c, c.pre.vertex, self.tx_vertex))
+            edge = decoder_edge.DecoderEdge(c, c.pre.vertex, self.tx_vertex)
+            self.dao.add_edge(edge)
+            self.tx_edges.append(edge)
+
         for c in self.builder.conn_n2e:
             """If the Node is a constant, then don't bother adding this edge.
             Instead, add the value of the Node to the constant_input of the
