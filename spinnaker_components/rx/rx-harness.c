@@ -22,42 +22,28 @@ United Kingdom                      Canada
 
 *****************************************************************************/
 
-#include "dimension_source.h"
-
-uint key;
-
-void copy_in_system_region( address_t addr ){
-  key = (uint) addr[0];
-  io_printf( IO_STD, "Rx Key 0x%08x\n", key );
-}
+#include "rx.h"
 
 int c_main( void )
 {
   // Read in values
   address_t address = system_load_sram();
-  copy_in_system_region( region_start( 1, address ) );
+  copy_in_system_region ( region_start( 1, address ) );
+  copy_in_keys          ( region_start( 2, address ) );
+  copy_in_initial_values( region_start( 3, address ) );
 
   // Routing and core map
   if( leadAp ){
-    io_printf( IO_STD, "TX leadAp = 0x%02x\n", leadAp );
     system_lead_app_configured();
   }
 
   system_load_core_map();
 
-  // Enable the timer tick callback
-  spin1_set_timer_tick( 1000 ); // Timer tick / us
+  // Enable callbacks
+  spin1_set_timer_tick( ticks_per_output );
   spin1_callback_on( TIMER_TICK, timer_callback, 0 );
+  spin1_callback_on( SDP_PACKET_RX, sdp_packet_received, -2 );
 
   // Go!
   spin1_start( );
-}
-
-void timer_callback( uint simulation_time, uint none )
-{
-  // Set some predefined values per dimension
-  accum val = 0.5;
-  spin1_send_mc_packet( key | 0x0, bitsk( val ), WITH_PAYLOAD );
-  spin1_send_mc_packet( key | 0x1, bitsk( val ), WITH_PAYLOAD );
-  spin1_send_mc_packet( key | 0x2, bitsk( val ), WITH_PAYLOAD );
 }
