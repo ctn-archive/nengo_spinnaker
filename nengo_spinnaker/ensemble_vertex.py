@@ -126,6 +126,8 @@ class EnsembleVertex( graph.Vertex ):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (subedge.edge.index << 6)
+
+        subedge.edge.add_tx_key(key)
         
         mask = 0xFFFFFFE0
         
