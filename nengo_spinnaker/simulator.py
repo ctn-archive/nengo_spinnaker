@@ -51,8 +51,9 @@ class Simulator:
             """If the Node is a constant, then don't bother adding this edge.
             Instead, add the value of the Node to the constant_input of the
             receiving ensemble."""
-            if isinstance( c.pre.node.output, np.ndarray ):
-                c.post.constant_input += c.pre.node.output
+            if ( c.pre.node.output is not None
+                and not callable( c.pre.node.output ) ):
+                c.post.constant_input += np.asarray( c.pre.node.output )
             else:
                 self.dao.add_edge(
                     input_edge.InputEdge(self.rx_vertex, c.post.vertex)
