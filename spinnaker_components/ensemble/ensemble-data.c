@@ -19,6 +19,7 @@ bool data_system( address_t addr ) {
   initialise_ensemble(
     (region_system_t *) addr
   );
+  return true;
 }
 
 bool data_get_bias(
