@@ -53,6 +53,8 @@ static inline filtered_input_buffer_t* input_buffer_initialise( uint d_in ) {
   // Initialise the buffer accumulator and values
   buffer->accumulator = spin1_malloc( sizeof( accum ) * d_in );
   buffer->filtered = spin1_malloc( sizeof( accum ) * d_in );
+
+  return buffer;
 }
 
 //! Filter an input buffer and zero the accumulator
