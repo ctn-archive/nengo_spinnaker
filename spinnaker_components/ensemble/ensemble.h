@@ -43,6 +43,30 @@
 #include "ensemble-input.h"
 #include "ensemble-output.h"
 
+/* Structs ******************************************************************/
+/** \brief Persistent neuron variables.
+  */
+typedef struct neuron_status {
+  unsigned char refractory_status : 4;  //!< 4 bits of refractory state
+  unsigned int  voltage : 28;           //!< 28 bits stored voltage
+} neuron_status_t;
+
+/** \brief Shared ensemble parameters.
+  */
+typedef struct ensemble_parameters {
+  uint n_neurons;          //!< Number of neurons \f$N\f$
+  uint machine_timestep;   //!< Machine time step  / useconds
+
+  uint t_ref;              //!< Refractory period \f$\tau_{ref} - 1\f$ / steps
+  value_t one_over_t_rc;   //!< \f$\tau_{rc}^{-1}\f$
+
+  current_t *i_bias;        //!< Population biases \f$1 \times N\f$
+  neuron_status_t *status;  //!< Neuron status
+
+  value_t *encoders;        //!< Encoder values \f$N \times D_{in}\f$ (including gains)
+  value_t *decoders;        //!< Decoder values \f$N \times\sum D_{outs}\f$
+} ensemble_parameters_t;
+ 
 /* Parameters and Buffers ***************************************************/
 extern uint g_n_neurons;        //!< Number of neurons \f$N\f$
 
