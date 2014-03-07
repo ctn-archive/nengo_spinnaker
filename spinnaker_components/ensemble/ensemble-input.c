@@ -20,7 +20,7 @@
 uint g_n_input_dimensions;
 filtered_input_buffer_t *gfib_input;
 
-value_t* initialise_input( uint n, region_system_t *pars ){
+value_t* initialise_input( region_system_t *pars ){
   // Value preparation
   g_n_input_dimensions = pars->n_input_dimensions;
 
