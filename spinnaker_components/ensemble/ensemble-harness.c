@@ -43,10 +43,10 @@ void initialise_ensemble(
 
   // Initialise some buffers
   g_ensemble.encoders = spin1_malloc(
-    g_ensemble.n_neurons * pars->n_input_dimensions * sizeof( accum )
+    g_ensemble.n_neurons * pars->n_input_dimensions * sizeof( value_t )
   );
   g_ensemble.decoders = spin1_malloc(
-    g_ensemble.n_neurons * pars->n_output_dimensions * sizeof( accum )
+    g_ensemble.n_neurons * pars->n_output_dimensions * sizeof( value_t )
   );
 
   // Setup subcomponents

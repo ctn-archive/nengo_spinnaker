@@ -97,10 +97,10 @@ void ensemble_update( uint arg0, uint arg1 );
 /* Static inline access functions ********************************************/
 // -- Encoder(s) and decoder(s)
 //! Get the encoder value for the given neuron and dimension
-static inline accum neuron_encoder( uint n, uint d )
+static inline value_t neuron_encoder( uint n, uint d )
   { return g_ensemble.encoders[ n * g_n_input_dimensions + d ]; };
 
-static inline accum neuron_decoder( uint n, uint d )
+static inline value_t neuron_decoder( uint n, uint d )
   { return g_ensemble.decoders[ n * g_n_output_dimensions + d ]; };
 
 // -- Voltages and refractory periods

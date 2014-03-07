@@ -28,6 +28,7 @@ United Kingdom                      Canada
 #ifndef __DIMENSIONAL_IO_H__
 #define __DIMENSIONAL_IO_H__
 
+#include "nengo_typedefs.h"
 #include "common-typedefs.h"
 #include "spin1_api.h"
 
@@ -35,11 +36,11 @@ typedef struct filtered_input_buffer {
   //! Represents a filtered input buffer
   uint d_in;            //!< Number of input dimensions, D_in
 
-  accum *accumulator; //!< Accumulates input values, a 1xD_in matrix
-  accum *filtered;    //!< Holds the filtered value, a 1xD_in matrix
+  value_t *accumulator; //!< Accumulates input values, a 1xD_in matrix
+  value_t *filtered;    //!< Holds the filtered value, a 1xD_in matrix
 
-  accum filter;       //!< Filter value, e.g., \f$\exp(-\frac{dt}{\tau})\f$
-  accum n_filter;     //!< 1 - filter value
+  value_t filter;       //!< Filter value, e.g., \f$\exp(-\frac{dt}{\tau})\f$
+  value_t n_filter;     //!< 1 - filter value
 } filtered_input_buffer_t;
 
 //! Create and initialise an input buffer, and zero the accumulator
@@ -51,8 +52,8 @@ static inline filtered_input_buffer_t* input_buffer_initialise( uint d_in ) {
   buffer->d_in = d_in;
 
   // Initialise the buffer accumulator and values
-  buffer->accumulator = spin1_malloc( sizeof( accum ) * d_in );
-  buffer->filtered = spin1_malloc( sizeof( accum ) * d_in );
+  buffer->accumulator = spin1_malloc( sizeof( value_t ) * d_in );
+  buffer->filtered = spin1_malloc( sizeof( value_t ) * d_in );
 
   return buffer;
 }

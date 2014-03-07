@@ -27,7 +27,7 @@ bool data_get_bias(
   uint n_neurons
 ){
   spin1_memcpy( g_ensemble.i_bias, addr,
-    n_neurons * sizeof( accum ) );
+    n_neurons * sizeof( current_t ) );
   return true;
 }
 
@@ -37,7 +37,7 @@ bool data_get_encoders(
   uint n_input_dimensions
 ){
   spin1_memcpy( g_ensemble.encoders, addr,
-    n_neurons * n_input_dimensions * sizeof( accum ) );
+    n_neurons * n_input_dimensions * sizeof( value_t ) );
   return true;
 }
 
@@ -47,7 +47,7 @@ bool data_get_decoders(
   uint n_output_dimensions
 ){
   spin1_memcpy( g_ensemble.decoders, addr,
-    n_neurons * n_output_dimensions * sizeof( accum ) );
+    n_neurons * n_output_dimensions * sizeof( value_t ) );
   return true;
 }
 
