@@ -50,6 +50,8 @@ void initialise_ensemble(
   );
 
   // Setup subcomponents
-  initialise_input( pars->n_input_dimensions, pars );
-  initialise_output( pars->n_output_dimensions, pars->filter );
+  g_ensemble.input =
+    initialise_input( pars->n_input_dimensions, pars );
+  g_ensemble.output =
+    initialise_output( pars->n_output_dimensions, pars->filter );
 }

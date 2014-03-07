@@ -20,7 +20,7 @@
 uint g_n_input_dimensions;
 filtered_input_buffer_t *gfib_input;
 
-void initialise_input( uint n, region_system_t *pars ){
+value_t* initialise_input( uint n, region_system_t *pars ){
   // Value preparation
   g_n_input_dimensions = pars->n_input_dimensions;
 
@@ -33,6 +33,9 @@ void initialise_input( uint n, region_system_t *pars ){
   spin1_callback_on(
     MC_PACKET_RECEIVED, incoming_dimension_value_callback, -1
   );
+
+  // Return the input (to the encoders) buffer
+  return gfib_input->filtered;
 }
 
 // Incoming spike callback

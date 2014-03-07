@@ -36,7 +36,7 @@ extern uint g_us_per_output;       //!< Microsecond delay between transmitting
  * \param n_dims Number of output dimensions, \f$D_{out}\f$
  * \param dt Machine timestep in microseconds
  */
-void initialise_output( uint n_dims, uint dt );
+value_t* initialise_output( uint n_dims, uint dt );
 
 /**
  * \brief Transmit the value associated with one dimension.

@@ -34,7 +34,7 @@ void ensemble_update( uint arg0, uint arg1 )
 
     // Encode the input and add to the membrane current
     for( uchar d = 0; d < g_n_input_dimensions; d++ ) {
-      i_membrane += neuron_encoder(n, d) * gfib_input->filtered[d];
+      i_membrane += neuron_encoder(n, d) * g_ensemble.input[d];
     }
 
     v_voltage = neuron_voltage(n);
@@ -62,7 +62,7 @@ void ensemble_update( uint arg0, uint arg1 )
       // Update the output values
       for( uint d = 0; d < g_n_output_dimensions; d++ ) {
         //io_printf( IO_STD, "%d spike: %d: %08x\n", n, d, neuron_decoder(n, d));
-        gp_output_values[d] += neuron_decoder( n, d );
+        g_ensemble.output[d] += neuron_decoder( n, d );
       }
     }
   }

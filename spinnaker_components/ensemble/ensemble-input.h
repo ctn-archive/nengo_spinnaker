@@ -34,7 +34,7 @@ extern filtered_input_buffer_t *gfib_input;  //!< Input buffer
  * \param n Number of input dimensions \f$D_{in}\f$
  * \param pars Formatted system region
  */
-void initialise_input( uint n, region_system_t *pars );
+value_t* initialise_input( uint n, region_system_t *pars );
 
 /**
  * \brief Handle an incoming dimensional value.

@@ -21,7 +21,7 @@ uint g_n_output_dimensions, *gp_output_keys, g_us_per_output;
 value_t * gp_output_values;
 
 // Initialise everything necessary for the output system
-void initialise_output( uint n_dims, uint dt ) {
+value_t* initialise_output( uint n_dims, uint dt ) {
   // Store globals, initialise arrays
   g_n_output_dimensions = n_dims;
   gp_output_values = spin1_malloc( n_dims * sizeof( value_t ) );
@@ -33,6 +33,9 @@ void initialise_output( uint n_dims, uint dt ) {
   // Setup Timer2, initialise output loop
   timer_register( SLOT_8 );
   timer_schedule_proc( outgoing_dimension_callback, 0, 0, g_us_per_output );
+
+  // Return the output buffer
+  return gp_output_values;
 }
 
 // Transmit a dimension

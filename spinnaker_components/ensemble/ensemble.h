@@ -66,6 +66,9 @@ typedef struct ensemble_parameters {
 
   value_t *encoders;        //!< Encoder values \f$N \times D_{in}\f$ (including gains)
   value_t *decoders;        //!< Decoder values \f$N \times\sum D_{outs}\f$
+
+  value_t *input;           //!< Input buffer
+  value_t *output;          //!< Output buffer
 } ensemble_parameters_t;
 
 /* Parameters and Buffers ***************************************************/
