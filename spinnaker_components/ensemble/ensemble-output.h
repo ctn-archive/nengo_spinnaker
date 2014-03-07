@@ -33,10 +33,9 @@ extern uint g_us_per_output;       //!< Microsecond delay between transmitting
 /* Functions *****************************************************************/
 /**
  * \brief Initialise the output system.
- * \param n_dims Number of output dimensions, \f$D_{out}\f$
- * \param dt Machine timestep in microseconds
+ * \param pars System region
  */
-value_t* initialise_output( uint n_dims, uint dt );
+value_t* initialise_output( region_system_t *pars );
 
 /**
  * \brief Transmit the value associated with one dimension.

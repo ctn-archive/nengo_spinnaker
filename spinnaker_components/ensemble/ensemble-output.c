@@ -21,14 +21,18 @@ uint g_n_output_dimensions, *gp_output_keys, g_us_per_output;
 value_t * gp_output_values;
 
 // Initialise everything necessary for the output system
-value_t* initialise_output( uint n_dims, uint dt ) {
+value_t* initialise_output( region_system_t *pars ){
   // Store globals, initialise arrays
-  g_n_output_dimensions = n_dims;
-  gp_output_values = spin1_malloc( n_dims * sizeof( value_t ) );
-  gp_output_keys   = spin1_malloc( n_dims * sizeof( uint ) );
+  g_n_output_dimensions = pars->n_output_dimensions;
+  gp_output_values = spin1_malloc(
+    pars->n_output_dimensions * sizeof( value_t )
+  );
+  gp_output_keys = spin1_malloc(
+    pars->n_output_dimensions * sizeof( uint )
+  );
 
   // Calculate the number of microseconds between transmitting output packets
-  g_us_per_output = dt / n_dims;
+  g_us_per_output = pars->machine_timestep / pars->n_output_dimensions;
 
   // Setup Timer2, initialise output loop
   timer_register( SLOT_8 );
