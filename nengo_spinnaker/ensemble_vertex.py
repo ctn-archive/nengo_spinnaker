@@ -45,16 +45,13 @@ class EnsembleVertex( graph.Vertex ):
         executableTarget = lib_map.ExecutableTarget(
             dao.get_binaries_directory() + os.sep
             + 'nengo_ensemble.aplx', x, y, p)
-            
         
-        N = subvertex.n_neurons
-            
         # size is measured in bytes    
         spec.reserveMemRegion(REGIONS.SYSTEM, size=7*4)   
-        spec.reserveMemRegion(REGIONS.BIAS, size=N*4)  
-        spec.reserveMemRegion(REGIONS.ENCODERS, size=N*self.data.D_in*4)  
-        spec.reserveMemRegion(REGIONS.DECODERS, size=N*self.data.D_out*4)  
-        spec.reserveMemRegion(REGIONS.DECODER_KEYS, size=self.data.D_out*4)  
+        spec.reserveMemRegion(REGIONS.BIAS, size=subvertex.n_neurons*4)
+        spec.reserveMemRegion(REGIONS.ENCODERS, size=subvertex.n_neurons*self.data.D_in*4)
+        spec.reserveMemRegion(REGIONS.DECODERS, size=subvertex.n_neurons*self.data.D_out*4)
+        spec.reserveMemRegion(REGIONS.DECODER_KEYS, size=self.data.D_out*4)
         
         
         #TODO: adjust time resolution of sim
@@ -63,7 +60,7 @@ class EnsembleVertex( graph.Vertex ):
         spec.switchWriteFocus(REGIONS.SYSTEM)
         spec.write(data=self.data.D_in)
         spec.write(data=self.data.D_out)
-        spec.write(data=N)
+        spec.write(data=subvertex.n_neurons)
         spec.write(data=int(dt*(10**6)))   # dt in us
         spec.write(data=int(round(self.data.tau_ref/0.001)))   # tau_ref in steps   
         
@@ -91,11 +88,11 @@ class EnsembleVertex( graph.Vertex ):
         self.data.bias += additional_bias
 
         # Write the bias currents
-        for i in range(N):
+        for i in range( subvertex.lo_atom, subvertex.hi_atom ):
             spec.write(data=uint(parameters.S1615(self.data.bias[i]).converted))
         
         spec.switchWriteFocus(REGIONS.ENCODERS)
-        for i in range(N):
+        for i in range( subvertex.lo_atom, subvertex.hi_atom ):
             for j in range(self.data.D_in):
                 spec.write(data=uint(parameters.S1615( 
                                     self.data.encoders[i,j] * self.data.gain[i]
@@ -103,7 +100,7 @@ class EnsembleVertex( graph.Vertex ):
             
         decoders = self.data.get_merged_decoders()    
         spec.switchWriteFocus(REGIONS.DECODERS)
-        for i in range(N):
+        for i in range( subvertex.lo_atom, subvertex.hi_atom ):
             for j in range(self.data.D_out):
                 spec.write(data=uint(parameters.S1615(decoders[i,j]/dt).converted))
             
