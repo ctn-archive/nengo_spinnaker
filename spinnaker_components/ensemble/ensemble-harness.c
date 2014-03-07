@@ -32,9 +32,9 @@ void initialise_ensemble(
     g_ensemble.n_neurons * sizeof( current_t )
   );
 
-  // Holder for refactory period and voltages
+  // Holder for refractory period and voltages
   g_ensemble.status = spin1_malloc(
-    g_ensemble.n_neurons * sizeof( uint )
+    g_ensemble.n_neurons * sizeof( neuron_status_t )
   );
   for( uint n = 0; n < g_ensemble.n_neurons; n++ ){
     g_ensemble.status[n].refractory_time = 0;
