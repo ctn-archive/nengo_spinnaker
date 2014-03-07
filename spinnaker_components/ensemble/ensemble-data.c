@@ -17,13 +17,7 @@
 
 bool data_system( address_t addr ) {
   initialise_ensemble(
-    addr[2],
-    addr[3],
-    addr[0],
-    addr[1],
-    addr[4],
-    kbits( addr[5] ),
-    kbits( addr[6] )
+    (region_system_t *) addr
   );
 }
 

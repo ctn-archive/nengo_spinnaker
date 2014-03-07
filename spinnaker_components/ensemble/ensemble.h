@@ -75,13 +75,7 @@ extern ensemble_parameters_t g_ensemble;  //!< Global parameters
  * \brief Initialise the ensemble.
  */
 void initialise_ensemble(
-  uint n_neurons,           //!< Number of neurons
-  uint dt,                  //!< Machine timestep in microseconds
-  uint n_input_dimensions,  //!< Number of input dimensions
-  uint n_output_dimensions, //!< Number of output dimensions
-  uint t_ref,               //!< Refactory period in steps
-  value_t one_over_t_rc,    //!< one_over_t_rc
-  value_t filter            //!< filter
+  region_system_t *pars  //!< Pointer to formatted system region
 );
 
 /**
