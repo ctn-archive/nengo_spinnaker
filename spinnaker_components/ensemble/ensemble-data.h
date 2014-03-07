@@ -30,6 +30,7 @@ typedef struct region_system {
   uint t_ref;
   value_t one_over_t_rc;
   value_t filter;
+  value_t filter_complement;
 } region_system_t;
 
 /**

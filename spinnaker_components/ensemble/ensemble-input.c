@@ -18,15 +18,16 @@
 
 // Globals
 uint g_n_input_dimensions;
-value_t *gp_ibuf_accumulator, *gp_ibuf_filtered, g_filter;
+filtered_input_buffer_t *gfib_input;
 
-void initialise_input( uint n, value_t f ) {
+void initialise_input( uint n, region_system_t *pars ){
   // Value preparation
-  g_n_input_dimensions = n;
+  g_n_input_dimensions = pars->n_input_dimensions;
 
   // Buffer initialisation
-  gp_ibuf_accumulator = spin1_malloc( n * sizeof( value_t ) );
-  gp_ibuf_filtered = spin1_malloc( n * sizeof( value_t ) );
+  gfib_input = input_buffer_initialise( pars->n_input_dimensions );
+  gfib_input->filter = pars->filter;
+  gfib_input->n_filter = pars->filter_complement;
 
   // Set up the multicast callback
   spin1_callback_on(
@@ -38,5 +39,5 @@ void initialise_input( uint n, value_t f ) {
 void incoming_dimension_value_callback( uint key, uint payload )
 {
   uint dimension = key & 0x0000000f;
-  gp_ibuf_accumulator[ dimension ] += kbits( payload );
+  gfib_input->accumulator[ dimension ] += kbits( payload );
 }

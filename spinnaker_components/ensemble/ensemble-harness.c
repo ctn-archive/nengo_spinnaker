@@ -50,6 +50,6 @@ void initialise_ensemble(
   );
 
   // Setup subcomponents
-  initialise_input( pars->n_input_dimensions, pars->machine_timestep );
+  initialise_input( pars->n_input_dimensions, pars );
   initialise_output( pars->n_output_dimensions, pars->filter );
 }

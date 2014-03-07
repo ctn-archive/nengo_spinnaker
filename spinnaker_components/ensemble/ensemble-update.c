@@ -34,7 +34,7 @@ void ensemble_update( uint arg0, uint arg1 )
 
     // Encode the input and add to the membrane current
     for( uchar d = 0; d < g_n_input_dimensions; d++ ) {
-      i_membrane += neuron_encoder(n, d) * gp_ibuf_filtered[d];
+      i_membrane += neuron_encoder(n, d) * gfib_input->filtered[d];
     }
 
     v_voltage = neuron_voltage(n);

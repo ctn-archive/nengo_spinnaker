@@ -23,21 +23,18 @@
 #define __ENSEMBLE_INPUT_H__
 
 /* Buffers and parameters ****************************************************/
-extern uint g_n_input_dimensions;    //!< Number of input dimensions \f$D_{in}\f$
-
-extern value_t * gp_ibuf_accumulator;//!< Input buffers \f$1 \times D_{in}\f$
-extern value_t * gp_ibuf_filtered;   //!< Filtered input buffers \f$1 \times D_{in}\f$
-
-extern value_t g_filter;             //!< Input decay factor
+extern uint g_n_input_dimensions;            //!< Number of input dimensions
+                                             //   \f$D_{in}\f$
+extern filtered_input_buffer_t *gfib_input;  //!< Input buffer
 
 /* Functions *****************************************************************/
 
 /**
  * \brief Initialise the input system
  * \param n Number of input dimensions \f$D_{in}\f$
- * \param f Value of the input filter
+ * \param pars Formatted system region
  */
-void initialise_input( uint n, value_t f );
+void initialise_input( uint n, region_system_t *pars );
 
 /**
  * \brief Handle an incoming dimensional value.
@@ -57,13 +54,7 @@ void incoming_dimension_value_callback( uint key, uint payload );
  * Filter the inputs and set the accumulators to zero.
  */
 static inline void input_filter_step( void ) {
-  for( uint d = 0; d < g_n_input_dimensions; d++ ) {
-    gp_ibuf_filtered[d] *= g_filter;
-    gp_ibuf_filtered[d] += gp_ibuf_accumulator[d] *
-      ( (value_t) 1.0k - g_filter );
-
-    gp_ibuf_accumulator[d] = 0x00000000;
-  }
+  input_buffer_step( gfib_input );
 }
 
 #endif

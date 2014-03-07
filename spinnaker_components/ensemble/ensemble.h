@@ -38,6 +38,7 @@
 #include "common-typedefs.h"
 
 #include "nengo_typedefs.h"
+#include "dimensional-io.h"
 
 #include "ensemble-data.h"
 #include "ensemble-input.h"
