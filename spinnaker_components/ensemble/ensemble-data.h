@@ -49,20 +49,24 @@ typedef struct region_system {
 * Filter decay constant | | ```accum``` | ::filter
 */
 bool data_system( address_t addr );
+
 bool data_get_bias(
   address_t addr,
   uint n_neurons
 );
+
 bool data_get_encoders(
   address_t addr,
   uint n_neurons,
   uint n_input_dimensions
 );
+
 bool data_get_decoders(
   address_t addr,
   uint n_neurons,
   uint n_output_dimensions
 );
+
 bool data_get_keys(
   address_t addr,
   uint n_output_dimensions
