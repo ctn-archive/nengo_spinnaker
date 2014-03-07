@@ -15,14 +15,7 @@
 #include "ensemble.h"
 
 /* Parameters and Buffers ***************************************************/
-uint g_n_neurons;        
-uint g_dt;               
-uint g_t_ref;            
-value_t g_one_over_t_rc; 
-current_t * gp_i_bias;   
-accum * gp_encoders;     
-accum * gp_decoders;     
-uint * gp_v_ref_voltage; 
+ensemble_parameters_t g_ensemble;
 
 /* Initialisation ***********************************************************/
 void initialise_ensemble(
@@ -35,30 +28,31 @@ void initialise_ensemble(
   value_t filter
 ) {
   // Save constants
-  g_n_neurons = n_neurons;
-  g_dt = dt;
-  g_t_ref = t_ref;
-  g_one_over_t_rc = one_over_t_rc;
+  g_ensemble.n_neurons = n_neurons;
+  g_ensemble.machine_timestep = dt;
+  g_ensemble.t_ref = t_ref;
+  g_ensemble.one_over_t_rc = one_over_t_rc;
 
   // Holder for bias currents
-  gp_i_bias = spin1_malloc(
-    g_n_neurons * sizeof( current_t )
+  g_ensemble.i_bias = spin1_malloc(
+    g_ensemble.n_neurons * sizeof( current_t )
   );
 
   // Holder for refactory period and voltages
-  gp_v_ref_voltage = spin1_malloc(
-    g_n_neurons * sizeof( uint )
+  g_ensemble.status = spin1_malloc(
+    g_ensemble.n_neurons * sizeof( uint )
   );
-  for( uint n = 0; n < g_n_neurons; n++ ){
-    gp_v_ref_voltage[n] = 0;
+  for( uint n = 0; n < g_ensemble.n_neurons; n++ ){
+    g_ensemble.status[n].refractory_time = 0;
+    g_ensemble.status[n].voltage = 0;
   }
 
   // Initialise some buffers
-  gp_encoders = spin1_malloc(
-    g_n_neurons * n_input_dimensions * sizeof( accum )
+  g_ensemble.encoders = spin1_malloc(
+    g_ensemble.n_neurons * n_input_dimensions * sizeof( accum )
   );
-  gp_decoders = spin1_malloc(
-    g_n_neurons * n_output_dimensions * sizeof( accum )
+  g_ensemble.decoders = spin1_malloc(
+    g_ensemble.n_neurons * n_output_dimensions * sizeof( accum )
   );
 
   // Setup subcomponents

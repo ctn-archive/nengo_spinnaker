@@ -21,7 +21,7 @@ bool data_system( address_t addr ) {
     addr[3],
     addr[0],
     addr[1],
-    addr[4] << 28,
+    addr[4],
     kbits( addr[5] ),
     kbits( addr[6] )
   );
@@ -31,7 +31,7 @@ bool data_get_bias(
   address_t addr,
   uint n_neurons
 ){
-  spin1_memcpy( gp_i_bias, addr,
+  spin1_memcpy( g_ensemble.i_bias, addr,
     n_neurons * sizeof( accum ) );
   return true;
 }
@@ -41,7 +41,7 @@ bool data_get_encoders(
   uint n_neurons,
   uint n_input_dimensions
 ){
-  spin1_memcpy( gp_encoders, addr,
+  spin1_memcpy( g_ensemble.encoders, addr,
     n_neurons * n_input_dimensions * sizeof( accum ) );
   return true;
 }
@@ -51,7 +51,7 @@ bool data_get_decoders(
   uint n_neurons,
   uint n_output_dimensions
 ){
-  spin1_memcpy( gp_i_bias, addr,
+  spin1_memcpy( g_ensemble.decoders, addr,
     n_neurons * n_output_dimensions * sizeof( accum ) );
   return true;
 }
@@ -60,7 +60,7 @@ bool data_get_keys(
   address_t addr,
   uint n_output_dimensions
 ){
-  spin1_memcpy( gp_i_bias, addr,
+  spin1_memcpy( gp_output_keys, addr,
     n_output_dimensions * sizeof( uint ) );
   return true;
 }

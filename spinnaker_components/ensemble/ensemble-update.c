@@ -22,7 +22,7 @@ void ensemble_update( uint arg0, uint arg1 )
   input_filter_step( );
 
   // Perform neuron updates
-  for( uint n = 0; n < g_n_neurons; n++ ) {
+  for( uint n = 0; n < g_ensemble.n_neurons; n++ ) {
     // If this neuron is refractory then skip any further processing
     if( neuron_refractory( n ) != 0 ) {
       decrement_neuron_refractory( n );
@@ -30,7 +30,7 @@ void ensemble_update( uint arg0, uint arg1 )
     }
 
     // Include neuron bias
-    i_membrane = gp_i_bias[n];
+    i_membrane = g_ensemble.i_bias[n];
 
     // Encode the input and add to the membrane current
     for( uchar d = 0; d < g_n_input_dimensions; d++ ) {
@@ -38,7 +38,7 @@ void ensemble_update( uint arg0, uint arg1 )
     }
 
     v_voltage = neuron_voltage(n);
-    v_delta = ( i_membrane - v_voltage ) * g_one_over_t_rc;
+    v_delta = ( i_membrane - v_voltage ) * g_ensemble.one_over_t_rc;
     /* io_printf( IO_STD, "dt = %k, J = %k, V = %k, dV = %k\n",
                   dt, i_membrane, v_voltage, v_delta );
     */
