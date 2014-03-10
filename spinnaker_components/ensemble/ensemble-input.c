@@ -21,8 +21,13 @@ uint g_n_input_dimensions;
 filtered_input_buffer_t *gfib_input;
 
 value_t* initialise_input( region_system_t *pars ){
+  io_printf( IO_BUF, "[Ensemble] INITIALISE_INPUT\n" );
   // Value preparation
   g_n_input_dimensions = pars->n_input_dimensions;
+
+  io_printf( IO_BUF, "[Ensemble] n_input_dimensions = %d\n",
+    g_n_input_dimensions
+  );
 
   // Buffer initialisation
   gfib_input = input_buffer_initialise( pars->n_input_dimensions );

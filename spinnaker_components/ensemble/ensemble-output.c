@@ -22,6 +22,7 @@ value_t * gp_output_values;
 
 // Initialise everything necessary for the output system
 value_t* initialise_output( region_system_t *pars ){
+  io_printf( IO_BUF, "[Ensemble] INITIALISE_OUTPUT.\n" );
   // Store globals, initialise arrays
   g_n_output_dimensions = pars->n_output_dimensions;
   gp_output_values = spin1_malloc(
@@ -29,6 +30,10 @@ value_t* initialise_output( region_system_t *pars ){
   );
   gp_output_keys = spin1_malloc(
     pars->n_output_dimensions * sizeof( uint )
+  );
+
+  io_printf( IO_BUF, "[Ensemble] n_output_dimensions = %d\n",
+    g_n_output_dimensions
   );
 
   // Calculate the number of microseconds between transmitting output packets

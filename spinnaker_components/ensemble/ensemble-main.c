@@ -2,6 +2,7 @@
 
 void c_main( void ) {
   // Set the system up
+  io_printf( IO_BUF, "[Ensemble] C_MAIN\n" );
   address_t address = system_load_sram();
   data_system       ( region_start( 1, address ) );
   data_get_bias     ( region_start( 2, address ), g_ensemble.n_neurons );
@@ -10,6 +11,7 @@ void c_main( void ) {
   data_get_keys     ( region_start( 5, address ), g_n_output_dimensions );
 
   // Set up routing tables
+  io_printf( IO_BUF, "[Ensemble] C_MAIN Configuring system.\n" );
   if( leadAp ){
     system_lead_app_configured( );
   }
@@ -18,6 +20,7 @@ void c_main( void ) {
   system_load_core_map( );
 
   // Setup timer tick, start
+  io_printf( IO_BUF, "[Ensemble] C_MAIN Set timer and spin1_start.\n" );
   spin1_set_timer_tick( g_ensemble.machine_timestep );
   spin1_start( );
 }
