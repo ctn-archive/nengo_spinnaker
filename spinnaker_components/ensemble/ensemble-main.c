@@ -6,9 +6,12 @@ void c_main( void ) {
   address_t address = system_load_sram();
   data_system       ( region_start( 1, address ) );
   data_get_bias     ( region_start( 2, address ), g_ensemble.n_neurons );
-  data_get_encoders ( region_start( 3, address ), g_ensemble.n_neurons, g_n_input_dimensions );
+  data_get_encoders ( region_start( 3, address ), g_ensemble.n_neurons, g_input.n_dimensions );
   data_get_decoders ( region_start( 4, address ), g_ensemble.n_neurons, g_n_output_dimensions );
   data_get_keys     ( region_start( 5, address ), g_n_output_dimensions );
+
+  data_get_filters    ( region_start( 6, address ), (region_system_t*) region_start( 1, address ) );
+  data_get_filter_keys( region_start( 7, address ), (region_system_t*) region_start( 1, address ) );
 
   // Set up routing tables
   io_printf( IO_BUF, "[Ensemble] C_MAIN Configuring system.\n" );

@@ -29,8 +29,8 @@ typedef struct region_system {
   uint machine_timestep;
   uint t_ref;
   value_t one_over_t_rc;
-  value_t filter;
-  value_t filter_complement;
+  uint n_filters;
+  uint n_filter_keys;
 } region_system_t;
 
 /**
@@ -47,7 +47,8 @@ typedef struct region_system {
 * dt | Microseconds | ```uint``` | ::dt
 * Refactory time constant | Steps of dt | ```uint``` | ::t_ref
 * Inverse of membrane time constant | | ```accum``` | ::one_over_t_rc
-* Filter decay constant | | ```accum``` | ::filter
+* Number of filters | | ```uint``` |
+* Number of filter keys | | ```uint``` |
 */
 bool data_system( address_t addr );
 
@@ -71,6 +72,16 @@ bool data_get_decoders(
 bool data_get_keys(
   address_t addr,
   uint n_output_dimensions
+);
+
+bool data_get_filters(
+  address_t addr,
+  region_system_t *pars
+);
+
+bool data_get_filter_keys(
+  address_t addr,
+  region_system_t *pars
 );
 
 #endif

@@ -11,7 +11,9 @@ REGIONS = enums.enum1(
     'BIAS',
     'ENCODERS',
     'DECODERS',
-    'DECODER_KEYS'
+    'DECODER_KEYS',
+    'FILTERS',
+    'FILTER_ROUTING'
     )
 
 
@@ -24,6 +26,15 @@ class EnsembleVertex(graph.Vertex):
     def model_name(self):
         return 'nengo_ensemble'
 
+    def sizeof_filters_region(self):
+        # 2 words per filter
+        return 4 * 2 * len(self.data.filters)
+
+    def sizeof_filter_keys_region(self, subvertex):
+        # 3 words per entry
+        # 1 entry per in_subedge
+        return 4 * 3 * len(in_subedges)
+    
     def get_requirements_per_atom(self):
         chip_memory = 4 + self.data.D_in*4 + self.data.D_out*4
         data_memory = chip_memory
@@ -54,6 +65,10 @@ class EnsembleVertex(graph.Vertex):
                               size=subvertex.n_neurons*self.data.D_out*4)
         spec.reserveMemRegion(REGIONS.DECODER_KEYS,
                               size=self.data.D_out*4)
+        spec.reserveMemRegion(REGIONS.FILTERS,
+                              size=self.sizeof_filters_region())
+        spec.reserveMemRegion(REGIONS.FILTER_KEYS,
+                              size=self.sizeof_filter_keys_region(subvertex))
 
         #TODO: adjust time resolution of sim
         #TODO: adjust realtime rate
@@ -67,14 +82,10 @@ class EnsembleVertex(graph.Vertex):
 
         # 1/tau_rc in 1/seconds
         spec.write(data=parameters.S1615(1. / self.data.tau_rc).converted)
-        # filter decay constant
-        # TODO: handle multiple filters
-
-        filter = 0.01 if len(self.data.filters) == 0 else self.data.filters[0]
-
-        decay = np.exp(-dt/filter)
-        spec.write(data=parameters.S1615(decay).converted)
-        spec.write(data=parameters.S1615(1.-decay).converted)
+        
+        # Number of filters, number of routing elements for filters
+        # spec.write(data=...)
+        # spec.write(data=...)
                 
         spec.switchWriteFocus(REGIONS.BIAS)
         spec.comment("# *** Bias Currents, including any constant inputs. ***")
@@ -113,6 +124,24 @@ class EnsembleVertex(graph.Vertex):
                           | (index << 6) | (i))
                 )
             index += 1
+
+        # Write the filter parameters
+        spec.switchWriteFocus(REGIONS.FILTERS)
+        spec.comment("# *** Filter Parameters. ***")
+        for f in self.data.filters:
+            decay = np.exp(-dt/f)
+            spec.write(data=parameters.S1615(decay).converted)
+            spec.write(data=parameters.S1615(1 - decay).converted)
+
+        # Write the filter routing entries
+        spec.switchWriteFocus(REGIONS.FILTER_ROUTING)
+        spec.comment("# *** Filter Routing Keys and Masks. ***")
+        """
+        For each incoming subedge we write the key, mask and index of the
+        filter to which it is connected.  At some later point we can try
+        to combine keys and masks to minimise the number of comparisons
+        which are made in the SpiNNaker application.
+        """
 
         # End the writing of this specification:
         spec.endSpec()
