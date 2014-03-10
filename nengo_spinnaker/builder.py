@@ -150,7 +150,8 @@ class EnsembleData:
             self.decoders_by_func[c.function] = decoder
         
         # combine the decoder with the transform and record it in the list
-        decoder = np.dot(decoder, c.transform.T)
+        print c.transform
+        decoder = np.dot(decoder, np.asarray(c.transform).T)
         self.decoder_list.append((decoder, c.transform, c.function))
         self.D_out += decoder.shape[1]
         return count, start
