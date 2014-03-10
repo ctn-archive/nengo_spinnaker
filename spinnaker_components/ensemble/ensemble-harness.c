@@ -18,9 +18,7 @@
 ensemble_parameters_t g_ensemble;
 
 /* Initialisation ***********************************************************/
-void initialise_ensemble(
-  region_system_t *pars
-) {
+void initialise_ensemble( region_system_t *pars ) {
   // Save constants
   g_ensemble.n_neurons = pars->n_neurons;
   g_ensemble.machine_timestep = pars->machine_timestep;
