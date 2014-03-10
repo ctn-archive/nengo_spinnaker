@@ -29,8 +29,8 @@ typedef struct region_system {
   uint machine_timestep;
   uint t_ref;
   value_t one_over_t_rc;
-  value_t n_filters;
-  value_t n_filter_keys;
+  uint n_filters;
+  uint n_filter_keys;
 } region_system_t;
 
 /**
