@@ -22,7 +22,7 @@ United Kingdom                      Canada
 
 *****************************************************************************/
 
-#include "test_tx.h"
+#include "spin-nengo-tx.h"
 
 void c_main( void )
 {

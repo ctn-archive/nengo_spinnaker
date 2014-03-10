@@ -45,7 +45,7 @@ class EnsembleVertex(graph.Vertex):
             + 'nengo_ensemble.aplx', x, y, p)
 
         # size is measured in bytes
-        spec.reserveMemRegion(REGIONS.SYSTEM, size=7*4)
+        spec.reserveMemRegion(REGIONS.SYSTEM, size=8*4)
         spec.reserveMemRegion(REGIONS.BIAS,
                               size=subvertex.n_neurons*4)
         spec.reserveMemRegion(REGIONS.ENCODERS,
@@ -74,7 +74,8 @@ class EnsembleVertex(graph.Vertex):
 
         decay = np.exp(-dt/filter)
         spec.write(data=parameters.S1615(decay).converted)
-
+        spec.write(data=parameters.S1615(1.-decay).converted)
+                
         spec.switchWriteFocus(REGIONS.BIAS)
         spec.comment("# *** Bias Currents, including any constant inputs. ***")
         # Encode any constant inputs, and add to the biases
