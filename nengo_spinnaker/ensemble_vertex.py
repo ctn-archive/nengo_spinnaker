@@ -73,8 +73,8 @@ class EnsembleVertex(graph.Vertex):
         filter = 0.01 if len(self.data.filters) == 0 else self.data.filters[0]
 
         decay = np.exp(-dt/filter)
-        spec.write(data=uint(parameters.S1615(decay).converted))
-        spec.write(data=uint(parameters.S1615(1.-decay).converted))
+        spec.write(data=parameters.S1615(decay).converted)
+        spec.write(data=parameters.S1615(1.-decay).converted)
                 
         spec.switchWriteFocus(REGIONS.BIAS)
         spec.comment("# *** Bias Currents, including any constant inputs. ***")
