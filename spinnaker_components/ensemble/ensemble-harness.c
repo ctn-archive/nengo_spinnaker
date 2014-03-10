@@ -62,4 +62,7 @@ void initialise_ensemble( region_system_t *pars ) {
   // Setup subcomponents
   g_ensemble.input  = initialise_input ( pars );
   g_ensemble.output = initialise_output( pars );
+
+  // Register the update function
+  spin1_callback_on( TIMER_TICK, ensemble_update, 2 );
 }
