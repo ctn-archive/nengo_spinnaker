@@ -9,6 +9,6 @@
 # ----------------------------------------------------------------------------
 
 APP = nengo_tx
-SOURCES = test_tx.c
+SOURCES = tx-harness.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

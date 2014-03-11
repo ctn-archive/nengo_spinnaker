@@ -29,8 +29,9 @@ import nengo.build_utils
 
 class NodeData:
     """Constructed information for a Node."""
-    def __init__(self, ens, rng):
+    def __init__(self, node, rng):
         self.filters = []
+        self.node = node
     def get_target(self, filter):
         if filter not in self.filters:
             self.filters.append(filter)
@@ -44,10 +45,13 @@ class EnsembleData:
         self.decoder_list = []      # list of actual decoders (with transform)
         self.ens = ens              # the ensemble we're associated with
         self.label = ens.label
+        self.vertex = None
     
         self.N = ens.neurons.n_neurons     # number of neurons
         self.D_in = ens.dimensions
         self.D_out = 0
+
+        self.constant_input = np.zeros( self.D_in )
         
         # Create random number generator
         if ens.seed is None:

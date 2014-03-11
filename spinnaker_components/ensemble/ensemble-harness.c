@@ -1,90 +1,68 @@
-/*****************************************************************************
+/*
+ * Ensemble - Harness
+ *
+ * Authors:
+ *   - Andrew Mundy <mundya@cs.man.ac.uk>
+ *   - Terry Stewart
+ * 
+ * Copyright:
+ *   - Advanced Processor Technologies, School of Computer Science,
+ *      University of Manchester
+ *   - Computational Neuroscience Research Group, Centre for
+ *      Theoretical Neuroscience, University of Waterloo
+ */
 
-SpiNNaker and Nengo Integration
+#include "ensemble.h"
 
-******************************************************************************
+/* Parameters and Buffers ***************************************************/
+ensemble_parameters_t g_ensemble;
 
-Authors:
- Andrew Mundy <mundya@cs.man.ac.uk> -- University of Manchester
- Terry Stewart			    -- University of Waterloo
+/* Initialisation ***********************************************************/
+void initialise_ensemble( region_system_t *pars ) {
+  // Save constants
+  g_ensemble.n_neurons = pars->n_neurons;
+  g_ensemble.machine_timestep = pars->machine_timestep;
+  g_ensemble.t_ref = pars->t_ref;
+  g_ensemble.one_over_t_rc = pars->one_over_t_rc;
 
-Date:
- 17-22 February 2014
-
-******************************************************************************
-
-Advanced Processors Technologies,   Computational Neuroscience Research Group,
-School of Computer Science,         Centre for Theoretical Neuroscience,
-University of Manchester,           University of Waterloo,
-Oxford Road,                        200 University Avenue West,
-Manchester, M13 9PL,                Waterloo, ON, N2L 3G1,
-United Kingdom                      Canada
-
-*****************************************************************************/
-
-#include "spin-nengo-ensemble.h"
-
-uint n_input_dimensions, n_output_dimensions, n_neurons, dt, t_ref,
-     *v_ref_voltage, *output_keys, us_per_output;
-current_t *i_bias;
-accum *encoders, *decoders;
-value_t *ibuf_accumulator, *ibuf_filtered, *output_values, one_over_t_rc,
-        filter, *decoded_values;
-
-int c_main( void )
-{
-  // Setup callbacks, etc.
-  spin1_callback_on( MC_PACKET_RECEIVED, incoming_spike_callback, -1 );
-  spin1_callback_on( TIMER_TICK, timer_callback, 2 );
-  io_printf( IO_STD, "Testing...\n" );
-
-  // Setup buffers, etc.
-  address_t address = system_load_sram();
-  copy_in_system_region( region_start( 1, address ) );
-  initialise_buffers( );
-  copy_in_bias         ( region_start( 2, address ) );
-  copy_in_encoders     ( region_start( 3, address ) );
-  copy_in_decoders     ( region_start( 4, address ) );
-  copy_in_decoder_keys ( region_start( 5, address ) );
-
-  io_printf( IO_STD, "N: %d, D_in: %d, D_out: %d, dt: %d, one_over_t_rc: %f,"
-             " t_ref: %d steps, filter: %f\n",
-             n_neurons, n_input_dimensions, n_output_dimensions, dt,
-             one_over_t_rc, t_ref >> 28, filter
+  io_printf( IO_BUF, "[Ensemble] INITIALISE_ENSEMBLE n_neurons = %d," \
+             "timestep = %d, t_ref = %d, one_over_t_rc = 0x%08x\n",
+             g_ensemble.n_neurons,
+             g_ensemble.machine_timestep,
+             g_ensemble.t_ref,
+             g_ensemble.one_over_t_rc
   );
-  
-  // Set up routing tables
-  if( leadAp ){
-    io_printf( IO_STD, "ENS leadAp = 0x%02x\n", leadAp );
-    system_lead_app_configured( );
+
+  // Holder for bias currents
+  io_printf( IO_BUF, "[Ensemble] INITIALISE malloc-ing i_bias.\n" );
+  g_ensemble.i_bias = spin1_malloc(
+    g_ensemble.n_neurons * sizeof( current_t )
+  );
+
+  // Holder for refractory period and voltages
+  io_printf( IO_BUF, "[Ensemble] INITIALISE malloc-ing neuron status.\n" );
+  g_ensemble.status = spin1_malloc(
+    g_ensemble.n_neurons * sizeof( neuron_status_t )
+  );
+  for( uint n = 0; n < g_ensemble.n_neurons; n++ ){
+    g_ensemble.status[n].refractory_time = 0;
+    g_ensemble.status[n].voltage = 0;
   }
 
-  // Load core map
-  system_load_core_map( );
+  // Initialise some buffers
+  io_printf( IO_BUF, "[Ensemble] INITIALISE malloc-ing encoders.\n" );
+  g_ensemble.encoders = spin1_malloc(
+    g_ensemble.n_neurons * pars->n_input_dimensions * sizeof( value_t )
+  );
+  io_printf( IO_BUF, "[Ensemble] INITIALISE malloc-ing decoders.\n" );
+  g_ensemble.decoders = spin1_malloc(
+    g_ensemble.n_neurons * pars->n_output_dimensions * sizeof( value_t )
+  );
 
-  // Setup Timer2, initialise output loop
-  timer_register( SLOT_8 ); // TODO: Confirm this via testing / ST
-  timer_schedule_proc( outgoing_dimension_callback, 0, 0, us_per_output );
+  // Setup subcomponents
+  g_ensemble.input  = initialise_input ( pars );
+  g_ensemble.output = initialise_output( pars );
 
-  // Setup timer tick, start
-  spin1_set_timer_tick( dt );
-  spin1_start( );
-}
-
-//! Initialise buffers and values
-void initialise_buffers( void )
-{
-  // Encoders / decoders / bias
-  encoders = spin1_malloc( sizeof(accum) * n_input_dimensions * n_neurons );
-  decoders = spin1_malloc( sizeof(accum) * n_output_dimensions * n_neurons );
-  output_keys = spin1_malloc( sizeof( uint ) * n_output_dimensions );
-  i_bias = spin1_malloc( sizeof(current_t) * n_neurons );
-
-  // Input buffers / voltages
-  ibuf_accumulator = spin1_malloc( sizeof(value_t) * n_input_dimensions );
-  ibuf_filtered = spin1_malloc( sizeof(value_t) * n_input_dimensions );
-  v_ref_voltage = spin1_malloc( sizeof(uint) * n_neurons );
-
-  // Output buffers
-  decoded_values = spin1_malloc( sizeof(value_t) * n_output_dimensions );
+  // Register the update function
+  spin1_callback_on( TIMER_TICK, ensemble_update, 2 );
 }
