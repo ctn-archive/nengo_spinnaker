@@ -1,6 +1,7 @@
 from pacman103.scp import sdp
 import struct
 
+
 class SDPMessageWithArgs(sdp.SDPMessage):
     def __init__(self, packed=None, **kwargs):
         # Construct the standard argument header
