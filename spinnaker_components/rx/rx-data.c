@@ -15,7 +15,7 @@
 
 #include "rx.h"
 
-uint n_dimensions, dt, ticks_per_output, n_current_output, *keys;
+uint n_dimensions, ticks_per_output, n_current_output, *keys;
 value_t *values;
 
 /**
@@ -24,18 +24,13 @@ value_t *values;
  * Value (Type) | Description
  * ------------ | -----------
  * n_dimensions (```uint```) | Number of output dimensions <= 64
- * dt (```uint```) | Time period of simulation in microseconds
+ * ticks_per_output (```uint```) | Time between transmitting each output in microseconds
  * 
  */
 void copy_in_system_region( address_t addr ) {
-  n_dimensions = addr[0]; // Number of dimensions to represent
-  dt = addr[1];           // Time step in us
-
-  // Calculate the number of ticks between transmitting each output
-  // packet.
-  // Zero the index of the current output
-  ticks_per_output = dt / n_dimensions;
-  n_current_output = 0;
+  n_dimensions = addr[0];     // Number of dimensions to represent
+  ticks_per_output = addr[1]; // Ticks between transmitting each output
+  n_current_output = 0;       // Zero the index of the current output
 
   // Allocate space for keys and values
   keys = spin1_malloc( sizeof( uint ) * n_dimensions );

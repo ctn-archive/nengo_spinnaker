@@ -51,14 +51,16 @@ class ReceiveVertex( graph.Vertex ):
         spec.reserveMemRegion( REGIONS.INITIAL_VALUES, size = self.n_dims * 4 )
 
         spec.comment(
-            """System Parameters
-            1. Number of dimensions to represent.
-            2. System time step in us
+            """
+            # System Parameters
+            # 1. Number of dimensions to represent.
+            # 2. Interval between transmitting MC packets
             """
         )
         spec.switchWriteFocus(REGIONS.SYSTEM)
         spec.write( data = self.n_dims )
-        spec.write( data = 0.001 * 10**6 ) # TODO: adjust time resolution of sim
+        # TODO: adjust time resolution of sim
+        spec.write(data=int(0.001 * 10**6)/self.n_dims)
 
         spec.comment(
         """Dimension related routing keys"""

@@ -19,6 +19,7 @@ void sdp_packet_received( uint mailbox, uint port ) {
     case 0x00000001:  // Replace dimensional values - TODO: Change this?
       // arg1: First dimension to update
       // arg2: Number of dimensions to update
+      io_printf( IO_STD, "[Rx] SDP Update [%d:+%d]\n", msg->arg1, msg->arg2 );
       spin1_memcpy(
         msg->data,
         &values[ msg->arg1 ],

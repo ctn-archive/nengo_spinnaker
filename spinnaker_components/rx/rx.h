@@ -60,7 +60,6 @@ void sdp_packet_received( uint mailbox, uint port );    // Handle SDP Rx
 // System variables
 /** @{ */
 extern uint n_dimensions; //!< Number of dimensions associated with this Rx
-extern uint dt;           //!< Time step in us
 
 extern uint ticks_per_output; //!< Number of ticks to wait between each output
 extern uint n_current_output; //!< Index of current output
