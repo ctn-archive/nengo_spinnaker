@@ -66,13 +66,13 @@ class ReceiveVertex( graph.Vertex ):
         """Dimension related routing keys"""
         )
         spec.switchWriteFocus(REGIONS.KEYS)
-        for e in self.out_edges:
+        for e in subvertex.out_subedges:
             """
             We need a routing key for each output edge and dimension.
             This needs to be in the same format as that for the EnsembleVertex.
             """
-            for d in range( e.postvertex.data.D_in ):
-                key = self.generate_routing_info( e.subedges[0] )[0] | (d)
+            for d in range( e.postsubvertex.vertex.data.D_in ):
+                key = self.generate_routing_info(e)[0] | d
                 spec.write( data = key )
 
         spec.comment(
@@ -101,7 +101,7 @@ class ReceiveVertex( graph.Vertex ):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
 
         # Get the index of this edge in the list of subedges we have
-        i = self.out_edges.index( subedge.edge )
+        i = subedge.presubvertex.out_subedges.index(subedge)
         
         key = (x << 24) | (y << 16) | ((p-1) << 11) | ( i << 6 )
         
