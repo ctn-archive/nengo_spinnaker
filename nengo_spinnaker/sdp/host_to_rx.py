@@ -7,33 +7,32 @@ class HostToRxPacket(sdp_message.SDPMessageWithArgs):
     An SDP packet used to update the value transmitted into the simulation by
     an Rx element.
 
-    :param rx_vertex: The ReceiverVertex this packet is to be send to.
+    :param edge: The Edge on which this data is to be transmitted.
     :param data: The n-dimensional value to be injected by the Rx component.
-    :param start: The offset into the vector where this data is to be added.
-
-    ..todo::
-        Change this so that we accept an Edge instead of a Vertex and hence
-        determine the originating Subvertex for all Subedges of the Edge.
-        This Subvertex is where we wish to transmit this packet.
     """
-    def __init__(self, rx_vertex, data=[], start=0):
+    def __init__(self, edge, data=[]):
         if len(data) > 64:
             raise ValueError(
                 "An Rx component cannot represent more than 64 dimensions.\n"
             )
 
+        # TODO: Insert reasons as to why this is valid...
+        # Get the set of subvertices from which this edge originates, it
+        # should consist of 1 element.  This is the subvertex to which we wish
+        # to send the given data.
+        subvertices = set(map(lambda se: se.presubvertex, edge.subedges))
+        assert(len(subvertices) == 1)
+        subvertex = subvertices[0]
+
         # Format the arguments and data
-        arg1 = start
-        arg2 = len(data)
+        assert(edge.width == len(data))
+        arg1 = edge.start
+        arg2 = edge.width
         fixed_data = [v.converted for v in parameters.S1615(data)]
         data = ''.join(fixed_data)
 
         # Get the co-ordinates of the Rx vertex we're communicating with
-        # For now assume that 1 Rx vertex maps to 1 subvertex...
-        # TODO: * Correct this assumption
-        #       * Talk to the PACMAN guys about making the 2nd line shorter!
-        assert(len(rx_vertex.suvertices == 1))
-        x, y, p = rx_vertex.subvertices.placement.processor.get_coordinates()
+        x, y, p = subvertex.placement.processor.get_coordinates()
 
         # Initialise
         super(HostToRxPacket, self).__init__(
