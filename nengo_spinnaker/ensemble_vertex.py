@@ -233,7 +233,7 @@ class EnsembleVertex(graph.Vertex):
 
     def write_region_system(self, subvertex):
         """Write the system region for the given subvertex."""
-        subvertex.spec.switchWriteFocus(REGIONS.SYSTEM)
+        subvertex.spec.switchWriteFocus(self.REGIONS.SYSTEM)
         subvertex.spec.comment("""# System Region
         # -------------
         # 1. Number of input dimensions
@@ -256,14 +256,14 @@ class EnsembleVertex(graph.Vertex):
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
-        subvertex.spec.switchWriteFocus(REGIONS.BIAS)
+        subvertex.spec.switchWriteFocus(self.REGIONS.BIAS)
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             # Write the bias for all atoms within this subvertex
             subvertex.spec.write(data=parameters.s1615(self.bias[n]))
 
     def write_region_encoders(self, subvertex):
         """Write the encoder region for the given subvertex."""
-        subvertex.spec.switchWriteFocus(REGIONS.ENCODERS)
+        subvertex.spec.switchWriteFocus(self.REGIONS.ENCODERS)
         subvertex.spec.comment("# Encoders Region")
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             for d in range(self.data.n_input_dimensions):
@@ -276,11 +276,10 @@ class EnsembleVertex(graph.Vertex):
     def write_region_decoders(self, subvertex):
         """Write the decoder region for the given subvertex."""
         subvertex.spec.comment("# Decoders Region")
-        subvertex.spec.switchWriteFocus(REGIONS.DECODERS)
+        subvertex.spec.switchWriteFocus(self.REGIONS.DECODERS)
         raise NotImplementedError
 
     def write_region_output_keys(self, subvertex):
         """Write the output keys region for the given subvertex."""
         subvertex.spec.comment("# Output Keys Region")
-        subvertex.spec.switchWriteFocus(REGIONS.OUTPUT_KEYS)
         raise NotImplementedError
