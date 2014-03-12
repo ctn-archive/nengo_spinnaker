@@ -66,6 +66,8 @@ class EnsembleVertex(graph.Vertex):
         self.tau_rc = ens.neurons.tau_rc
         self.tau_ref = ens.neurons.tau_ref
 
+        self.n_input_dimensions = ens.dimensions
+
         # Set up encoders
         if ens.encoders is None:
             self.encoders = ens.neurons.default_encoders(ens.dimensions, rng)
@@ -259,7 +261,13 @@ class EnsembleVertex(graph.Vertex):
 
     def write_region_encoders(self, subvertex):
         """Write the encoder region for the given subvertex."""
-        raise NotImplementedError
+        for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
+            for d in range(self.data.n_input_dimensions):
+                subvertex.spec.write(
+                    data=parameters.s1615(
+                        self.data.encoders[n, d] * self.data.gain[n]
+                    )
+                )
 
     def write_region_decoders(self, subvertex):
         """Write the decoder region for the given subvertex."""
