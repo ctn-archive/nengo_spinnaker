@@ -6,13 +6,16 @@ required by PACMAN.
 
 import inspect
 import re
+import numpy as np
 
 import nengo
 import nengo.utils.builder
 
 from pacman103.core import dao
 
+from . import decoder_edge
 from . import ensemble_vertex
+from . import input_edge
 
 
 class Builder(object):
@@ -45,8 +48,10 @@ class Builder(object):
         """
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
-        self.nodes = list()
         self.ensemble_vertices = dict()  # Map of Ensembles to their vertices
+        self._tx_vertices = list()
+        self._rx_vertices = list()
+        self._node_to_node_edges = list()
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -72,8 +77,38 @@ class Builder(object):
         # Add the Node to the node list
         raise NotImplementedError
 
-    def _build_connection(self, conn):
+    def _build_connection(self, c):
         # Add appropriate Edges between Vertices
         # In the case of Nodes, determine which Rx and Tx components we need
         # to connect to.
-        raise NotImplementedError
+        if isinstance(c.pre, nengo.Ensemble):
+            prevertex = self.ensembles_vertices(c.pre)
+            if isinstance(c.post, nengo.Ensemble):
+                # Ensemble -> Ensemble
+                postvertex = self.ensembles_vertices(c.post)
+                self.dao.add_edge(
+                    decoder_edge.DecoderEdge(c, prevertex, postvertex)
+                )
+            elif isinstance(c.post, nengo.Node):
+                # Ensemble -> Node
+                postvertex = self._tx_vertices(c.post)
+                self.dao.add_edge(
+                    decoder_edge.DecoderEdge(c, prevertex, postvertex)
+                )
+        elif isinstance(c.pre, nengo.Node):
+            prevertex = self._rx_vertices(c.pre)
+            if isinstance(c.post, nengo.Ensemble):
+                # Node -> Ensemble
+                # If the Node has constant output then add to the direct input
+                # for the Ensemble and don't add an edge, otherwise add an
+                # edge from the appropriate Rx element to the Ensemble.
+                postvertex = self.ensembles_vertices(c.post)
+                if c.pre.output is not None and not callable(c.pre.output):
+                    postvertex.direct_input += np.asarray(c.pre.output)
+                else:
+                    self.dao.add_edge(
+                        input_edge.InputEdge(c, prevertex, postvertex)
+                    )
+            elif isinstance(c.post, nengo.Node):
+                # Node -> Node
+                self._node_to_node_edges.append(c)

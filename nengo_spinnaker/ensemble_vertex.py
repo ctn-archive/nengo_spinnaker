@@ -25,6 +25,9 @@ class EnsembleVertex(graph.Vertex):
         # Save a reference to the ensemble before unpacking some useful values
         self._ens = ens
 
+        # For constant value injection
+        self.direct_input = np.zeros(self._ens.dimensions)
+
         # Create the vertex
         super(EnsembleVertex, self).__init__(
             self._ens.n_neurons, constraints=constraints, label=ens.label
