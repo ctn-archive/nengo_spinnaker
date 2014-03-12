@@ -211,7 +211,9 @@ class EnsembleVertex(graph.Vertex):
 
             # Generate the routing keys for each dimension of this edge
             for d in range(e.edge.n_dimensions):
-                subvertex.output_keys.append(self.generate_routing_info(e) | d)
+                subvertex.output_keys.append(
+                    self.generate_routing_info(e)[0] | d
+                )
 
         # Fill in the spec
         self.reserve_regions(subvertex)
