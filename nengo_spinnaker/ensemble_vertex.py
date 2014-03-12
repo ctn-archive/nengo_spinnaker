@@ -181,8 +181,8 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=self.n_output_dimensions)
         subvertex.spec.write(data=subvertex.n_atoms)
         subvertex.spec.write(data=int(0.001 * 10**-6))
-        subvertex.spec.write(data=self.tau_ref_in_steps)
-        subvertex.spec.write(data=parameters.s1615(self.one_over_tau_rc))
+        subvertex.spec.write(data=self._tau_ref_in_steps)
+        subvertex.spec.write(data=parameters.s1615(self._one_over_tau_rc))
         # subvertex.spec.write(data=... FILTER DECAY ...)
         # subvertex.spec.write(data=... FILTER DECAY COMPLEMENT ...)
 
