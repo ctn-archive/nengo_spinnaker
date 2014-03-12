@@ -1,6 +1,8 @@
 import os
 import numpy as np
 
+import nengo
+import nengo.builder
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
@@ -25,6 +27,62 @@ class EnsembleVertex(graph.Vertex):
         # Save a reference to the ensemble before unpacking some useful values
         self._ens = ens
 
+        # Create random number generator
+        if ens.seed is None:
+            rng = np.random.RandomState(rng.tomaxint())
+        else:
+            rng = np.random.RandomState(ens.seed)
+        self.rng = rng
+
+        # Generate eval points
+        if ens.eval_points is None:
+            # TODO: standardize how to set number of samples
+            #  (this is different than the reference implementation!)
+            S = min(ens.dimensions * 500, 5000)
+            self.eval_points = nengo.decoders.sample_hypersphere(
+                ens.dimensions, S, rng) * ens.radius
+        else:
+            self.eval_points = np.array(ens.eval_points, dtype=np.float64)
+            if self.eval_points.ndim == 1:
+                self.eval_points.shape = (-1, 1)
+
+        # TODO: change this to not modify Model
+        # Set up neurons
+        if ens.neurons.gain is None or ens.neurons.bias is None:
+            # if max_rates and intercepts are distributions,
+            # turn them into fixed samples.
+            if hasattr(ens.max_rates, 'sample'):
+                ens.max_rates = ens.max_rates.sample(
+                    ens.neurons.n_neurons, rng=rng
+                )
+            if hasattr(ens.intercepts, 'sample'):
+                ens.intercepts = ens.intercepts.sample(
+                    ens.neurons.n_neurons, rng=rng
+                )
+            ens.neurons.set_gain_bias(ens.max_rates, ens.intercepts)
+
+        self.bias = ens.neurons.bias
+        self.gain = ens.neurons.gain
+        self.tau_rc = ens.neurons.tau_rc
+        self.tau_ref = ens.neurons.tau_ref
+
+        # Set up encoders
+        if ens.encoders is None:
+            self.encoders = ens.neurons.default_encoders(ens.dimensions, rng)
+        else:
+            self.encoders = np.array(ens.encoders, dtype=np.float64)
+            enc_shape = (ens.neurons.n_neurons, ens.dimensions)
+            if self.encoders.shape != enc_shape:
+                raise nengo.builder.ShapeMismatch(
+                    "Encoder shape is %s. Should be (n_neurons, dimensions);"
+                    " in this case %s." % (self.encoders.shape, enc_shape)
+                )
+
+            norm = np.sum(self.encoders ** 2, axis=1)[:, np.newaxis]
+            self.encoders /= np.sqrt(norm)
+        ens.encoders = self.encoders   # TODO: remove this when it is no longer
+                                       # required be Ensemble.activities()
+
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
@@ -36,11 +94,11 @@ class EnsembleVertex(graph.Vertex):
     @property
     def _tau_ref_in_steps(self):
         # TODO: Check this
-        return self._ens.neurons.tau_ref * 10**-3
+        return self.tau_ref * 10**-3
 
     @property
     def _one_over_tau_rc(self):
-        return 1. / self._encs.neurons.tau_rc
+        return 1. / self.tau_rc
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
