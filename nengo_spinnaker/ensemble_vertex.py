@@ -203,6 +203,16 @@ class EnsembleVertex(graph.Vertex):
         # Encode any constant inputs, and add to the biases
         self.bias = np.dot(self.encoders, self.direct_input)
 
+        # Generate the list of decoders, and the list of ouput keys
+        subvertex.decoders = list()
+        subvertex.output_keys = list()
+        for e in subvertex.out_subedges:
+            # Manage the decoder values
+
+            # Generate the routing keys for each dimension of this edge
+            for d in range(e.edge.n_dimensions):
+                subvertex.output_keys.append(self.generate_routing_info(e) | d)
+
         # Fill in the spec
         self.reserve_regions(subvertex)
         self.write_region_system(subvertex)
@@ -282,4 +292,6 @@ class EnsembleVertex(graph.Vertex):
     def write_region_output_keys(self, subvertex):
         """Write the output keys region for the given subvertex."""
         subvertex.spec.comment("# Output Keys Region")
-        raise NotImplementedError
+        subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
+        for k in subvertex.output_keys:
+            subvertex.spec.write(data=k)
