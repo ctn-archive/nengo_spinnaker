@@ -12,12 +12,14 @@ import nengo.utils.builder
 
 from pacman103.core import dao
 
+from . import ensemble_vertex
+
 
 class Builder(object):
     """Converts a Nengo model into a PACMAN appropriate data structure."""
 
     def __init__(self):
-        # Build by inspection the diction mapping of things we can build
+        # Build by inspection the dictionary of things we can build
         builds = filter(lambda m: "_build_" == m[0][0:7],
                         inspect.getmembers(self, inspect.ismethod))
         objects = dict(inspect.getmembers(nengo, inspect.isclass))
@@ -44,6 +46,7 @@ class Builder(object):
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.nodes = list()
+        self.ensemble_vertices = dict()  # Map of Ensembles to their vertices
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -60,7 +63,9 @@ class Builder(object):
 
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
-        raise NotImplementedError
+        vertex = ensemble_vertex.EnsembleVertex(ens)
+        self.dao.add_vertex(vertex)
+        self.ensembles_vertices[ens] = vertex
 
     def _build_node(self, node):
         # Manage Rx and Tx components
