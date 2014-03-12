@@ -197,6 +197,10 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.initialise(0xABCD, dao)
         subvertex.spec.comment("# Nengo Ensemble")
 
+        # Finalise the values for this Ensemble
+        # Encode any constant inputs, and add to the biases
+        self.bias = np.dot(self.encoders, self.direct_input)
+
         # Fill in the spec
         self.reserve_regions(subvertex)
         self.write_region_system(subvertex)
@@ -249,7 +253,9 @@ class EnsembleVertex(graph.Vertex):
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
-        raise NotImplementedError
+        for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
+            # Write the bias for all atoms within this subvertex
+            subvertex.spec.write(data=parameters.s1615(self.bias[n]))
 
     def write_region_encoders(self, subvertex):
         """Write the encoder region for the given subvertex."""
