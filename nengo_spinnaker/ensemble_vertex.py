@@ -18,11 +18,12 @@ class EnsembleVertex(graph.Vertex):
         'OUTPUT_KEYS'
     )
 
-    def __init__(self, ens, constraints=None):
+    def __init__(self, ens, rng, constraints=None):
         """Create a new EnsembleVertex using the given Ensemble to generate
         appropriate parameters.
 
         :param ens: Ensemble to represent in the simulation.
+        :param rng: RandomState
         """
         # Save a reference to the ensemble before unpacking some useful values
         self._ens = ens

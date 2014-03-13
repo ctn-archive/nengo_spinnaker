@@ -41,11 +41,13 @@ class Builder(object):
             raise TypeError("Cannot build a '%s' object." % type(obj))
         self.builders[type(obj)](obj)
 
-    def __call__(self, model, dt):
+    def __call__(self, model, dt, seed=None):
         """Return a PACMAN103 DAO containing a representation of the given
         model, and a list of I/O Nodes with references to their connected Rx
         and Tx components.
         """
+        self.rng = np.random.RandomState(seed)
+
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.ensemble_vertices = dict()  # Map of Ensembles to their vertices
@@ -68,7 +70,7 @@ class Builder(object):
 
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
-        vertex = ensemble_vertex.EnsembleVertex(ens)
+        vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
         self.dao.add_vertex(vertex)
         self.ensembles_vertices[ens] = vertex
 
