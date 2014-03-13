@@ -38,7 +38,7 @@ void ensemble_update( uint arg0, uint arg1 )
     }
 
     v_voltage = neuron_voltage(n);
-    v_delta = ( i_membrane - v_voltage ) * g_ensemble.one_over_t_rc;
+    v_delta = ( i_membrane - v_voltage ) * g_ensemble.dt_over_t_rc;
     /* io_printf( IO_STD, "dt = %k, J = %k, V = %k, dV = %k\n",
                   dt, i_membrane, v_voltage, v_delta );
     */

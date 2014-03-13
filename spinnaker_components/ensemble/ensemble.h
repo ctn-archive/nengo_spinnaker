@@ -59,7 +59,7 @@ typedef struct ensemble_parameters {
   uint machine_timestep;   //!< Machine time step  / useconds
 
   uint t_ref;              //!< Refractory period \f$\tau_{ref} - 1\f$ / steps
-  value_t one_over_t_rc;   //!< \f$\tau_{rc}^{-1}\f$
+  value_t dt_over_t_rc;    //!< \f$\frac{dt}{\tau_{rc}}\f$
 
   current_t *i_bias;        //!< Population biases \f$1 \times N\f$
   neuron_status_t *status;  //!< Neuron status

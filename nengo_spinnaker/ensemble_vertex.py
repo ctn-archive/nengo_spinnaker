@@ -18,15 +18,19 @@ class EnsembleVertex(graph.Vertex):
         'OUTPUT_KEYS'
     )
 
-    def __init__(self, ens, rng, constraints=None):
+    def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
         """Create a new EnsembleVertex using the given Ensemble to generate
         appropriate parameters.
 
         :param ens: Ensemble to represent in the simulation.
         :param rng: RandomState
+        :param dt:
+        :param time_step: Machine timestep (in microseconds)
         """
         # Save a reference to the ensemble before unpacking some useful values
         self._ens = ens
+        self.dt = dt
+        self.time_step = time_step
 
         # Create random number generator
         if ens.seed is None:
@@ -96,12 +100,11 @@ class EnsembleVertex(graph.Vertex):
 
     @property
     def _tau_ref_in_steps(self):
-        # TODO: Check this
-        return self.tau_ref * 10**-3
+        return self.tau_ref / (self.time_step * 10**-6)
 
     @property
-    def _one_over_tau_rc(self):
-        return 1. / self.tau_rc
+    def _dt_over_tau_rc(self):
+        return self.dt / self.tau_rc
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
@@ -254,16 +257,16 @@ class EnsembleVertex(graph.Vertex):
         # 3. Number of neurons
         # 4. Machine time step in us
         # 5. tau_ref in number of steps
-        # 6. tau_rc ^ -1
+        # 6. dt over tau_rc
         # 7. Filter decay (TO BE CHANGED)
         # 8. 1 - Filter decay (TO BE CHANGED)
         """)
         subvertex.spec.write(data=self.n_input_dimensions)
         subvertex.spec.write(data=self.n_output_dimensions)
         subvertex.spec.write(data=subvertex.n_atoms)
-        subvertex.spec.write(data=int(0.001 * 10**-6))
+        subvertex.spec.write(data=self.time_step)
         subvertex.spec.write(data=self._tau_ref_in_steps)
-        subvertex.spec.write(data=parameters.s1615(self._one_over_tau_rc))
+        subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
         # subvertex.spec.write(data=... FILTER DECAY ...)
         # subvertex.spec.write(data=... FILTER DECAY COMPLEMENT ...)
 
