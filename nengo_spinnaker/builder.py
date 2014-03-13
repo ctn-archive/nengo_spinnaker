@@ -13,9 +13,8 @@ import nengo.utils.builder
 
 from pacman103.core import dao
 
-from . import decoder_edge
-from . import ensemble_vertex
-from . import input_edge
+from . import decoder_edge, input_edge
+from . import ensemble_vertex, transmit_vertex, receive_vertex
 
 
 class Builder(object):
@@ -75,9 +74,45 @@ class Builder(object):
         self.ensembles_vertices[ens] = vertex
 
     def _build_node(self, node):
-        # Manage Rx and Tx components
-        # Add the Node to the node list
-        raise NotImplementedError
+        # If the Node has input, then assign the Node to a Tx component
+        if node.size_in > 0:
+            # Try to fit the Node in an existing Tx Element
+            # Most recently added Txes are nearer the start
+            tx_assigned = False
+            for tx in self._tx_vertices:
+                if tx.remaining_dimensions >= node.size_in:
+                    tx.assign_node(node)
+                    tx_assigned = True
+                    break
+
+            # Otherwise create a new Tx element
+            if not tx_assigned:
+                tx = transmit_vertex.TransmitVertex(
+                    label="Tx%d" % len(self._tx_vertices)
+                )
+                tx.assign_node(node)
+                self._tx_vertices.insert(0, tx)
+
+        # If the Node has output, and that output is not constant, then assign
+        # the Node to an Rx component.
+        if node.size_out > 0 and \
+                not node.output is None and not callable(node.output):
+            # Try to fit the Node in an existing Rx Element
+            # Most recently added Rxes are nearer the start
+            rx_assigned = False
+            for rx in self._rx_vertices:
+                if rx.remaining_dimensions >= node.size_out:
+                    rx.assign_node(node)
+                    rx_assigned = True
+                    break
+
+            # Otherwise create a new Rx element
+            if not rx_assigned:
+                rx = receive_vertex.ReceiveVertex(
+                    label="Rx%d" % len(self._rx_vertices)
+                )
+                rx.assign_node(node)
+                self._rx_vertices.insert(0, rx)
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
