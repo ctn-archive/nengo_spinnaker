@@ -98,7 +98,6 @@ class Builder(object):
                     decoder_edge.DecoderEdge(c, prevertex, postvertex)
                 )
         elif isinstance(c.pre, nengo.Node):
-            prevertex = self._rx_vertices(c.pre)
             if isinstance(c.post, nengo.Ensemble):
                 # Node -> Ensemble
                 # If the Node has constant output then add to the direct input
@@ -108,6 +107,7 @@ class Builder(object):
                 if c.pre.output is not None and not callable(c.pre.output):
                     postvertex.direct_input += np.asarray(c.pre.output)
                 else:
+                    prevertex = self._rx_vertices(c.pre)
                     self.dao.add_edge(
                         input_edge.InputEdge(c, prevertex, postvertex)
                     )
