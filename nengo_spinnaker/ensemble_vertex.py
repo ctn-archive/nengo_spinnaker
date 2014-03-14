@@ -301,3 +301,12 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
         for k in subvertex.output_keys:
             subvertex.spec.write(data=k)
+
+    def generate_routing_info(self, subedge):
+        """Generate a key and mask for the given subedge."""
+        x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
+        i = subedge.out_subedges.index(subedge)
+        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
+        mask = 0xFFFFFFE0
+
+        return key, mask

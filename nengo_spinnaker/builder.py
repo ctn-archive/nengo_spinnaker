@@ -13,7 +13,7 @@ import nengo.utils.builder
 
 from pacman103.core import dao
 
-from . import decoder_edge, input_edge
+from . import edges
 from . import ensemble_vertex, transmit_vertex, receive_vertex
 
 
@@ -134,13 +134,13 @@ class Builder(object):
                 # Ensemble -> Ensemble
                 postvertex = self.ensemble_vertices[c.post]
                 self.dao.add_edge(
-                    decoder_edge.DecoderEdge(c, prevertex, postvertex)
+                    edges.DecoderEdge(c, prevertex, postvertex)
                 )
             elif isinstance(c.post, nengo.Node):
                 # Ensemble -> Node
                 postvertex = self._tx_assigns[c.post]
                 self.dao.add_edge(
-                    decoder_edge.DecoderEdge(c, prevertex, postvertex)
+                    edges.DecoderEdge(c, prevertex, postvertex)
                 )
         elif isinstance(c.pre, nengo.Node):
             if isinstance(c.post, nengo.Ensemble):
@@ -154,7 +154,7 @@ class Builder(object):
                 else:
                     prevertex = self._rx_assigns[c.pre]
                     self.dao.add_edge(
-                        input_edge.InputEdge(c, prevertex, postvertex)
+                        edges.InputEdge(c, prevertex, postvertex)
                     )
             elif isinstance(c.post, nengo.Node):
                 # Node -> Node
