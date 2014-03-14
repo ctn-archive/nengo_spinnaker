@@ -49,12 +49,12 @@ class Builder(object):
 
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
-        self.ensemble_vertices = dict()  # Map of Ensembles to their vertices
-        self._tx_vertices = list()
-        self._tx_assigns - dict()
-        self._rx_vertices = list()
-        self._rx_assigns - dict()
-        self._node_to_node_edges = list()
+        self.dao.ensemble_vertices = self.ensemble_vertices = dict()
+        self.dao.tx_vertices = self._tx_vertices = list()
+        self.dao.tx_assigns = self._tx_assigns - dict()
+        self.dao.rx_vertices = self._rx_vertices = list()
+        self.dao.rx_assigns = self._rx_assigns - dict()
+        self.dao.node_to_node_edges = self._node_to_node_edges = list()
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
