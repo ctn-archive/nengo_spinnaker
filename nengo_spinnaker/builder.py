@@ -51,7 +51,9 @@ class Builder(object):
         self.dao = dao.DAO("nengo")
         self.ensemble_vertices = dict()  # Map of Ensembles to their vertices
         self._tx_vertices = list()
+        self._tx_assigns - dict()
         self._rx_vertices = list()
+        self._rx_assigns - dict()
         self._node_to_node_edges = list()
 
         # Get a new network structure with passthrough nodes removed
@@ -66,6 +68,9 @@ class Builder(object):
         # Build each of the connections
         for conn in connections:
             self._build(conn)
+
+        # Return the DAO
+        return self.dao
 
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
@@ -83,6 +88,7 @@ class Builder(object):
                 if tx.remaining_dimensions >= node.size_in:
                     tx.assign_node(node)
                     tx_assigned = True
+                    self._tx_assigns[node] = tx
                     break
 
             # Otherwise create a new Tx element
@@ -90,7 +96,9 @@ class Builder(object):
                 tx = transmit_vertex.TransmitVertex(
                     label="Tx%d" % len(self._tx_vertices)
                 )
+                self.dao.add_vertex(tx)
                 tx.assign_node(node)
+                self._tx_assigns[node] = tx
                 self._tx_vertices.insert(0, tx)
 
         # If the Node has output, and that output is not constant, then assign
@@ -104,6 +112,7 @@ class Builder(object):
                 if rx.remaining_dimensions >= node.size_out:
                     rx.assign_node(node)
                     rx_assigned = True
+                    self._rx_assigns[node] = rx
                     break
 
             # Otherwise create a new Rx element
@@ -111,7 +120,9 @@ class Builder(object):
                 rx = receive_vertex.ReceiveVertex(
                     label="Rx%d" % len(self._rx_vertices)
                 )
+                self.dao.add_vertex(rx)
                 rx.assign_node(node)
+                self._rx_assigns[node] = rx
                 self._rx_vertices.insert(0, rx)
 
     def _build_connection(self, c):
@@ -119,16 +130,16 @@ class Builder(object):
         # In the case of Nodes, determine which Rx and Tx components we need
         # to connect to.
         if isinstance(c.pre, nengo.Ensemble):
-            prevertex = self.ensembles_vertices(c.pre)
+            prevertex = self.ensembles_vertices[c.pre]
             if isinstance(c.post, nengo.Ensemble):
                 # Ensemble -> Ensemble
-                postvertex = self.ensembles_vertices(c.post)
+                postvertex = self.ensembles_vertices[c.post]
                 self.dao.add_edge(
                     decoder_edge.DecoderEdge(c, prevertex, postvertex)
                 )
             elif isinstance(c.post, nengo.Node):
                 # Ensemble -> Node
-                postvertex = self._tx_vertices(c.post)
+                postvertex = self._tx_assigns[c.post]
                 self.dao.add_edge(
                     decoder_edge.DecoderEdge(c, prevertex, postvertex)
                 )
@@ -138,11 +149,11 @@ class Builder(object):
                 # If the Node has constant output then add to the direct input
                 # for the Ensemble and don't add an edge, otherwise add an
                 # edge from the appropriate Rx element to the Ensemble.
-                postvertex = self.ensembles_vertices(c.post)
+                postvertex = self.ensembles_vertices[c.post]
                 if c.pre.output is not None and not callable(c.pre.output):
                     postvertex.direct_input += np.asarray(c.pre.output)
                 else:
-                    prevertex = self._rx_vertices(c.pre)
+                    prevertex = self._rx_assigns[c.pre]
                     self.dao.add_edge(
                         input_edge.InputEdge(c, prevertex, postvertex)
                     )
