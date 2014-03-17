@@ -6,6 +6,8 @@ import nengo.builder
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
+from . import decoder_bin
+
 
 class EnsembleVertex(graph.Vertex):
     """PACMAN Vertex for an Ensemble."""
@@ -93,6 +95,9 @@ class EnsembleVertex(graph.Vertex):
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
+        # Set up decoder bin
+        self.decoders = decoder_bin.DecoderBin(rng)
+
         # Create the vertex
         super(EnsembleVertex, self).__init__(
             self._ens.n_neurons, constraints=constraints, label=ens.label
@@ -105,6 +110,11 @@ class EnsembleVertex(graph.Vertex):
     @property
     def _dt_over_tau_rc(self):
         return self.dt / self.tau_rc
+
+    @property
+    def n_output_dimensions(self):
+        """The sum of the decoders in the decoder bin."""
+        return self.decoders.width
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
@@ -196,6 +206,12 @@ class EnsembleVertex(graph.Vertex):
             self.sdram_usage(0, self.atoms) / self.atoms
         )
 
+    def build_decoders(self):
+        """Build the decoders for the Ensemble."""
+        for e in self.out_edges:
+            print e.conn
+            e.index = self.decoders.get_decoder_index(e)
+
     def generateDataSpec(self, processor, subvertex, dao):
         """Generate the data spec for the given subvertex."""
         # Create a spec for the subvertex
@@ -208,15 +224,13 @@ class EnsembleVertex(graph.Vertex):
         self.bias = np.dot(self.encoders, self.direct_input)
 
         # Generate the list of decoders, and the list of ouput keys
-        subvertex.decoders = list()
         subvertex.output_keys = list()
-        for e in subvertex.out_subedges:
-            # Manage the decoder values
-
-            # Generate the routing keys for each dimension of this edge
+        x, y, p = processor.get_coordinates()
+        for (i, w) in enumerate(self.decoders.decoder_widths):
+            # Generate the routing keys for each dimension
             for d in range(e.edge.n_dimensions):
                 subvertex.output_keys.append(
-                    self.generate_routing_info(e)[0] | d
+                    (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6) | d
                 )
 
         # Fill in the spec
@@ -305,7 +319,7 @@ class EnsembleVertex(graph.Vertex):
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = subedge.out_subedges.index(subedge)
+        i = self.decoders.edge_index(subedge.edge)
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
         mask = 0xFFFFFFE0
 

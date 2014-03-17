@@ -80,3 +80,23 @@ def test_build_node_ensemble_ensemble_node():
     ev2 = tx.in_edges[0].prevertex
 
     assert(ev1.out_edges[0].postvertex == ev2)
+
+def test_decoder_fanout():
+    # Build a model with some decoder fan out
+    model = nengo.Model("Decoder Fanout")
+    with model:
+        a = nengo.Ensemble(90, 4)
+        b = nengo.Ensemble(50, 4)
+        c = nengo.Ensemble(25, 2)
+
+        nengo.Connection(a, b)
+        nengo.Connection(a, c, transform=[[1, 0, 0, 0], [0, 1, 0, 0]])
+
+    b_ = builder.Builder()
+    dao = b_(model, 0.001)
+
+    # Assert that the fan-outs are correct
+    v_a = dao.ensemble_vertices[a]
+    assert(v_a.decoders.width == 6)
+    assert(v_a.out_edges[0].index == 0)
+    assert(v_a.out_edges[1].index == 1)

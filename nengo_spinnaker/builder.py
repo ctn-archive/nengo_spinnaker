@@ -69,6 +69,10 @@ class Builder(object):
         for conn in connections:
             self._build(conn)
 
+        # Build decoder lists for each of the Ensembles
+        for ev in self.dao.ensemble_vertices.values():
+            ev.build_decoders()
+
         # Return the DAO
         return self.dao
 
