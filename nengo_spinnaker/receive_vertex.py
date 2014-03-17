@@ -1,4 +1,6 @@
-from pacman103.lib import graph
+import os
+
+from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
 from . import node_bin
 
@@ -37,3 +39,28 @@ class ReceiveVertex(graph.Vertex):
     def nodes(self):
         """Return the Nodes assigned to this ReceiveVertex."""
         return self._assigned_nodes.nodes
+
+    def generateDataSpec(self, processor, subvertex, dao):
+        # Get the executable
+        x, y, p = processor.get_coordinates()
+        executable_target = lib_map.ExecutableTarget(
+            os.path.join(dao.get_binaries_directory(), 'nengo_rx.aplx'),
+            x, y, p
+        )
+
+        # Generate the spec
+        spec = data_spec_gen.DataSpec(processor, dao)
+        spec.initialise(0xABCE, dao)
+        spec.comment("# Nengo Rx Component")
+
+        spec.endSpec()
+        spec.closeSpecFile()
+
+        return (executable_target, list(), list())
+
+    def generate_routing_info(self, subedge):
+        x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
+        key = (x << 24) | (y << 16) | ((p-1) << 11)
+        mask = 0xFFFFFFE0
+
+        return key, mask
