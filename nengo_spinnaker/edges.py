@@ -2,7 +2,7 @@ from pacman103.lib import graph
 import nengo
 
 
-class NengoEdge( graph.Edge ):
+class NengoEdge(graph.Edge):
     def __init__(self, conn, pre, post, constraints=None, label=None):
         super(NengoEdge, self).__init__(
             pre, post, constraints=constraints, label=label
@@ -16,6 +16,10 @@ class NengoEdge( graph.Edge ):
             return self.conn.post.dimensions
         elif isinstance(self.conn.post, nengo.Node):
             return self.conn.post.size_in
+
+    def __getattr__(self, name):
+        """Redirect missed attributes to the connection."""
+        return getattr(self.conn, name)
 
 
 class DecoderEdge(NengoEdge):
