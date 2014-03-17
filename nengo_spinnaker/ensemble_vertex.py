@@ -209,7 +209,6 @@ class EnsembleVertex(graph.Vertex):
     def build_decoders(self):
         """Build the decoders for the Ensemble."""
         for e in self.out_edges:
-            print e.conn
             e.index = self.decoders.get_decoder_index(e)
 
     def generateDataSpec(self, processor, subvertex, dao):
@@ -228,7 +227,7 @@ class EnsembleVertex(graph.Vertex):
         x, y, p = processor.get_coordinates()
         for (i, w) in enumerate(self.decoders.decoder_widths):
             # Generate the routing keys for each dimension
-            for d in range(e.edge.n_dimensions):
+            for d in range(w):
                 subvertex.output_keys.append(
                     (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6) | d
                 )
@@ -307,7 +306,13 @@ class EnsembleVertex(graph.Vertex):
         """Write the decoder region for the given subvertex."""
         subvertex.spec.comment("# Decoders Region")
         subvertex.spec.switchWriteFocus(self.REGIONS.DECODERS)
-        raise NotImplementedError
+
+        decoders = self.decoders.get_merged_decoders()
+
+        for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
+            # Write the decoders for all the atoms within this subvertex
+            for d in range(self.n_output_dimensions):
+                subvertex.spec.write(data=parameters.s1615(decoders[n][d]))
 
     def write_region_output_keys(self, subvertex):
         """Write the output keys region for the given subvertex."""
