@@ -20,6 +20,8 @@ class EnsembleVertex(graph.Vertex):
         'OUTPUT_KEYS'
     )
 
+    model_name = "nengo_ensemble"
+
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
         """Create a new EnsembleVertex using the given Ensemble to generate
         appropriate parameters.
@@ -108,8 +110,8 @@ class EnsembleVertex(graph.Vertex):
         return self.tau_ref / (self.time_step * 10**-6)
 
     @property
-    def _dt_over_tau_rc(self):
-        return self.dt / self.tau_rc
+    def _one_over_tau_rc(self):
+        return 1. / self.tau_rc
 
     @property
     def n_output_dimensions(self):
@@ -220,7 +222,7 @@ class EnsembleVertex(graph.Vertex):
 
         # Finalise the values for this Ensemble
         # Encode any constant inputs, and add to the biases
-        self.bias = np.dot(self.encoders, self.direct_input)
+        self.bias += np.dot(self.encoders, self.direct_input)
 
         # Generate the list of decoders, and the list of ouput keys
         subvertex.output_keys = list()
@@ -240,10 +242,15 @@ class EnsembleVertex(graph.Vertex):
         self.write_region_decoders(subvertex)
         self.write_region_output_keys(subvertex)
 
+        # Close the spec
+        subvertex.spec.endSpec()
+        subvertex.spec.closeSpecFile()
+
         # Get the executable
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
-            os.path.join(dao.get_binaries_directory(), 'nengo_ensemble.aplx'),
+            os.path.join(dao.get_common_binaries_directory(),
+                'nengo_ensemble.aplx'),
             x, y, p
         )
 
@@ -251,14 +258,26 @@ class EnsembleVertex(graph.Vertex):
 
     def reserve_regions(self, subvertex):
         """Reserve sufficient space for the regions in the spec."""
-        for (region, sizeof) in [
-            (self.REGIONS.SYSTEM, self.sizeof_region_system),
-            (self.REGIONS.BIAS, self.sizeof_region_bias),
-            (self.REGIONS.ENCODERS, self.sizeof_region_encoders),
-            (self.REGIONS.DECODERS, self.sizeof_region_decoders),
-            (self.REGIONS.OUTPUT_KEYS, self.sizeof_region_output_keys),
-        ]:
-            subvertex.spec.reserveMemRegion(region, sizeof(subvertex.n_atoms))
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.SYSTEM,
+            self.sizeof_region_system()
+        )
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.BIAS,
+            self.sizeof_region_bias(subvertex.n_atoms)
+        )
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.ENCODERS,
+            self.sizeof_region_encoders(subvertex.n_atoms)
+        )
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.DECODERS,
+            self.sizeof_region_decoders(subvertex.n_atoms)
+        )
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.OUTPUT_KEYS,
+            self.sizeof_region_output_keys()
+        )
 
     def write_region_system(self, subvertex):
         """Write the system region for the given subvertex."""
@@ -270,7 +289,7 @@ class EnsembleVertex(graph.Vertex):
         # 3. Number of neurons
         # 4. Machine time step in us
         # 5. tau_ref in number of steps
-        # 6. dt over tau_rc
+        # 6. one over tau_rc
         # 7. Filter decay (TO BE CHANGED)
         # 8. 1 - Filter decay (TO BE CHANGED)
         """)
@@ -279,7 +298,7 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=subvertex.n_atoms)
         subvertex.spec.write(data=self.time_step)
         subvertex.spec.write(data=self._tau_ref_in_steps)
-        subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
+        subvertex.spec.write(data=parameters.s1615(self._one_over_tau_rc))
         # subvertex.spec.write(data=... FILTER DECAY ...)
         # subvertex.spec.write(data=... FILTER DECAY COMPLEMENT ...)
 
@@ -295,10 +314,10 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.switchWriteFocus(self.REGIONS.ENCODERS)
         subvertex.spec.comment("# Encoders Region")
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
-            for d in range(self.data.n_input_dimensions):
+            for d in range(self.n_input_dimensions):
                 subvertex.spec.write(
                     data=parameters.s1615(
-                        self.data.encoders[n, d] * self.data.gain[n]
+                        self.encoders[n, d] * self.gain[n]
                     )
                 )
 
@@ -312,7 +331,9 @@ class EnsembleVertex(graph.Vertex):
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             # Write the decoders for all the atoms within this subvertex
             for d in range(self.n_output_dimensions):
-                subvertex.spec.write(data=parameters.s1615(decoders[n][d]))
+                subvertex.spec.write(
+                    data=parameters.s1615(decoders[n][d] / self.dt)
+                )
 
     def write_region_output_keys(self, subvertex):
         """Write the output keys region for the given subvertex."""

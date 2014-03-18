@@ -15,6 +15,8 @@ class ReceiveVertex(graph.Vertex):
     )
     MAX_DIMENSIONS = 64
 
+    model_name = "nengo_rx"
+
     def __init__(self, time_step=1000, constraints=None, label=None):
         # Dimension management
         self._assigned_dimensions = 0
@@ -26,6 +28,9 @@ class ReceiveVertex(graph.Vertex):
         super(ReceiveVertex, self).__init__(
             1, constraints=constraints, label=label
         )
+
+    def get_requirements_per_atom(self):
+        return lib_map.Resources(1, 1, 1)
 
     @property
     def remaining_dimensions(self):
@@ -44,7 +49,7 @@ class ReceiveVertex(graph.Vertex):
         # Get the executable
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
-            os.path.join(dao.get_binaries_directory(), 'nengo_rx.aplx'),
+            os.path.join(dao.get_common_binaries_directory(), 'nengo_rx.aplx'),
             x, y, p
         )
 
