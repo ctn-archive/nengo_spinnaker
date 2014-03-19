@@ -69,10 +69,6 @@ class Builder(object):
         for conn in connections:
             self._build(conn)
 
-        # Build decoder lists for each of the Ensembles
-        for ev in self.dao.ensemble_vertices.values():
-            ev.build_decoders()
-
         # Return the DAO
         return self.dao
 
@@ -134,18 +130,18 @@ class Builder(object):
         # to connect to.
         if isinstance(c.pre, nengo.Ensemble):
             prevertex = self.ensemble_vertices[c.pre]
+            edge = None
             if isinstance(c.post, nengo.Ensemble):
                 # Ensemble -> Ensemble
                 postvertex = self.ensemble_vertices[c.post]
-                self.dao.add_edge(
-                    edges.DecoderEdge(c, prevertex, postvertex)
-                )
+                edge = edges.DecoderEdge(c, prevertex, postvertex)
             elif isinstance(c.post, nengo.Node):
                 # Ensemble -> Node
                 postvertex = self._tx_assigns[c.post]
-                self.dao.add_edge(
-                    edges.DecoderEdge(c, prevertex, postvertex)
-                )
+                edge = edges.DecoderEdge(c, prevertex, postvertex)
+            edge.index = prevertex.decoders.get_decoder_index(edge)
+            self.dao.add_edge(edge)
+
         elif isinstance(c.pre, nengo.Node):
             if isinstance(c.post, nengo.Ensemble):
                 # Node -> Ensemble

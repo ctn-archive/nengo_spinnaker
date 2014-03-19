@@ -208,11 +208,6 @@ class EnsembleVertex(graph.Vertex):
             self.sdram_usage(0, self.atoms) / self.atoms
         )
 
-    def build_decoders(self):
-        """Build the decoders for the Ensemble."""
-        for e in self.out_edges:
-            e.index = self.decoders.get_decoder_index(e)
-
     def generateDataSpec(self, processor, subvertex, dao):
         """Generate the data spec for the given subvertex."""
         # Create a spec for the subvertex
