@@ -97,8 +97,9 @@ class EnsembleVertex(graph.Vertex):
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
-        # Set up decoder bin
+        # Decoders and Filters
         self.decoders = collections.DecoderBin(rng)
+        self.filters = collections.FilterCollection()
 
         # Create the vertex
         super(EnsembleVertex, self).__init__(
@@ -219,6 +220,10 @@ class EnsembleVertex(graph.Vertex):
         # Encode any constant inputs, and add to the biases
         self.bias += np.dot(self.encoders, self.direct_input)
 
+        # Generate the filters
+        for e in self.in_edges:
+            self.filters.add_edge(e)
+
         # Generate the list of decoders, and the list of ouput keys
         subvertex.output_keys = list()
         x, y, p = processor.get_coordinates()
@@ -294,8 +299,11 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=self.time_step)
         subvertex.spec.write(data=self._tau_ref_in_steps)
         subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
-        # subvertex.spec.write(data=... FILTER DECAY ...)
-        # subvertex.spec.write(data=... FILTER DECAY COMPLEMENT ...)
+
+        if len(self.in_edges) > 0:
+            filter = self.filters.filter_tcs(self.dt)
+            subvertex.spec.write(data=parameters.s1615(filter[0][0]))
+            subvertex.spec.write(data=parameters.s1615(filter[0][1]))
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""

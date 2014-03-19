@@ -140,3 +140,34 @@ class AssignedNodeBin(object):
         self._node_list.append(
             AssignedNode(node, self.n_assigned_dimensions, self._width_f(node))
         )
+
+
+class FilterBinEntry(object):
+    def __init__(self, filter_value, edges=[]):
+        self._value = filter_value
+
+    def get_filter_tc(self, dt):
+        """Get the filter time constant and complement for the given dt."""
+        tc = np.exp(-dt/self._value)
+        return (tc, 1. - tc)
+
+
+class FilterCollection(object):
+    """A collection of filters."""
+    def __init__(self):
+        self._entries = []
+
+    def add_edge(self, edge):
+        """Add the given edge to the filter collection."""
+        # Create a new filter if necessary
+        if not edge.filter in self._entries:
+            self._entries.append(FilterBinEntry(edge.filter))
+
+    @property
+    def filter_values(self):
+        """Return a list of filter values."""
+        return self._entries.keys()
+
+    def filter_tcs(self, dt):
+        """Return a list of tupled filter time constants and complements."""
+        return [f.get_filter_tc(dt) for f in self._entries]
