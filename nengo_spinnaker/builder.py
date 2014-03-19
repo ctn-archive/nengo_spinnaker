@@ -139,6 +139,10 @@ class Builder(object):
                 # Ensemble -> Node
                 postvertex = self._tx_assigns[c.post]
                 edge = edges.DecoderEdge(c, prevertex, postvertex)
+            else:
+                raise TypeError(
+                    "Cannot connect an Ensemble to a '%s'" % type(c.post)
+                )
             edge.index = prevertex.decoders.get_decoder_index(edge)
             self.dao.add_edge(edge)
 
@@ -159,3 +163,12 @@ class Builder(object):
             elif isinstance(c.post, nengo.Node):
                 # Node -> Node
                 self._node_to_node_edges.append(c)
+            else:
+                raise TypeError(
+                    "Cannot connect an Ensemble to a '%s'" % type(c.post)
+                )
+
+        else:
+            raise TypeError(
+                "Cannot start a connection from a '%s'" % type(c.pre)
+            )
