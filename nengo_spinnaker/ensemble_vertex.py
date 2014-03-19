@@ -110,8 +110,8 @@ class EnsembleVertex(graph.Vertex):
         return self.tau_ref / (self.time_step * 10**-6)
 
     @property
-    def _one_over_tau_rc(self):
-        return 1. / self.tau_rc
+    def _dt_over_tau_rc(self):
+        return self.dt / self.tau_rc
 
     @property
     def n_output_dimensions(self):
@@ -284,7 +284,7 @@ class EnsembleVertex(graph.Vertex):
         # 3. Number of neurons
         # 4. Machine time step in us
         # 5. tau_ref in number of steps
-        # 6. one over tau_rc
+        # 6. dt over tau_rc
         # 7. Filter decay (TO BE CHANGED)
         # 8. 1 - Filter decay (TO BE CHANGED)
         """)
@@ -293,7 +293,7 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=subvertex.n_atoms)
         subvertex.spec.write(data=self.time_step)
         subvertex.spec.write(data=self._tau_ref_in_steps)
-        subvertex.spec.write(data=parameters.s1615(self._one_over_tau_rc))
+        subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
         # subvertex.spec.write(data=... FILTER DECAY ...)
         # subvertex.spec.write(data=... FILTER DECAY COMPLEMENT ...)
 
