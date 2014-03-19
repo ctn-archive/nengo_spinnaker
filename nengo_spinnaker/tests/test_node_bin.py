@@ -1,16 +1,16 @@
-"""Test node_bin utilities.
+"""Test collections utilities.
 """
 
 import nengo
 import pytest
 
-from .. import node_bin
+from .. import collections
 
-def test_simple_assigned_node_bin():
+def test_simple_assigned_collections():
     """Test that an AssignedNodeBin correctly keeps track of its remaining
     dimensions when empty.
     """
-    nb = node_bin.AssignedNodeBin(64)
+    nb = collections.AssignedNodeBin(64)
     assert(nb.n_assigned_dimensions == 0)
     assert(nb.remaining_space == 64)
 
@@ -22,7 +22,7 @@ def test_assign_node():
     with model:
         a = nengo.Node(output=[1,2,3])
 
-    nb = node_bin.AssignedNodeBin(64, lambda n: n.size_out)
+    nb = collections.AssignedNodeBin(64, lambda n: n.size_out)
     nb.append(a)
 
     assert(nb.n_assigned_dimensions == 3)
@@ -37,7 +37,7 @@ def test_assign_and_return_node():
         for n in range(10):
             nodes.append(nengo.Node(output=[1,2,3]))
 
-    nb = node_bin.AssignedNodeBin(64, lambda n: n.size_out)
+    nb = collections.AssignedNodeBin(64, lambda n: n.size_out)
 
     for n in nodes:
         nb.append(n)
@@ -55,7 +55,7 @@ def test_over_assign():
     with model:
         a = nengo.Node(output=[1,2,3])
 
-    nb = node_bin.AssignedNodeBin(2, lambda n: n.size_out)
+    nb = collections.AssignedNodeBin(2, lambda n: n.size_out)
 
     with pytest.raises(ValueError):
         nb.append(a)

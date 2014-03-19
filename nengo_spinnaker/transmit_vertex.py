@@ -2,7 +2,7 @@ import os
 
 from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
-from . import node_bin
+from . import collections
 
 
 class TransmitVertex(graph.Vertex):
@@ -20,7 +20,7 @@ class TransmitVertex(graph.Vertex):
     def __init__(self, time_step=1000, constraints=None, label=None):
         # Dimension management
         self._assigned_dimensions = 0
-        self._assigned_nodes = node_bin.AssignedNodeBin(
+        self._assigned_nodes = collections.AssignedNodeBin(
             self.MAX_DIMENSIONS, lambda n: n.size_in
         )
 
