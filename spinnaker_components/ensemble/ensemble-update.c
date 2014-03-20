@@ -12,6 +12,8 @@
 
 #include "ensemble.h"
 
+uint lfsr = 1;  //!< LFSR for spike peturbation
+
 void ensemble_update( uint arg0, uint arg1 )
 {
   // Values used below
@@ -58,6 +60,13 @@ void ensemble_update( uint arg0, uint arg1 )
       set_neuron_refractory( n );
       //io_printf( IO_STD, "%d SPIKED.  %d ticks till active. v_ = 0x%08x\n",
       //           n, neuron_refractory( n ), v_ref_voltage[n] );
+
+      /* Randomly peturb the refractory period to account for inter-tick
+         spiking.*/
+      if( lfsr * v_delta < v_voltage - 1.0k ) {
+        g_ensemble.status[n].refractory_time--;
+      }
+      lfsr = ((lfsr >> 1) ^ (-(lfsr & 0x1) & 0xB400)) & 0x0000ffff;
 
       // Update the output values
       for( uint d = 0; d < g_n_output_dimensions; d++ ) {
