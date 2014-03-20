@@ -233,10 +233,6 @@ class EnsembleVertex(graph.Vertex):
         # Encode any constant inputs, and add to the biases
         self.bias += np.dot(self.encoders, self.direct_input)
 
-        # Generate the filters
-        for e in self.in_edges:
-            self.filters.add_edge(e)
-
         # Generate the list of decoders, and the list of ouput keys
         subvertex.output_keys = list()
         x, y, p = processor.get_coordinates()
