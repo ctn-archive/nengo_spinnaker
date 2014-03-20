@@ -156,10 +156,12 @@ class EnsembleVertex(graph.Vertex):
         # 2 words per filter
         return 4 * 2 * len(self.data.filters)
 
-    def sizeof_region_filter_keys(self):
+    def sizeof_region_filter_keys(self, subvertex):
         # 3 words per entry
         # 1 entry per in_subedge
-        return 4 * 3 * len(self.in_edges)
+        return 4 * 3 * sum(
+            map(len, self.filters.get_indexed_keys_masks(subvertex))
+        )
 
     # FOR UPSTREAM CHANGES
     def sdram_usage(self, lo_atom, hi_atom):
@@ -298,7 +300,7 @@ class EnsembleVertex(graph.Vertex):
         )
         subvertex.spec.reserveMemRegion(
             self.REGIONS.FILTER_KEYS,
-            self.sizeof_region_filter_keys()
+            self.sizeof_region_filter_keys(subvertex)
         )
 
     def write_region_system(self, subvertex):
