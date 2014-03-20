@@ -385,6 +385,10 @@ class EnsembleVertex(graph.Vertex):
         to combine keys and masks to minimise the number of comparisons
         which are made in the SpiNNaker application.
         """
+        for i, km in enumerate(self.filters.get_indexed_keys_masks(subvertex)):
+            subvertex.spec.write(data=km[0])
+            subvertex.spec.write(data=km[1])
+            subvertex.spec.write(data=i)
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
