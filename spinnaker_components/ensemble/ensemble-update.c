@@ -63,7 +63,7 @@ void ensemble_update( uint arg0, uint arg1 )
 
       /* Randomly peturb the refractory period to account for inter-tick
          spiking.*/
-      if( lfsr * v_delta < v_voltage - 1.0k ) {
+      if( bitsk(lfsr) * v_delta < v_voltage - 1.0k ) {
         g_ensemble.status[n].refractory_time--;
       }
       lfsr = ((lfsr >> 1) ^ (-(lfsr & 0x1) & 0xB400)) & 0x0000ffff;
