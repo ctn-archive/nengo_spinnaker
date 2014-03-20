@@ -38,10 +38,11 @@ void ensemble_update( uint arg0, uint arg1 )
     }
 
     v_voltage = neuron_voltage(n);
-    v_delta = ( i_membrane - v_voltage ) * g_ensemble.one_over_t_rc;
-    /* io_printf( IO_STD, "dt = %k, J = %k, V = %k, dV = %k\n",
-                  dt, i_membrane, v_voltage, v_delta );
+    v_delta = ( i_membrane - v_voltage ) * g_ensemble.dt_over_t_rc;
+    /* io_printf( IO_STD, "n = %d, J = %k, V = %k, dV = %k\n",
+                  n, i_membrane, v_voltage, v_delta );
     */
+
     v_voltage += v_delta;
 
     // Voltages can't go below 0.0
@@ -54,16 +55,18 @@ void ensemble_update( uint arg0, uint arg1 )
 
     // If this neuron has fired then process
     if( v_voltage > 1.0k ) {
+      io_printf( IO_STD, "[Ensemble] Neuron %d spiked.", n );
+
       // Zero the voltage, set the refractory time
       set_neuron_refractory( n );
-      //io_printf( IO_STD, "%d SPIKED.  %d ticks till active. v_ = 0x%08x\n",
-      //           n, neuron_refractory( n ), v_ref_voltage[n] );
 
       // Update the output values
       for( uint d = 0; d < g_n_output_dimensions; d++ ) {
-        //io_printf( IO_STD, "%d spike: %d: %08x\n", n, d, neuron_decoder(n, d));
+        io_printf( IO_STD, "[%d] = %.3k (0x%08x)",
+          d, neuron_decoder(n,d), neuron_decoder(n,d) );
         g_ensemble.output[d] += neuron_decoder( n, d );
       }
+      io_printf( IO_STD, "\n" );
     }
   }
 }

@@ -28,7 +28,7 @@ typedef struct region_system {
   uint n_neurons;
   uint machine_timestep;
   uint t_ref;
-  value_t one_over_t_rc;
+  value_t dt_over_t_rc;
   uint n_filters;
   uint n_filter_keys;
 } region_system_t;
@@ -44,9 +44,9 @@ typedef struct region_system {
 * Number of input dimensions | | ```uint``` | ::n_input_dimensions
 * Number of output dimensions | | ```uint``` | ::n_output_dimensions
 * Number of neurons | | ```uint``` | ::n_neurons
-* dt | Microseconds | ```uint``` | ::dt
-* Refactory time constant | Steps of dt | ```uint``` | ::t_ref
-* Inverse of membrane time constant | | ```accum``` | ::one_over_t_rc
+* Machine time step | Microseconds | ```uint``` | ::dt
+* Refactory time constant | Steps | ```uint``` | ::t_ref
+* dt over membrane time constant | | ```accum``` | ::dt_over_t_rc
 * Number of filters | | ```uint``` |
 * Number of filter keys | | ```uint``` |
 */
