@@ -179,6 +179,13 @@ class FilterCollection(object):
     def __init__(self):
         self._entries = {}
 
+    def __len__(self):
+        return len(self._entries)
+
+    def num_keys(self, subvertex):
+        """Return the number of key entries for a given subvertex."""
+        return sum(map(len, self.get_indexed_keys_masks(subvertex)))
+
     def add_edge(self, edge):
         """Add the given edge to the filter collection."""
         # Create a new filter if necessary

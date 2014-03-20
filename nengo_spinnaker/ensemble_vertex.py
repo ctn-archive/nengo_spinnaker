@@ -154,14 +154,12 @@ class EnsembleVertex(graph.Vertex):
 
     def sizeof_region_filters(self):
         # 2 words per filter
-        return 4 * 2 * len(self.data.filters)
+        return 4 * 2 * len(self.filters)
 
     def sizeof_region_filter_keys(self, subvertex):
         # 3 words per entry
         # 1 entry per in_subedge
-        return 4 * 3 * sum(
-            map(len, self.filters.get_indexed_keys_masks(subvertex))
-        )
+        return 4 * 3 * self.filters.num_keys(subvertex)
 
     # FOR UPSTREAM CHANGES
     def sdram_usage(self, lo_atom, hi_atom):
@@ -310,8 +308,8 @@ class EnsembleVertex(graph.Vertex):
         # 4. Machine time step in us
         # 5. tau_ref in number of steps
         # 6. dt over tau_rc
-        # 7. Filter decay (TO BE CHANGED)
-        # 8. 1 - Filter decay (TO BE CHANGED)
+        # 7. Number of filters
+        # 8. Number of filter keys
         """)
         subvertex.spec.write(data=self.n_input_dimensions)
         subvertex.spec.write(data=self.n_output_dimensions)
@@ -322,8 +320,8 @@ class EnsembleVertex(graph.Vertex):
 
         if len(self.in_edges) > 0:
             filter = self.filters.filter_tcs(self.dt)
-            subvertex.spec.write(data=parameters.s1615(filter[0][0]))
-            subvertex.spec.write(data=parameters.s1615(filter[0][1]))
+            subvertex.spec.write(data=len(self.filters))
+            subvertex.spec.write(data=self.filters.num_keys(subvertex))
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
