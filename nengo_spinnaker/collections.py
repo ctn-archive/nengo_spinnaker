@@ -193,7 +193,7 @@ class FilterCollection(object):
 
     def filter_tcs(self, dt):
         """Return a list of tupled filter time constants and complements."""
-        return [f.get_filter_tc(dt) for f in self._entries]
+        return [f.get_filter_tc(dt) for f in self._entries.values()]
 
     def get_indexed_keys_masks(self, subvertex):
         """Return a list of keys and masks for each filter in the collection
