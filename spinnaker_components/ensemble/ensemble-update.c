@@ -66,7 +66,7 @@ void ensemble_update( uint arg0, uint arg1 )
       if( bitsk(lfsr) * v_delta < v_voltage - 1.0k ) {
         g_ensemble.status[n].refractory_time--;
       }
-      lfsr = ((lfsr >> 1) ^ (-(lfsr & 0x1) & 0xB400)) & 0x0000efff;
+      lfsr = ((lfsr >> 1) ^ (-(lfsr & 0x1) & 0xB400)) & 0x00007fff;
 
       // Update the output values
       for( uint d = 0; d < g_n_output_dimensions; d++ ) {
