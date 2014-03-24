@@ -23,8 +23,9 @@ simulator, not the builder.
 
 
 import nengo
+import nengo.utils.builder as build_utils
+from nengo.utils import distributions
 import numpy as np
-import nengo.build_utils
 
 
 class NodeData:
@@ -62,11 +63,8 @@ class EnsembleData:
             
         # Generate eval points
         if ens.eval_points is None:
-            # TODO: standardize how to set number of samples
-            #  (this is different than the reference implementation!)
-            S = min(ens.dimensions * 500, 5000)
-            self.eval_points = nengo.decoders.sample_hypersphere(
-                ens.dimensions, S, rng) * ens.radius
+            self.eval_points = distributions.UniformHypersphere(
+                ens.dimensions).sample(ens.EVAL_POINTS, rng=rng) * ens.radius
         else:
             self.eval_points = np.array(ens.eval_points, dtype=np.float64)
             if self.eval_points.ndim == 1:
@@ -146,11 +144,16 @@ class EnsembleData:
                             [c.function(ep) for ep in eval_points])
                 if targets.ndim < 2:
                     targets.shape = targets.shape[0], 1
-            decoder = c.decoder_solver(activities, targets, self.rng)
+
+            solver = c.decoder_solver
+            if solver is None:
+                solver = nengo.decoders.lstsq_L2nz
+
+            decoder = solver(activities, targets, self.rng)
             self.decoders_by_func[c.function] = decoder
         
         # combine the decoder with the transform and record it in the list
-        decoder = np.dot(decoder, c.transform.T)
+        decoder = np.dot(decoder, np.asarray(c.transform).T)
         self.decoder_list.append((decoder, c.transform, c.function))
         self.D_out += decoder.shape[1]
         return count, start
@@ -194,7 +197,7 @@ class Builder:
     
         # Get rid of all passthrough nodes, replacing them with the equivalent
         #   connections
-        objs, connections = nengo.build_utils.remove_passthrough_nodes(
+        objs, connections = build_utils.remove_passthrough_nodes(
                                                 model.objs, model.connections)
         
         self.ensembles = {}  # just ensembles
