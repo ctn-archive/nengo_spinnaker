@@ -47,11 +47,11 @@ class EnsembleVertex(graph.Vertex):
         # size is measured in bytes
         spec.reserveMemRegion(REGIONS.SYSTEM, size=8*4)
         spec.reserveMemRegion(REGIONS.BIAS,
-                              size=subvertex.n_neurons*4)
+                              size=subvertex.n_atoms*4)
         spec.reserveMemRegion(REGIONS.ENCODERS,
-                              size=subvertex.n_neurons*self.data.D_in*4)
+                              size=subvertex.n_atoms*self.data.D_in*4)
         spec.reserveMemRegion(REGIONS.DECODERS,
-                              size=subvertex.n_neurons*self.data.D_out*4)
+                              size=subvertex.n_atoms*self.data.D_out*4)
         spec.reserveMemRegion(REGIONS.DECODER_KEYS,
                               size=self.data.D_out*4)
 
@@ -61,7 +61,7 @@ class EnsembleVertex(graph.Vertex):
         spec.switchWriteFocus(REGIONS.SYSTEM)
         spec.write(data=self.data.D_in)
         spec.write(data=self.data.D_out)
-        spec.write(data=subvertex.n_neurons)
+        spec.write(data=subvertex.n_atoms)
         spec.write(data=int(dt*(10**6)))   # dt in us
         spec.write(data=int(round(self.data.tau_ref/0.001)))  # t_ref in steps
 
