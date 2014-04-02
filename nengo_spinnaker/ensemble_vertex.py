@@ -3,6 +3,8 @@ import numpy as np
 
 import nengo
 import nengo.builder
+import nengo.decoders
+from nengo.utils import distributions
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
@@ -45,11 +47,8 @@ class EnsembleVertex(graph.Vertex):
 
         # Generate eval points
         if ens.eval_points is None:
-            # TODO: standardize how to set number of samples
-            #  (this is different than the reference implementation!)
-            S = min(ens.dimensions * 500, 5000)
-            self.eval_points = nengo.decoders.sample_hypersphere(
-                ens.dimensions, S, rng) * ens.radius
+            self.eval_points = distributions.UniformHypersphere(
+                ens.dimensions).sample(ens.EVAL_POINTS, rng=rng) * ens.radius
         else:
             self.eval_points = np.array(ens.eval_points, dtype=np.float64)
             if self.eval_points.ndim == 1:
@@ -150,17 +149,15 @@ class EnsembleVertex(graph.Vertex):
         # 1 word per output dimension
         return 4 * self.n_output_dimensions
 
-    # FOR UPSTREAM CHANGES
     def sdram_usage(self, lo_atom, hi_atom):
         """Return the amount of SDRAM used for the specified atoms."""
         # At the moment this is the same as the DTCM usage, though this may
         # change.
         return self.dtcm_usage(lo_atom, hi_atom)
 
-    # FOR UPSTREAM CHANGES
     def dtcm_usage(self, lo_atom, hi_atom):
         """Return the amount of DTCM used for the specified atoms."""
-        n_atoms = hi_atom - lo_atom
+        n_atoms = hi_atom - lo_atom + 1
         return sum([
             self.sizeof_region_system(),
             self.sizeof_region_bias(n_atoms),
@@ -169,13 +166,11 @@ class EnsembleVertex(graph.Vertex):
             self.sizeof_region_output_keys(),
         ])
 
-    # FOR UPSTREAM CHANGES
     def cpu_usage(self, lo_atom, hi_atom):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
 
-    # FOR UPSTREAM CHANGES
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
                                 machine_time_step_us, partition_data_object):
         """Get the resources required for the specified atoms.
@@ -196,17 +191,6 @@ class EnsembleVertex(graph.Vertex):
                 self.dtcm_usage(lo_atom, hi_atom),
                 self.sdram_usage(lo_atom, hi_atom)
             )
-        )
-
-    # TO BE DEPRECATED
-    def get_requirements_per_atom(self):
-        """Return some indication of the cost of including a single atom on a
-        processing core.
-        """
-        return lib_map.Resources(
-            1,
-            self.dtcm_usage(0, self.atoms) / self.atoms,
-            self.sdram_usage(0, self.atoms) / self.atoms
         )
 
     def generateDataSpec(self, processor, subvertex, dao):
@@ -249,8 +233,10 @@ class EnsembleVertex(graph.Vertex):
         # Get the executable
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
-            os.path.join(dao.get_common_binaries_directory(),
-                'nengo_ensemble.aplx'),
+            os.path.join(
+                dao.get_common_binaries_directory(),
+                'nengo_ensemble.aplx'
+            ),
             x, y, p
         )
 
