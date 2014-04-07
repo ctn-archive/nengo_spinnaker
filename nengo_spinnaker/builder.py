@@ -58,7 +58,7 @@ class Builder(object):
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
-            model.objs, model.connections
+            *nengo.utils.builder.objs_and_connections(model)
         )
 
         # Build each of the objects
