@@ -191,14 +191,15 @@ class EnsembleVertex(graph.Vertex):
         :returns: A tuple of the partition data object, and the resources
                   required.
         """
-        return (
-            partition_data_object,
-            lib_map.Resources(
-                self.cpu_usage(lo_atom, hi_atom),
-                self.dtcm_usage(lo_atom, hi_atom),
-                self.sdram_usage(lo_atom, hi_atom)
-            )
+        return lib_map.Resources(
+            self.cpu_usage(lo_atom, hi_atom),
+            self.dtcm_usage(lo_atom, hi_atom),
+            self.sdram_usage(lo_atom, hi_atom)
         )
+
+    def get_maximum_atoms_per_core(self):
+        # TODO: Calculate this
+        return 128
 
     def generateDataSpec(self, processor, subvertex, dao):
         """Generate the data spec for the given subvertex."""
@@ -344,6 +345,5 @@ class EnsembleVertex(graph.Vertex):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self.decoders.edge_index(subedge.edge)
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
-        mask = 0xFFFFFFE0
 
-        return key, mask
+        return key
