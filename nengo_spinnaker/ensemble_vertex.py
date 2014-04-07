@@ -244,6 +244,8 @@ class EnsembleVertex(graph.Vertex):
 
     def reserve_regions(self, subvertex):
         """Reserve sufficient space for the regions in the spec."""
+        # TODO Modify the following functions to use write_array rather than
+        #  lots of writes.
         subvertex.spec.reserveMemRegion(
             self.REGIONS.SYSTEM,
             self.sizeof_region_system()
@@ -294,9 +296,8 @@ class EnsembleVertex(graph.Vertex):
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
         subvertex.spec.switchWriteFocus(self.REGIONS.BIAS)
-        for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
-            # Write the bias for all atoms within this subvertex
-            subvertex.spec.write(data=parameters.s1615(self.bias[n]))
+        subvertex.spec.write_array(parameters.s1615(
+            self.bian[subvertex.lo_atom, subvertex.hi_atom+1]))
 
     def write_region_encoders(self, subvertex):
         """Write the encoder region for the given subvertex."""
