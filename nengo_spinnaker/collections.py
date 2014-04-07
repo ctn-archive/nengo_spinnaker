@@ -3,6 +3,8 @@
 
 import numpy as np
 
+import nengo.decoders
+
 
 class DecoderBinEntry(object):
     def __init__(self, decoder, func, transform=None):
