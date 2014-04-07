@@ -60,7 +60,12 @@ class DecoderBin(object):
                 )
                 if targets.ndim < 2:
                     targets.shape = targets.shape[0], 1
-            decoder = e.decoder_solver(activities, targets, self.rng)
+
+            solver = e.decoder_solver
+            if solver is None:
+                solver = nengo.decoders.lstsq_L2nz
+
+            decoder = solver(activities, targets, self.rng)
             self._decoders_by_func[e.function] = decoder
 
         # Combine the decoder with the transform and record it in the list
