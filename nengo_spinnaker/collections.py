@@ -52,7 +52,11 @@ class DecoderBin(object):
             eval_points = e.eval_points
             if eval_points is None:
                 eval_points = e.prevertex.eval_points
-            activities = e.pre.activities(eval_points)
+
+            x = np.dot(eval_points, e.prevertex.encoders.T / e.pre.radius)
+            activities = e.pre.neurons.rates(
+                x, e.prevertex.gain, e.prevertex.bias
+            )
 
             if e.function is None:
                 targets = eval_points

@@ -54,9 +54,10 @@ class EnsembleVertex(graph.Vertex):
             if self.eval_points.ndim == 1:
                 self.eval_points.shape = (-1, 1)
 
-        # TODO: change this to not modify Model
         # Set up neurons
-        if ens.neurons.gain is None or ens.neurons.bias is None:
+        gain = ens.neurons.gain
+        bias = ens.neurons.bias
+        if gain is None or bias is None:
             # if max_rates and intercepts are distributions,
             # turn them into fixed samples.
             if hasattr(ens.max_rates, 'sample'):
@@ -67,10 +68,10 @@ class EnsembleVertex(graph.Vertex):
                 ens.intercepts = ens.intercepts.sample(
                     ens.neurons.n_neurons, rng=rng
                 )
-            ens.neurons.set_gain_bias(ens.max_rates, ens.intercepts)
+            (gain, bias) = ens.neurons.gain_bias(ens.max_rates, ens.intercepts)
 
-        self.bias = ens.neurons.bias
-        self.gain = ens.neurons.gain
+        self.bias = bias
+        self.gain = gain
         self.tau_rc = ens.neurons.tau_rc
         self.tau_ref = ens.neurons.tau_ref
 
@@ -78,7 +79,13 @@ class EnsembleVertex(graph.Vertex):
 
         # Set up encoders
         if ens.encoders is None:
-            self.encoders = ens.neurons.default_encoders(ens.dimensions, rng)
+            if isinstance(ens.neurons, nengo.Direct):
+                self.encoders = np.identity(ens.dimensions)
+            else:
+                sphere = distributions.UniformHypersphere(
+                    ens.dimensions, surface=True)
+                self.encoders = sphere.sample(
+                    ens.neurons.n_neurons, rng=self.rng)
         else:
             self.encoders = np.array(ens.encoders, dtype=np.float64)
             enc_shape = (ens.neurons.n_neurons, ens.dimensions)
@@ -297,7 +304,7 @@ class EnsembleVertex(graph.Vertex):
         """Write the bias region for the given subvertex."""
         subvertex.spec.switchWriteFocus(self.REGIONS.BIAS)
         subvertex.spec.write_array(parameters.s1615(
-            self.bian[subvertex.lo_atom, subvertex.hi_atom+1]))
+            self.bias[subvertex.lo_atom:subvertex.hi_atom+1]))
 
     def write_region_encoders(self, subvertex):
         """Write the encoder region for the given subvertex."""
