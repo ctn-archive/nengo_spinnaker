@@ -17,7 +17,7 @@ class DecoderBin(object):
     """A bin for decoders."""
     def __init__(self, rng):
         self._decoders = list()
-        self._decoders_by_func= dict()
+        self._decoders_by_func = dict()
         self._decoders_edges = dict()
         self.rng = rng
 
@@ -40,8 +40,8 @@ class DecoderBin(object):
               transform despite being a different matrix.)
         """
         # Check if the decoder already exists for this function and transform
-        for (i,dec) in enumerate(self._decoders):
-            if dec.func == e.function and dec.trans == conn.transform:
+        for (i, dec) in enumerate(self._decoders):
+            if dec.func == e.function and dec.trans == e.transform:
                 self._decoders_edges[e] = i
                 return i
 

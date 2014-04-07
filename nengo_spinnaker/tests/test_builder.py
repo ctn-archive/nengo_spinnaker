@@ -7,6 +7,7 @@ import numpy as np
 
 from .. import builder, ensemble_vertex
 
+
 def test_build_fail():
     """Ensure that the Builder raises an error when we try to build something
     that we don't know anything about.
@@ -18,6 +19,7 @@ def test_build_fail():
 
     with pytest.raises(TypeError):
         b(x, 0.001)
+
 
 def test_build_ensemble():
     """Ensure that the Builder returns a DAO containing the given Ensemble.
@@ -33,6 +35,7 @@ def test_build_ensemble():
     # Test that the DAO contains a vertex which represents the given Ensemble
     assert(isinstance(dao.vertices[0], ensemble_vertex.EnsembleVertex))
     assert(dao.ensemble_vertices[ens]._ens == ens)
+
 
 def test_build_node_ensemble_ensemble_node():
     """Test that the Builder can build a simple network."""
@@ -80,6 +83,7 @@ def test_build_node_ensemble_ensemble_node():
     ev2 = tx.in_edges[0].prevertex
 
     assert(ev1.out_edges[0].postvertex == ev2)
+
 
 def test_decoder_fanout():
     # Build a model with some decoder fan out
