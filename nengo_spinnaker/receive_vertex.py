@@ -62,6 +62,14 @@ class ReceiveVertex(graph.Vertex):
         spec.initialise(0xABCE, dao)
         spec.comment("# Nengo Rx Component")
 
+        spec.reserveMemRegion(1, 4)
+        spec.switchWriteFocus(1)
+
+        x, y, p = processor.get_coordinates()
+        key = (x << 24) | (y << 16) | ((p-1) << 11)
+
+        spec.write(data=key)
+
         spec.endSpec()
         spec.closeSpecFile()
 
