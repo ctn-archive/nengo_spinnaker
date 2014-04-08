@@ -71,4 +71,4 @@ class ReceiveVertex(graph.Vertex):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         key = (x << 24) | (y << 16) | ((p-1) << 11)
 
-        return key
+        return key, 0xFFFFFFE0

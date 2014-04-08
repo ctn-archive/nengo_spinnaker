@@ -346,4 +346,4 @@ class EnsembleVertex(graph.Vertex):
         i = self.decoders.edge_index(subedge.edge)
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
-        return key
+        return key, 0xFFFFFFE0

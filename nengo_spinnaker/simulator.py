@@ -21,7 +21,6 @@ class Simulator(object):
         )
         self.controller.dao = self.dao
         self.dao.set_hostname(conf.config.get('Machine', 'machineName'))
-        self.controller.set_application_mask(0xFFFFFFE0)
         self.controller.map_model()
         self.controller.generate_output()
         self.controller.load_targets()
