@@ -26,9 +26,8 @@ United Kingdom                      Canada
 
 uint key;
 
-void copy_in_system_region( address_t addr ){
-  key = (uint) addr[0];
-  io_printf( IO_STD, "Rx Key 0x%08x\n", key );
+void copy_in_system_region(address_t addr){
+  key = addr[0];
 }
 
 int c_main( void )
