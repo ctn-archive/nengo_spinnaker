@@ -31,5 +31,5 @@ United Kingdom                      Canada
  * Necessarily hacky test source.
  */
 
-int main( void );
+void c_main( void );
 void timer_callback( uint simulation_time, uint none );
