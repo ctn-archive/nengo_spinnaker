@@ -48,6 +48,15 @@ bool data_get_decoders(
 ){
   spin1_memcpy( g_ensemble.decoders, addr,
     n_neurons * n_output_dimensions * sizeof( value_t ) );
+
+  for( uint n = 0; n < n_neurons; n++ ){
+    io_printf( IO_BUF, "Decoder[%d] = ", n );
+    for( uint d = 0; d < n_output_dimensions; d++ ){
+      io_printf( IO_BUF, "%k, ", neuron_decoder( n, d ) );
+    }
+    io_printf( IO_BUF, "\n" );
+  }
+
   return true;
 }
 

@@ -1,249 +1,174 @@
+"""Builder for running Nengo models on SpiNNaker
+
+Converts a Nengo model (rather, Network) into the graph based representation
+required by PACMAN.
 """
-Builder for running Nengo on SpiNNaker
 
-The following information is needed:
-
-For each Ensemble:
-    - id (for referring to it)
-    - N  (number of neurons)
-    - bias
-    - tau_rc, tau_ref
-    - encoders*gain
-    - decoders (one large matrix for all decoders from the ensemble)
-    - filters (list of low-pass filter tau values)
-For each Connection:
-    - pre
-    - post
-    - offset, length (in pre's decoder matrix)
-    - target filter index (in post's filters list)
-    
-Note that connections from a Node into an Ensemble are handled by the
-simulator, not the builder.   
-"""    
-
-
-import nengo
-import nengo.utils.builder as build_utils
-from nengo.utils import distributions
+import inspect
+import re
 import numpy as np
 
+import nengo
+import nengo.utils.builder
 
-class NodeData:
-    """Constructed information for a Node."""
-    def __init__(self, node, rng):
-        self.filters = []
-        self.node = node
-    def get_target(self, filter):
-        if filter not in self.filters:
-            self.filters.append(filter)
-        return self.filters.index(filter)
+from pacman103.core import dao
 
-class EnsembleData:
-    """Constructed information for an Ensemble."""
-    def __init__(self, ens, rng):
-        self.filters = []           # list of input tau filter values
-        self.decoders_by_func = {}  # cache for decoders of different funcs
-        self.decoder_list = []      # list of actual decoders (with transform)
-        self.ens = ens              # the ensemble we're associated with
-        self.label = ens.label
-        self.vertex = None
-    
-        self.N = ens.neurons.n_neurons     # number of neurons
-        self.D_in = ens.dimensions
-        self.D_out = 0
+from . import edges
+from . import ensemble_vertex, transmit_vertex, receive_vertex
 
-        self.constant_input = np.zeros( self.D_in )
-        
-        # Create random number generator
-        if ens.seed is None:
-            rng = np.random.RandomState(rng.tomaxint())
-        else:
-            rng = np.random.RandomState(ens.seed)
-        self.rng = rng    
-            
-        # Generate eval points
-        if ens.eval_points is None:
-            self.eval_points = distributions.UniformHypersphere(
-                ens.dimensions).sample(ens.EVAL_POINTS, rng=rng) * ens.radius
-        else:
-            self.eval_points = np.array(ens.eval_points, dtype=np.float64)
-            if self.eval_points.ndim == 1:
-                self.eval_points.shape = (-1, 1)
-        
-        # TODO: change this to not modify Model
-        # Set up neurons
-        if ens.neurons.gain is None or ens.neurons.bias is None:
-            # if max_rates and intercepts are distributions,
-            # turn them into fixed samples.
-            if hasattr(ens.max_rates, 'sample'):
-                ens.max_rates = ens.max_rates.sample(
-                    ens.neurons.n_neurons, rng=rng)
-            if hasattr(ens.intercepts, 'sample'):
-                ens.intercepts = ens.intercepts.sample(
-                    ens.neurons.n_neurons, rng=rng)
-            ens.neurons.set_gain_bias(ens.max_rates, ens.intercepts)
-        self.bias = ens.neurons.bias
-        self.gain = ens.neurons.gain
-        self.tau_rc = ens.neurons.tau_rc
-        self.tau_ref = ens.neurons.tau_ref
-        
-            
-        # Set up encoders
-        if ens.encoders is None:
-            self.encoders = ens.neurons.default_encoders(ens.dimensions, rng)
-        else:
-            self.encoders = np.array(ens.encoders, dtype=np.float64)
-            enc_shape = (ens.neurons.n_neurons, ens.dimensions)
-            if self.encoders.shape != enc_shape:
-                raise ShapeMismatch(
-                    "Encoder shape is %s. Should be (n_neurons, dimensions);"
-                    " in this case %s." % (self.encoders.shape, enc_shape))
 
-            norm = np.sum(self.encoders ** 2, axis=1)[:, np.newaxis]
-            self.encoders /= np.sqrt(norm)
-        ens.encoders = self.encoders   #TODO: remove this when it is no longer
-                                       # required be Ensemble.activities()        
-            
-    def get_target(self, filter):
-        """Return the index of the input that has this filter value
-        
-        If that filter value does not yet exist, it is added.
+class Builder(object):
+    """Converts a Nengo model into a PACMAN appropriate data structure."""
+
+    def __init__(self):
+        # Build by inspection the dictionary of things we can build
+        builds = filter(lambda m: "_build_" == m[0][0:7],
+                        inspect.getmembers(self, inspect.ismethod))
+        objects = dict(inspect.getmembers(nengo, inspect.isclass))
+        self.builders = dict()
+
+        for (s, f) in builds:
+            obj_name = re.sub(
+                r'_(\w)', lambda m: m.group(1).upper(), re.sub('_build', '', s)
+            )
+            if obj_name in objects:
+                self.builders[objects[obj_name]] = f
+
+    def _build(self, obj):
+        """Call the appropriate build function for the given object."""
+        if not type(obj) in self.builders:
+            raise TypeError("Cannot build a '%s' object." % type(obj))
+        self.builders[type(obj)](obj)
+
+    def __call__(self, model, dt, seed=None):
+        """Return a PACMAN103 DAO containing a representation of the given
+        model, and a list of I/O Nodes with references to their connected Rx
+        and Tx components.
         """
-        if filter not in self.filters:
-            self.filters.append(filter)
-        return self.filters.index(filter)
-        
-    def get_decoder_location(self, c):
-        """Return the starting index of the decoder for this connection
-        
-        If it already exists, the existing index is returned.  Otherwise it
-        is added to the decoder_list.
-        """
-        
-        # check if the decoder already exists for this function and transform
-        start = 0
-        count = 0
-        for d,t,f in self.decoder_list:
-            if t == c.transform and c.function == f:
-                return count, start
-            count += 1    
-            start += d.shape[1]    
-                
-        # check if the decoder already exists for this function       
-        decoder = self.decoders_by_func.get(c.function, None)
-        if decoder is None:
-            # compute the decoder
-            eval_points = c.eval_points
-            if eval_points is None:
-                eval_points = self.eval_points
-            activities = self.ens.activities(eval_points)
-            if c.function is None:
-                targets = eval_points
-            else:
-                targets = np.array(
-                            [c.function(ep) for ep in eval_points])
-                if targets.ndim < 2:
-                    targets.shape = targets.shape[0], 1
+        self.rng = np.random.RandomState(seed)
 
-            solver = c.decoder_solver
-            if solver is None:
-                solver = nengo.decoders.lstsq_L2nz
+        # Create a DAO to store PACMAN data and Node list for the simulator
+        self.dao = dao.DAO("nengo")
+        self.dao.ensemble_vertices = self.ensemble_vertices = dict()
+        self.dao.tx_vertices = self._tx_vertices = list()
+        self.dao.tx_assigns = self._tx_assigns = dict()
+        self.dao.rx_vertices = self._rx_vertices = list()
+        self.dao.rx_assigns = self._rx_assigns = dict()
+        self.dao.node_to_node_edges = self._node_to_node_edges = list()
 
-            decoder = solver(activities, targets, self.rng)
-            self.decoders_by_func[c.function] = decoder
-        
-        # combine the decoder with the transform and record it in the list
-        decoder = np.dot(decoder, np.asarray(c.transform).T)
-        self.decoder_list.append((decoder, c.transform, c.function))
-        self.D_out += decoder.shape[1]
-        return count, start
-        
-    def get_merged_decoders(self):
-        d = [item[0] for item in self.decoder_list]
-        return np.hstack(d)
-        
+        # Get a new network structure with passthrough nodes removed
+        (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
+            *nengo.utils.builder.objs_and_connections(model)
+        )
 
-            
-    def text_data(self):
-        r = []
-        r.append('  N=%d'%self.N)
-        r.append('  tau_rc=%g'%self.tau_rc)
-        r.append('  tau_ref=%g'%self.tau_ref)
-        r.append('  bias=%s'%self.bias)
-        r.append('  encoders=%s'%(self.encoders*self.gain[:,None]))
-        r.append('  decoders=%s'%(self.decoder_list))
-        
-        return '\n'.join(r)
-        
-class OnboardConnectionData:
-    def __init__(self, c, pre, post):
-        self.pre = pre
-        self.post = post
-        self.index, self.offset = pre.get_decoder_location(c)
-        self.length = c.dimensions
-        self.target_buffer = post.get_target(c.filter)
-        
-class ExternalConnectionData:
-    def __init__(self, c, pre, post):
-        self.pre = pre
-        self.post = post
-        self.target_buffer = post.get_target(c.filter)
-        
-
-
-class Builder:
-    def __init__(self, model, dt=0.001, seed=None):    
-        rng = np.random.RandomState(seed)
-    
-        # Get rid of all passthrough nodes, replacing them with the equivalent
-        #   connections
-        objs, connections = build_utils.remove_passthrough_nodes(
-                                                model.objs, model.connections)
-        
-        self.ensembles = {}  # just ensembles
-        self.nodes = {}      # just nodes
-        self.items = {}      # both ensembles and nodes
-        
-        # parse the objects
+        # Build each of the objects
         for obj in objs:
-            if isinstance(obj, nengo.Ensemble):
-                self.ensembles[obj] = EnsembleData(obj, rng)
-                self.items[obj] = self.ensembles[obj]
-            elif isinstance(obj, nengo.Node):
-                self.nodes[obj] = NodeData(obj, rng)
-                self.items[obj] = self.nodes[obj]
-            else:
-                raise Exception('Unknown object in model: %s'%obj)
-        
-        
-        self.conn_n2n = []
-        self.conn_n2e = []
-        self.conn_e2e = []
-        self.conn_e2n = []
-        
-        # parse the connections
-        for c in connections:
-            if isinstance(c.pre, nengo.Ensemble):
-                data = OnboardConnectionData(c, self.ensembles[c.pre], 
-                                                        self.items[c.post])
-                if isinstance(c.post, nengo.Ensemble):
-                    self.conn_e2e.append(data)
-                else:    
-                    self.conn_e2n.append(data)
-                
-            elif isinstance(c.pre, nengo.Node):
-                data = ExternalConnectionData(c, 
-                        self.nodes[c.pre], self.items[c.post])
-                if isinstance(c.post, nengo.Ensemble):
-                    self.conn_n2e.append(data)
-                else:    
-                    self.conn_n2n.append(data)
-        
+            self._build(obj)
 
-    def print_ensembles(self):        
-        for ens in self.ensembles.values():
-            print ens.text_data()
-            
-    def print_connections(self):        
-        for c in self.conn_e2e:
-            print c.pre, c.post, c.offset, c.length, c.target_buffer
+        # Build each of the connections
+        for conn in connections:
+            self._build(conn)
+
+        # Return the DAO
+        return self.dao
+
+    def _build_ensemble(self, ens):
+        # Add an appropriate Vertex which deals with the Ensemble
+        vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
+        self.dao.add_vertex(vertex)
+        self.ensemble_vertices[ens] = vertex
+
+    def _build_node(self, node):
+        # If the Node has input, then assign the Node to a Tx component
+        if node.size_in > 0:
+            # Try to fit the Node in an existing Tx Element
+            # Most recently added Txes are nearer the start
+            tx_assigned = False
+            for tx in self._tx_vertices:
+                if tx.remaining_dimensions >= node.size_in:
+                    tx.assign_node(node)
+                    tx_assigned = True
+                    self._tx_assigns[node] = tx
+                    break
+
+            # Otherwise create a new Tx element
+            if not tx_assigned:
+                tx = transmit_vertex.TransmitVertex(
+                    label="Tx%d" % len(self._tx_vertices)
+                )
+                self.dao.add_vertex(tx)
+                tx.assign_node(node)
+                self._tx_assigns[node] = tx
+                self._tx_vertices.insert(0, tx)
+
+        # If the Node has output, and that output is not constant, then assign
+        # the Node to an Rx component.
+        if node.size_out > 0 and callable(node.output):
+            # Try to fit the Node in an existing Rx Element
+            # Most recently added Rxes are nearer the start
+            rx_assigned = False
+            for rx in self._rx_vertices:
+                if rx.remaining_dimensions >= node.size_out:
+                    rx.assign_node(node)
+                    rx_assigned = True
+                    self._rx_assigns[node] = rx
+                    break
+
+            # Otherwise create a new Rx element
+            if not rx_assigned:
+                rx = receive_vertex.ReceiveVertex(
+                    label="Rx%d" % len(self._rx_vertices)
+                )
+                self.dao.add_vertex(rx)
+                rx.assign_node(node)
+                self._rx_assigns[node] = rx
+                self._rx_vertices.insert(0, rx)
+
+    def _build_connection(self, c):
+        # Add appropriate Edges between Vertices
+        # In the case of Nodes, determine which Rx and Tx components we need
+        # to connect to.
+        if isinstance(c.pre, nengo.Ensemble):
+            prevertex = self.ensemble_vertices[c.pre]
+            edge = None
+            if isinstance(c.post, nengo.Ensemble):
+                # Ensemble -> Ensemble
+                postvertex = self.ensemble_vertices[c.post]
+                edge = edges.DecoderEdge(c, prevertex, postvertex)
+            elif isinstance(c.post, nengo.Node):
+                # Ensemble -> Node
+                postvertex = self._tx_assigns[c.post]
+                edge = edges.DecoderEdge(c, prevertex, postvertex)
+            else:
+                raise TypeError(
+                    "Cannot connect an Ensemble to a '%s'" % type(c.post)
+                )
+            edge.index = prevertex.decoders.get_decoder_index(edge)
+            self.dao.add_edge(edge)
+
+        elif isinstance(c.pre, nengo.Node):
+            if isinstance(c.post, nengo.Ensemble):
+                # Node -> Ensemble
+                # If the Node has constant output then add to the direct input
+                # for the Ensemble and don't add an edge, otherwise add an
+                # edge from the appropriate Rx element to the Ensemble.
+                postvertex = self.ensemble_vertices[c.post]
+                if c.pre.output is not None and not callable(c.pre.output):
+                    postvertex.direct_input += np.asarray(c.pre.output)
+                else:
+                    prevertex = self._rx_assigns[c.pre]
+                    self.dao.add_edge(
+                        edges.InputEdge(c, prevertex, postvertex)
+                    )
+            elif isinstance(c.post, nengo.Node):
+                # Node -> Node
+                self._node_to_node_edges.append(c)
+            else:
+                raise TypeError(
+                    "Cannot connect an Ensemble to a '%s'" % type(c.post)
+                )
+
+        else:
+            raise TypeError(
+                "Cannot start a connection from a '%s'" % type(c.pre)
+            )

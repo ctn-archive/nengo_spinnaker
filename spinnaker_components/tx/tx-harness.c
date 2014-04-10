@@ -27,23 +27,23 @@ United Kingdom                      Canada
 void c_main( void )
 {
   // Load core map
-  system_load_core_map( );
+  system_load_sram();
+  system_load_core_map();
 
   // Set up routing tables
-  if( leadAp ){
-    io_printf( IO_STD, "TX leadAp = 0x%02x\n", leadAp );
-    system_lead_app_configured( );
+  if(leadAp){
+    system_lead_app_configured();
   }
 
   // Setup the mc_packet_received callback
   //spin1_set_timer_tick( 10000 );
-  spin1_callback_on( MC_PACKET_RECEIVED, mc_packet_received, 0 );
-  spin1_start( );
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mc_packet_received, 0);
+  spin1_start();
 }
 
-void mc_packet_received( uint key, uint payload )
+void mc_packet_received(uint key, uint payload)
 {
-  io_printf( IO_STD, "MC: 0x%08x, 0x%08x\n", key, payload );
+  io_printf(IO_STD, "MC: 0x%08x, 0x%08x\n", key, payload);
 
   // Construct the message
   sdp_msg_t sdp_message;
@@ -60,5 +60,5 @@ void mc_packet_received( uint key, uint payload )
 
   sdp_message.length = sizeof (sdp_hdr_t) + sizeof (sdp_hdr_t);
 
-  spin1_send_sdp_msg( &sdp_message, 1000 );
+  spin1_send_sdp_msg(&sdp_message, 1000);
 }
