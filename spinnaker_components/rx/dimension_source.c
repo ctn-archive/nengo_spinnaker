@@ -24,7 +24,7 @@ United Kingdom                      Canada
 
 #include "dimension_source.h"
 
-uint key;
+uint key, val;
 
 void copy_in_system_region(address_t addr){
   key = (uint) addr[0];
@@ -37,6 +37,7 @@ void c_main(void)
   copy_in_system_region(region_start(1, address));
   system_load_core_map();
 
+  val = 0x1;
 
   // Routing and core map
   if(leadAp){
@@ -54,8 +55,11 @@ void c_main(void)
 void timer_callback(uint simulation_time, uint none)
 {
   // Set some predefined values per dimension
-  accum val = 0.5;
-  spin1_send_mc_packet( key | 0x0, bitsk( val ), WITH_PAYLOAD );
-  spin1_send_mc_packet( key | 0x1, bitsk( val ), WITH_PAYLOAD );
-  spin1_send_mc_packet( key | 0x2, bitsk( val ), WITH_PAYLOAD );
+  io_printf(IO_STD, "Transmitting %d\n", val);
+  spin1_send_mc_packet(key | 0x0, val, WITH_PAYLOAD);
+  // val <<= 1;
+  /*
+  spin1_send_mc_packet(key | 0x1, 0x4000, WITH_PAYLOAD);
+  spin1_send_mc_packet(key | 0x2, 0x4000, WITH_PAYLOAD);
+  */
 }
