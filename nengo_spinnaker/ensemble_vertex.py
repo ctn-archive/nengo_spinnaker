@@ -4,7 +4,8 @@ import numpy as np
 import nengo
 import nengo.builder
 import nengo.decoders
-from nengo.utils import distributions
+from nengo.utils import distributions as dists
+from nengo.utils.compat import is_integer
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
@@ -46,9 +47,15 @@ class EnsembleVertex(graph.Vertex):
         self.rng = rng
 
         # Generate eval points
+
         if ens.eval_points is None:
-            self.eval_points = distributions.UniformHypersphere(
-                ens.dimensions).sample(ens.EVAL_POINTS, rng=rng) * ens.radius
+            dims, neurons = ens.dimensions, ens.neurons.n_neurons
+            n_points = max(np.clip(500 * dims, 750, 2500), 2 * neurons)
+            self.eval_points = dists.UniformHypersphere(ens.dimensions).sample(
+                n_points, rng=rng) * ens.radius
+        elif is_integer(ens.eval_points):
+            self.eval_points = dists.UniformHypersphere(ens.dimensions).sample(
+                ens.eval_points, rng=rng) * ens.radius
         else:
             self.eval_points = np.array(ens.eval_points, dtype=np.float64)
             if self.eval_points.ndim == 1:
@@ -82,7 +89,7 @@ class EnsembleVertex(graph.Vertex):
             if isinstance(ens.neurons, nengo.Direct):
                 self.encoders = np.identity(ens.dimensions)
             else:
-                sphere = distributions.UniformHypersphere(
+                sphere = dists.UniformHypersphere(
                     ens.dimensions, surface=True)
                 self.encoders = sphere.sample(
                     ens.neurons.n_neurons, rng=self.rng)
@@ -97,8 +104,8 @@ class EnsembleVertex(graph.Vertex):
 
             norm = np.sum(self.encoders ** 2, axis=1)[:, np.newaxis]
             self.encoders /= np.sqrt(norm)
-        ens.encoders = self.encoders   # TODO: remove this when it is no longer
-                                       # required be Ensemble.activities()
+        ens.encoders = self.encoders  # TODO: remove this when it is no longer
+                                      # required be Ensemble.activities()
 
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
