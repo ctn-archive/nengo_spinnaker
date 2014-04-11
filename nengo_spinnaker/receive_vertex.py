@@ -29,7 +29,11 @@ class ReceiveVertex(graph.Vertex):
             1, constraints=constraints, label=label
         )
 
-    def get_requirements_per_atom(self):
+    def get_maximum_atoms_per_core(self):
+        return 1
+
+    def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
+                                machine_time_step_us, partition_data_object):
         return lib_map.Resources(1, 1, 1)
 
     @property
@@ -58,6 +62,14 @@ class ReceiveVertex(graph.Vertex):
         spec.initialise(0xABCE, dao)
         spec.comment("# Nengo Rx Component")
 
+        spec.reserveMemRegion(1, 4)
+        spec.switchWriteFocus(1)
+
+        x, y, p = processor.get_coordinates()
+        key = (x << 24) | (y << 16) | ((p-1) << 11)
+
+        spec.write(data=key)
+
         spec.endSpec()
         spec.closeSpecFile()
 
@@ -66,6 +78,5 @@ class ReceiveVertex(graph.Vertex):
     def generate_routing_info(self, subedge):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         key = (x << 24) | (y << 16) | ((p-1) << 11)
-        mask = 0xFFFFFFE0
 
-        return key, mask
+        return key, 0xFFFFFFE0

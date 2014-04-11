@@ -3,6 +3,9 @@ import numpy as np
 
 import nengo
 import nengo.builder
+import nengo.decoders
+from nengo.utils import distributions as dists
+from nengo.utils.compat import is_integer
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
@@ -46,20 +49,24 @@ class EnsembleVertex(graph.Vertex):
         self.rng = rng
 
         # Generate eval points
+
         if ens.eval_points is None:
-            # TODO: standardize how to set number of samples
-            #  (this is different than the reference implementation!)
-            S = min(ens.dimensions * 500, 5000)
-            self.eval_points = nengo.decoders.sample_hypersphere(
-                ens.dimensions, S, rng) * ens.radius
+            dims, neurons = ens.dimensions, ens.neurons.n_neurons
+            n_points = max(np.clip(500 * dims, 750, 2500), 2 * neurons)
+            self.eval_points = dists.UniformHypersphere(ens.dimensions).sample(
+                n_points, rng=rng) * ens.radius
+        elif is_integer(ens.eval_points):
+            self.eval_points = dists.UniformHypersphere(ens.dimensions).sample(
+                ens.eval_points, rng=rng) * ens.radius
         else:
             self.eval_points = np.array(ens.eval_points, dtype=np.float64)
             if self.eval_points.ndim == 1:
                 self.eval_points.shape = (-1, 1)
 
-        # TODO: change this to not modify Model
         # Set up neurons
-        if ens.neurons.gain is None or ens.neurons.bias is None:
+        gain = ens.neurons.gain
+        bias = ens.neurons.bias
+        if gain is None or bias is None:
             # if max_rates and intercepts are distributions,
             # turn them into fixed samples.
             if hasattr(ens.max_rates, 'sample'):
@@ -70,10 +77,10 @@ class EnsembleVertex(graph.Vertex):
                 ens.intercepts = ens.intercepts.sample(
                     ens.neurons.n_neurons, rng=rng
                 )
-            ens.neurons.set_gain_bias(ens.max_rates, ens.intercepts)
+            (gain, bias) = ens.neurons.gain_bias(ens.max_rates, ens.intercepts)
 
-        self.bias = ens.neurons.bias
-        self.gain = ens.neurons.gain
+        self.bias = bias
+        self.gain = gain
         self.tau_rc = ens.neurons.tau_rc
         self.tau_ref = ens.neurons.tau_ref
 
@@ -81,7 +88,13 @@ class EnsembleVertex(graph.Vertex):
 
         # Set up encoders
         if ens.encoders is None:
-            self.encoders = ens.neurons.default_encoders(ens.dimensions, rng)
+            if isinstance(ens.neurons, nengo.Direct):
+                self.encoders = np.identity(ens.dimensions)
+            else:
+                sphere = dists.UniformHypersphere(
+                    ens.dimensions, surface=True)
+                self.encoders = sphere.sample(
+                    ens.neurons.n_neurons, rng=self.rng)
         else:
             self.encoders = np.array(ens.encoders, dtype=np.float64)
             enc_shape = (ens.neurons.n_neurons, ens.dimensions)
@@ -93,8 +106,8 @@ class EnsembleVertex(graph.Vertex):
 
             norm = np.sum(self.encoders ** 2, axis=1)[:, np.newaxis]
             self.encoders /= np.sqrt(norm)
-        ens.encoders = self.encoders   # TODO: remove this when it is no longer
-                                       # required be Ensemble.activities()
+        ens.encoders = self.encoders  # TODO: remove this when it is no longer
+                                      # required be Ensemble.activities()
 
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
@@ -161,32 +174,31 @@ class EnsembleVertex(graph.Vertex):
         # 1 entry per in_subedge
         return 4 * 3 * self.filters.num_keys(subvertex)
 
-    # FOR UPSTREAM CHANGES
     def sdram_usage(self, lo_atom, hi_atom):
         """Return the amount of SDRAM used for the specified atoms."""
         # At the moment this is the same as the DTCM usage, though this may
         # change.
         return self.dtcm_usage(lo_atom, hi_atom)
 
-    # FOR UPSTREAM CHANGES
     def dtcm_usage(self, lo_atom, hi_atom):
         """Return the amount of DTCM used for the specified atoms."""
-        n_atoms = hi_atom - lo_atom
+        n_atoms = hi_atom - lo_atom + 1
         return sum([
             self.sizeof_region_system(),
             self.sizeof_region_bias(n_atoms),
             self.sizeof_region_encoders(n_atoms),
             self.sizeof_region_decoders(n_atoms),
             self.sizeof_region_output_keys(),
+            self.sizeof_region_filters(),
+            # TODO: Include the following line when possible
+            # self.sizeof_region_filter_keys()
         ])
 
-    # FOR UPSTREAM CHANGES
     def cpu_usage(self, lo_atom, hi_atom):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
 
-    # FOR UPSTREAM CHANGES
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
                                 machine_time_step_us, partition_data_object):
         """Get the resources required for the specified atoms.
@@ -200,25 +212,15 @@ class EnsembleVertex(graph.Vertex):
         :returns: A tuple of the partition data object, and the resources
                   required.
         """
-        return (
-            partition_data_object,
-            lib_map.Resources(
-                self.cpu_usage(lo_atom, hi_atom),
-                self.dtcm_usage(lo_atom, hi_atom),
-                self.sdram_usage(lo_atom, hi_atom)
-            )
+        return lib_map.Resources(
+            self.cpu_usage(lo_atom, hi_atom),
+            self.dtcm_usage(lo_atom, hi_atom),
+            self.sdram_usage(lo_atom, hi_atom)
         )
 
-    # TO BE DEPRECATED
-    def get_requirements_per_atom(self):
-        """Return some indication of the cost of including a single atom on a
-        processing core.
-        """
-        return lib_map.Resources(
-            1,
-            self.dtcm_usage(0, self.atoms) / self.atoms,
-            self.sdram_usage(0, self.atoms) / self.atoms
-        )
+    def get_maximum_atoms_per_core(self):
+        # TODO: Calculate this
+        return 128
 
     def generateDataSpec(self, processor, subvertex, dao):
         """Generate the data spec for the given subvertex."""
@@ -261,13 +263,16 @@ class EnsembleVertex(graph.Vertex):
             os.path.join(
                 dao.get_common_binaries_directory(),
                 'nengo_ensemble.aplx'
-            ), x, y, p
+            ),
+            x, y, p
         )
 
         return (executable_target, list(), list())
 
     def reserve_regions(self, subvertex):
         """Reserve sufficient space for the regions in the spec."""
+        # TODO Modify the following functions to use write_array rather than
+        #  lots of writes.
         subvertex.spec.reserveMemRegion(
             self.REGIONS.SYSTEM,
             self.sizeof_region_system()
@@ -326,9 +331,8 @@ class EnsembleVertex(graph.Vertex):
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
         subvertex.spec.switchWriteFocus(self.REGIONS.BIAS)
-        for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
-            # Write the bias for all atoms within this subvertex
-            subvertex.spec.write(data=parameters.s1615(self.bias[n]))
+        subvertex.spec.write_array(parameters.s1615(
+            self.bias[subvertex.lo_atom:subvertex.hi_atom+1]))
 
     def write_region_encoders(self, subvertex):
         """Write the encoder region for the given subvertex."""
@@ -391,6 +395,5 @@ class EnsembleVertex(graph.Vertex):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self.decoders.edge_index(subedge.edge)
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
-        mask = 0xFFFFFFE0
 
-        return key, mask
+        return key, 0xFFFFFFE0

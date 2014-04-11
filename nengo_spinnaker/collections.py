@@ -3,6 +3,8 @@
 
 import numpy as np
 
+import nengo.decoders
+
 
 class DecoderBinEntry(object):
     def __init__(self, decoder, func, transform=None):
@@ -15,7 +17,7 @@ class DecoderBin(object):
     """A bin for decoders."""
     def __init__(self, rng):
         self._decoders = list()
-        self._decoders_by_func= dict()
+        self._decoders_by_func = dict()
         self._decoders_edges = dict()
         self.rng = rng
 
@@ -38,8 +40,8 @@ class DecoderBin(object):
               transform despite being a different matrix.)
         """
         # Check if the decoder already exists for this function and transform
-        for (i,dec) in enumerate(self._decoders):
-            if dec.func == e.function and dec.trans == conn.transform:
+        for (i, dec) in enumerate(self._decoders):
+            if dec.func == e.function and dec.trans == e.transform:
                 self._decoders_edges[e] = i
                 return i
 
@@ -50,7 +52,11 @@ class DecoderBin(object):
             eval_points = e.eval_points
             if eval_points is None:
                 eval_points = e.prevertex.eval_points
-            activities = e.pre.activities(eval_points)
+
+            x = np.dot(eval_points, e.prevertex.encoders.T / e.pre.radius)
+            activities = e.pre.neurons.rates(
+                x, e.prevertex.gain, e.prevertex.bias
+            )
 
             if e.function is None:
                 targets = eval_points
@@ -60,7 +66,12 @@ class DecoderBin(object):
                 )
                 if targets.ndim < 2:
                     targets.shape = targets.shape[0], 1
-            decoder = e.decoder_solver(activities, targets, self.rng)
+
+            solver = e.decoder_solver
+            if solver is None:
+                solver = nengo.decoders.lstsq_L2nz
+
+            decoder = solver(activities, targets, self.rng)
             self._decoders_by_func[e.function] = decoder
 
         # Combine the decoder with the transform and record it in the list

@@ -40,7 +40,7 @@ value_t* initialise_output( region_system_t *pars ){
   g_us_per_output = pars->machine_timestep / pars->n_output_dimensions;
 
   // Setup Timer2, initialise output loop
-  timer_register( SLOT_8 );
+  event_register_timer( SLOT_8 );
   timer_schedule_proc( outgoing_dimension_callback, 0, 0, g_us_per_output );
 
   // Return the output buffer

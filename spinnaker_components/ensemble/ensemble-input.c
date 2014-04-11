@@ -53,7 +53,7 @@ value_t* initialise_input( region_system_t *pars ){
 
   // Set up the multicast callback
   spin1_callback_on(
-    MC_PACKET_RECEIVED, incoming_dimension_value_callback, -1
+    MCPL_PACKET_RECEIVED, incoming_dimension_value_callback, -1
   );
 
   // Return the input (to the encoders) buffer
