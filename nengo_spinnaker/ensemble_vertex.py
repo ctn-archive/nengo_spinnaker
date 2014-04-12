@@ -190,8 +190,9 @@ class EnsembleVertex(graph.Vertex):
             self.sizeof_region_decoders(n_atoms),
             self.sizeof_region_output_keys(),
             self.sizeof_region_filters(),
-            # TODO: Include the following line when possible
-            # self.sizeof_region_filter_keys()
+            5 * 3 * 4 * len(self.filters)  # Assume that we will have at most 5
+                                           # subvertices feeding into a given
+                                           # filter. TODO Improve when possible
         ])
 
     def cpu_usage(self, lo_atom, hi_atom):
