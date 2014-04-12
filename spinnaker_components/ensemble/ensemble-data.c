@@ -72,8 +72,9 @@ bool data_get_keys(
 bool data_get_filters( address_t addr, region_system_t *pars ) {
   // TODO: Be less hacky
   for( uint f = 0; f < pars->n_filters; f++ ){
-    g_input.filters[f]->filter   = addr[2*f + 0];
-    g_input.filters[f]->n_filter = addr[2*f + 1];
+    g_input.filters[f]->filter = addr[3*f + 0];
+    g_input.filters[f]->n_filter = addr[3*f + 1];
+    g_input.filters[f]->mask = addr[3*f + 2];
   }
   return true;
 }

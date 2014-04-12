@@ -37,6 +37,7 @@ value_t* initialise_input( region_system_t *pars ){
     g_input.filters[f] = input_buffer_initialise( g_input.n_dimensions );
     g_input.filters[f]->filter = 0;   // Initialised later
     g_input.filters[f]->n_filter = 0; // Initialised later
+    g_input.filters[f]->mask = 0;     // Initialised later
   };
 
   g_input.input = spin1_malloc( g_input.n_dimensions * sizeof( value_t ) );

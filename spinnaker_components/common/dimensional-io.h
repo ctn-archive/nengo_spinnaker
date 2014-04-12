@@ -35,6 +35,8 @@ United Kingdom                      Canada
 typedef struct filtered_input_buffer {
   //! Represents a filtered input buffer
   uint d_in;            //!< Number of input dimensions, D_in
+  uint mask;            //!< Mask to apply to accumulator after each input step
+                        //   e.g., all zeroes to clear, all ones to retain.
 
   value_t *accumulator; //!< Accumulates input values, a 1xD_in matrix
   value_t *filtered;    //!< Holds the filtered value, a 1xD_in matrix
@@ -66,8 +68,9 @@ static inline void input_buffer_step( filtered_input_buffer_t *buffer ) {
     buffer->filtered[d] *= buffer->filter;
     buffer->filtered[d] += buffer->accumulator[d] * buffer->n_filter;
 
-    // Zero the accumulator
-    buffer->accumulator[d] = 0;
+    // Clear or retain the accumulator as required
+    buffer->accumulator[d] = kbits(
+      bitsk(buffer->accumulator[d]) & buffer->mask);
   }
 }
 

@@ -327,6 +327,8 @@ class EnsembleVertex(graph.Vertex):
             filter = self.filters.filter_tcs(self.dt)
             subvertex.spec.write(data=len(self.filters))
             subvertex.spec.write(data=self.filters.num_keys(subvertex))
+        else:
+            subvertex.spec.write(data=0, repeats=2)
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
@@ -374,6 +376,7 @@ class EnsembleVertex(graph.Vertex):
         for f in self.filters.filter_tcs(self.dt):
             subvertex.spec.write(data=parameters.s1615(f[0]))
             subvertex.spec.write(data=parameters.s1615(f[1]))
+            subvertex.spec.write(data=0)  # Accumulator mask
 
     def write_region_filter_keys(self, subvertex):
         # Write the filter routing entries

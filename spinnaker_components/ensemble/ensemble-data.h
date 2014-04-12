@@ -47,8 +47,8 @@ typedef struct region_system {
 * Machine time step | Microseconds | ```uint``` | ::dt
 * Refactory time constant | Steps | ```uint``` | ::t_ref
 * dt over membrane time constant | | ```accum``` | ::dt_over_t_rc
-* Number of filters | | ```uint``` |
-* Number of filter keys | | ```uint``` |
+* Filter decay constant | | ```accum``` | ::filter
+* Input accumulator mask | | ```uint```
 */
 bool data_system( address_t addr );
 
