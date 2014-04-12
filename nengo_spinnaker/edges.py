@@ -9,6 +9,7 @@ class NengoEdge(graph.Edge):
         )
         self.index = None  # Used in generating routing keys
         self.conn = conn   # Handy reference
+        self._filter_is_accumulatory = True
 
     @property
     def width(self):

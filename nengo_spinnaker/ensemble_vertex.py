@@ -325,7 +325,6 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
 
         if len(self.in_edges) > 0:
-            filter = self.filters.filter_tcs(self.dt)
             subvertex.spec.write(data=len(self.filters))
             subvertex.spec.write(data=self.filters.num_keys(subvertex))
         else:
@@ -375,7 +374,7 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.switchWriteFocus(self.REGIONS.FILTERS)
         subvertex.spec.comment("# Filter Parameters")
         for f_ in self.filters:
-            f = f_.get_filter_tc(self.dt):
+            f = f_.get_filter_tc(self.dt)
             subvertex.spec.write(data=parameters.s1615(f[0]))
             subvertex.spec.write(data=parameters.s1615(f[1]))
             subvertex.spec.write(data=f_.accumulator_mask)
