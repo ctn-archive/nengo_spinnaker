@@ -71,8 +71,8 @@ void ensemble_update( uint arg0, uint arg1 )
 
       // Update the output values
       for( uint d = 0; d < g_n_output_dimensions; d++ ) {
-        io_printf( IO_STD, "[%d] = %.3k (0x%08x)",
-          d, neuron_decoder(n,d), neuron_decoder(n,d) );
+        /* io_printf( IO_STD, "[%d] = %.3k (0x%08x)",
+          d, neuron_decoder(n,d), neuron_decoder(n,d) ); */
         g_ensemble.output[d] += neuron_decoder( n, d );
       }
       io_printf( IO_STD, "\n" );
