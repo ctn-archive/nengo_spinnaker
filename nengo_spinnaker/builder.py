@@ -79,6 +79,13 @@ class Builder(object):
         self.ensemble_vertices[ens] = vertex
 
     def _build_node(self, node):
+        # If the Node has a `spinnaker_build` function then ask it for a vertex
+        if hasattr(node, "spinnaker_build"):
+            vertex = node.spinnaker_build()
+            self.dao.add_vertex(vertex)
+            return
+
+        # Otherwise the node is assigned to Rx and Tx components as required
         # If the Node has input, then assign the Node to a Tx component
         if node.size_in > 0:
             # Try to fit the Node in an existing Tx Element
