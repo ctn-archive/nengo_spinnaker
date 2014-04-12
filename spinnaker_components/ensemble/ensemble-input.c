@@ -32,6 +32,7 @@ value_t* initialise_input( region_system_t *pars ){
   // Buffer initialisation
   gfib_input = input_buffer_initialise( pars->n_input_dimensions );
   gfib_input->mask = pars->input_accumulator_mask;
+  gfib_input->mask_ = ~(pars->input_accumulator_mask);
   gfib_input->filter = pars->filter;
   gfib_input->n_filter = pars->filter_complement;
 
@@ -48,5 +49,5 @@ value_t* initialise_input( region_system_t *pars ){
 void incoming_dimension_value_callback( uint key, uint payload )
 {
   uint dimension = key & 0x0000000f;
-  gfib_input->accumulator[ dimension ] += kbits( payload );
+  input_buffer_acc(gfib_input, dimension, payload);
 }
