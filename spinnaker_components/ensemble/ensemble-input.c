@@ -31,6 +31,7 @@ value_t* initialise_input( region_system_t *pars ){
 
   // Buffer initialisation
   gfib_input = input_buffer_initialise( pars->n_input_dimensions );
+  gfib_input->mask = pars->input_accumulator_mask;
   gfib_input->filter = pars->filter;
   gfib_input->n_filter = pars->filter_complement;
 

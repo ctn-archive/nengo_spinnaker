@@ -295,6 +295,7 @@ class EnsembleVertex(graph.Vertex):
         # 6. dt over tau_rc
         # 7. Filter decay (TO BE CHANGED)
         # 8. 1 - Filter decay (TO BE CHANGED)
+        # 9. Input accumulator mask (TO BE CHANGED - One per filter)
         """)
         subvertex.spec.write(data=self.n_input_dimensions)
         subvertex.spec.write(data=self.n_output_dimensions)
@@ -307,6 +308,10 @@ class EnsembleVertex(graph.Vertex):
             filter = self.filters.filter_tcs(self.dt)
             subvertex.spec.write(data=parameters.s1615(filter[0][0]))
             subvertex.spec.write(data=parameters.s1615(filter[0][1]))
+        else:
+            subvertex.spec.write(data=0, repeats=2)
+
+        subvertex.spec.write(data=0)
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
