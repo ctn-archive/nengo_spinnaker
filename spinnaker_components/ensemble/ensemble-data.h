@@ -31,6 +31,7 @@ typedef struct region_system {
   value_t dt_over_t_rc;
   value_t filter;
   value_t filter_complement;
+  uint input_accumulator_mask;
 } region_system_t;
 
 /**
@@ -48,6 +49,7 @@ typedef struct region_system {
 * Refactory time constant | Steps | ```uint``` | ::t_ref
 * dt over membrane time constant | | ```accum``` | ::dt_over_t_rc
 * Filter decay constant | | ```accum``` | ::filter
+* Input accumulator mask | | ```uint```
 */
 bool data_system( address_t addr );
 
