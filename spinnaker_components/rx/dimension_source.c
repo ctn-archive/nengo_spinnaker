@@ -55,7 +55,7 @@ void c_main(void)
 void timer_callback(uint simulation_time, uint none)
 {
   // Set some predefined values per dimension
-  io_printf(IO_STD, "Transmitting %d\n", val);
+  // io_printf(IO_STD, "Transmitting %d\n", val);
   spin1_send_mc_packet(key | 0x0, val, WITH_PAYLOAD);
   // val <<= 1;
   /*
