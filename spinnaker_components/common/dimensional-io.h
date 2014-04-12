@@ -70,7 +70,7 @@ static inline void input_buffer_step( filtered_input_buffer_t *buffer ) {
 
     // Clear or retain the accumulator as required
     buffer->accumulator[d] = kbits(
-      bitsk(buffer->accumulator[d]) & buffer->mask;)
+      bitsk(buffer->accumulator[d]) & buffer->mask);
   }
 }
 
