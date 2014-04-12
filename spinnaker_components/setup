@@ -1,0 +1,2 @@
+set -a
+SPINN_NENGO_DIRS=`pwd`
