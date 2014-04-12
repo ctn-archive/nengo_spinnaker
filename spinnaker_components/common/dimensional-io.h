@@ -37,6 +37,7 @@ typedef struct filtered_input_buffer {
   uint d_in;            //!< Number of input dimensions, D_in
   uint mask;            //!< Mask to apply to accumulator after each input step
                         //   e.g., all zeroes to clear, all ones to retain.
+  uint mask_;           //!< Inverse of the mask, applied before assignments.
 
   value_t *accumulator; //!< Accumulates input values, a 1xD_in matrix
   value_t *filtered;    //!< Holds the filtered value, a 1xD_in matrix
@@ -72,6 +73,12 @@ static inline void input_buffer_step( filtered_input_buffer_t *buffer ) {
     buffer->accumulator[d] = kbits(
       bitsk(buffer->accumulator[d]) & buffer->mask);
   }
+}
+
+//! Apply the given input to a dimension of the input buffer
+static inline void input_buffer_acc(filtered_input_buffer_t *b, uint d,
+    value_t v) {
+  b->accumulator[d] += kbits(b->mask_ & bitsk(v));
 }
 
 #endif

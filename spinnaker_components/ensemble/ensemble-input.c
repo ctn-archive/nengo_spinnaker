@@ -70,7 +70,7 @@ void incoming_dimension_value_callback( uint key, uint payload ) {
    * 2. Select appropriate filter
    * 3. Add value (payload) to appropriate dimension of given filter.
    */
-  input_filter( key )->accumulator[ dimension ] += payload;
+  input_buffer_acc(input_filter(key), dimension, payload);
 }
 
 // Input step
