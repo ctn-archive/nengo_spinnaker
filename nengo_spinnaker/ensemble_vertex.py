@@ -166,8 +166,8 @@ class EnsembleVertex(graph.Vertex):
         return 4 * self.n_output_dimensions
 
     def sizeof_region_filters(self):
-        # 2 words per filter
-        return 4 * 2 * len(self.filters)
+        # 3 words per filter
+        return 4 * 3 * len(self.filters)
 
     def sizeof_region_filter_keys(self, subvertex):
         # 3 words per entry
@@ -374,10 +374,11 @@ class EnsembleVertex(graph.Vertex):
         """Write the filter parameters."""
         subvertex.spec.switchWriteFocus(self.REGIONS.FILTERS)
         subvertex.spec.comment("# Filter Parameters")
-        for f in self.filters.filter_tcs(self.dt):
+        for f_ in self.filters:
+            f = f_.get_filter_tc(self.dt):
             subvertex.spec.write(data=parameters.s1615(f[0]))
             subvertex.spec.write(data=parameters.s1615(f[1]))
-            subvertex.spec.write(data=0)  # Accumulator mask
+            subvertex.spec.write(data=f_.accumulator_mask)
 
     def write_region_filter_keys(self, subvertex):
         # Write the filter routing entries

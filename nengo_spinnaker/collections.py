@@ -157,6 +157,7 @@ class FilterBinEntry(object):
     def __init__(self, filter_value, edges=[]):
         self._value = filter_value
         self._edges = edges
+        self._reset = False
 
     def add_edge(self, edge):
         self._edges.append(edge)
@@ -165,6 +166,16 @@ class FilterBinEntry(object):
         """Get the filter time constant and complement for the given dt."""
         tc = np.exp(-dt/self._value)
         return (tc, 1. - tc)
+
+    @property
+    def accumulator_mask(self):
+        if self._reset:
+            # The accumulator is zeroed on each timestep
+            return 0x00000000
+        else:
+            # The accumulator is not zeroed, but is reset when written a new
+            # value
+            return 0x11111111
 
     def get_keys_masks(self, subvertex):
         """Return the set of keys for edges which use this filter arriving at
@@ -192,6 +203,9 @@ class FilterCollection(object):
 
     def __len__(self):
         return len(self._entries)
+
+    def __iter__(self):
+        return iter(self._entries)
 
     def num_keys(self, subvertex):
         """Return the number of key entries for a given subvertex."""
