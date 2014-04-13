@@ -18,10 +18,16 @@
 
 filtered_input_t g_input;
 
-value_t* initialise_input(uint n_filters, uint n_input_dimensions) {
+value_t* initialise_input(
+    uint n_filters, uint n_input_dimensions, uint n_routes) {
   // Value preparation
   g_input.n_filters = n_filters;
   g_input.n_dimensions = n_input_dimensions;
+  g_input.n_routes = n_routes;
+
+  io_printf( IO_BUF, "[Filters] n_filters = %d, n_input_dimensions = %d\n",
+    g_input.n_filters, g_input.n_dimensions
+  );
 
   // Buffer initialisation
   g_input.filters = spin1_malloc(

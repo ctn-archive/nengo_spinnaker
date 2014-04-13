@@ -26,7 +26,8 @@ void data_system(address_t addr) {
   g_filter.n_filters = addr[3];
   g_filter.n_filter_keys = addr[4];
 
-  initialise_input(g_filter.n_filters, g_filter.n_dimensions);
+  initialise_input(
+    g_filter.n_filters, g_filter.n_dimensions, g_filter.n_filter_keys);
 }
 
 void data_get_output_keys(address_t addr) {
