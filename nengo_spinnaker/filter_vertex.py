@@ -25,7 +25,7 @@ class FilterVertex(graph.Vertex):
     model_name = "nengo_filter"
 
     def __init__(self, dimensions, output_id, time_step=1000,
-                 output_period=100, constraints=None):
+                 output_period=100, constraints=None, label='filter'):
         """Create a new FilterVertex
 
         :param dimensions: number of values
@@ -42,8 +42,8 @@ class FilterVertex(graph.Vertex):
         self.filters = collections.FilterCollection()
 
         # Create the vertex
-        super(FilterVertex, self).__init__(0,
-            constraints=constraints, label='filter'
+        super(FilterVertex, self).__init__(1,
+            constraints=constraints, label=label
         )
 
     def sizeof_region_system(self):
@@ -108,8 +108,7 @@ class FilterVertex(graph.Vertex):
         )
 
     def get_maximum_atoms_per_core(self):
-        # TODO: Calculate this
-        return 128
+        return 1
 
     def generateDataSpec(self, processor, subvertex, dao):
         """Generate the data spec for the given subvertex."""
