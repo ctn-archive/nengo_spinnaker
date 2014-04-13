@@ -30,7 +30,7 @@ void data_system(address_t addr) {
 }
 
 void data_get_output_keys(address_t addr) {
-  g_filter.keys = spin1_malloc(g_input.n_filter_keys * sizeof(uint));
+  g_filter.keys = spin1_malloc(g_filter.n_dimensions * sizeof(uint));
   spin1_memcpy(
     g_filter.keys, addr, g_filter.n_dimensions * sizeof(uint));
 }
