@@ -4,11 +4,11 @@
 #  Andrew Mundy <mundya@cs.man.ac.uk>
 #  Terry Stewart
 #
-# February 2014
+# February - April 2014
 # ----------------------------------------------------------------------------
 # Code derived from Andrew Rowley, University of Manchester
 
-APPS = ensemble tx rx
+APPS = ensemble tx rx filter
 COMPLETE_SOURCE = ./*/*.c ./*/*.h
 
 all :
