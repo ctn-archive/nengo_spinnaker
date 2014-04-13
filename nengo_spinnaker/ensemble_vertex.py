@@ -251,8 +251,10 @@ class EnsembleVertex(graph.Vertex):
         self.write_region_encoders(subvertex)
         self.write_region_decoders(subvertex)
         self.write_region_output_keys(subvertex)
-        self.write_region_filters(subvertex)
-        self.write_region_filter_keys(subvertex)
+
+        if len(self.filters) > 0:
+            self.write_region_filters(subvertex)
+            self.write_region_filter_keys(subvertex)
 
         # Close the spec
         subvertex.spec.endSpec()
@@ -294,14 +296,15 @@ class EnsembleVertex(graph.Vertex):
             self.REGIONS.OUTPUT_KEYS,
             self.sizeof_region_output_keys()
         )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.FILTERS,
-            self.sizeof_region_filters()
-        )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.FILTER_ROUTING,
-            self.sizeof_region_filter_keys(subvertex)
-        )
+        if len(self.filters) > 0:
+            subvertex.spec.reserveMemRegion(
+                self.REGIONS.FILTERS,
+                self.sizeof_region_filters()
+            )
+            subvertex.spec.reserveMemRegion(
+                self.REGIONS.FILTER_ROUTING,
+                self.sizeof_region_filter_keys(subvertex)
+            )
 
     def write_region_system(self, subvertex):
         """Write the system region for the given subvertex."""
