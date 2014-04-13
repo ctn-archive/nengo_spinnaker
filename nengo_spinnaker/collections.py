@@ -191,7 +191,7 @@ class FilterBinEntry(object):
         # Get the list of keys
         kms = []
         for subedge in subedges:
-            km = subedge.presubvertex.vertex.get_routing_info(subedge)
+            km = subedge.presubvertex.vertex.generate_routing_info(subedge)
             kms.append(km)
 
         return kms
