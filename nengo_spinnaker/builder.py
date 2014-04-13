@@ -87,6 +87,12 @@ class Builder(object):
         # Return the DAO
         return self.dao
 
+    def add_vertex(self, vertex):
+        self.dao.add_vertex(vertex)
+
+    def add_edge(self, edge):
+        self.dao.add_edge(edge)
+
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
@@ -96,8 +102,7 @@ class Builder(object):
     def _build_node(self, node):
         # If the Node has a `spinnaker_build` function then ask it for a vertex
         if hasattr(node, "spinnaker_build"):
-            vertex = node.spinnaker_build()
-            self.dao.add_vertex(vertex)
+            node.spinnaker_build(self)
             return
 
         # Otherwise the node is assigned to Rx and Tx components as required
