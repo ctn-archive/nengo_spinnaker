@@ -7,6 +7,7 @@ required by PACMAN.
 import inspect
 import re
 import numpy as np
+import itertools
 
 import nengo
 import nengo.utils.builder
@@ -15,6 +16,17 @@ from pacman103.core import dao
 
 from . import edges
 from . import ensemble_vertex, transmit_vertex, receive_vertex
+
+edge_builders = {}
+
+
+def register_build_edge(pre=None, post=None):
+    def f_(f):
+        global edge_builders
+
+        edge_builders[(pre, post)] = f
+        return f
+    return f_
 
 
 class Builder(object):
@@ -36,9 +48,12 @@ class Builder(object):
 
     def _build(self, obj):
         """Call the appropriate build function for the given object."""
-        if not type(obj) in self.builders:
+        for obj_class in obj.__class__.__mro__:
+            if obj_class in self.builders:
+                self.builders[obj_class](obj)
+                break
+        else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
-        self.builders[type(obj)](obj)
 
     def __call__(self, model, dt, seed=None):
         """Return a PACMAN103 DAO containing a representation of the given
@@ -79,6 +94,13 @@ class Builder(object):
         self.ensemble_vertices[ens] = vertex
 
     def _build_node(self, node):
+        # If the Node has a `spinnaker_build` function then ask it for a vertex
+        if hasattr(node, "spinnaker_build"):
+            vertex = node.spinnaker_build()
+            self.dao.add_vertex(vertex)
+            return
+
+        # Otherwise the node is assigned to Rx and Tx components as required
         # If the Node has input, then assign the Node to a Tx component
         if node.size_in > 0:
             # Try to fit the Node in an existing Tx Element
@@ -126,50 +148,59 @@ class Builder(object):
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
-        # In the case of Nodes, determine which Rx and Tx components we need
-        # to connect to.
-        if isinstance(c.pre, nengo.Ensemble):
-            prevertex = self.ensemble_vertices[c.pre]
-            edge = None
-            if isinstance(c.post, nengo.Ensemble):
-                # Ensemble -> Ensemble
-                postvertex = self.ensemble_vertices[c.post]
-                edge = edges.DecoderEdge(c, prevertex, postvertex)
-                postvertex.filters.add_edge(edge)
-            elif isinstance(c.post, nengo.Node):
-                # Ensemble -> Node
-                postvertex = self._tx_assigns[c.post]
-                edge = edges.DecoderEdge(c, prevertex, postvertex)
-            else:
-                raise TypeError(
-                    "Cannot connect an Ensemble to a '%s'" % type(c.post)
-                )
-            edge.index = prevertex.decoders.get_decoder_index(edge)
+        # Determine which edge building function to use
+        # TODO Modify to fallback to `isinstance` where possible
+        edge = None
+
+        pre_c = c.pre.__class__.__mro__
+        post_c = c.post.__class__.__mro__
+
+        for key in itertools.chain(*[[(a, b) for b in post_c] for a in pre_c]):
+            if key in edge_builders:
+                edge = edge_builders[key](self, c)
+                break
+        else:
+            raise TypeError("Cannot connect '%s' -> '%s'" % (
+                type(c.pre), type(c.post)))
+
+        if edge is not None:
             self.dao.add_edge(edge)
 
-        elif isinstance(c.pre, nengo.Node):
-            if isinstance(c.post, nengo.Ensemble):
-                # Node -> Ensemble
-                # If the Node has constant output then add to the direct input
-                # for the Ensemble and don't add an edge, otherwise add an
-                # edge from the appropriate Rx element to the Ensemble.
-                postvertex = self.ensemble_vertices[c.post]
-                if c.pre.output is not None and not callable(c.pre.output):
-                    postvertex.direct_input += np.asarray(c.pre.output)
-                else:
-                    prevertex = self._rx_assigns[c.pre]
-                    self.dao.add_edge(
-                        edges.InputEdge(c, prevertex, postvertex)
-                    )
-            elif isinstance(c.post, nengo.Node):
-                # Node -> Node
-                self._node_to_node_edges.append(c)
-            else:
-                raise TypeError(
-                    "Cannot connect an Ensemble to a '%s'" % type(c.post)
-                )
 
-        else:
-            raise TypeError(
-                "Cannot start a connection from a '%s'" % type(c.pre)
-            )
+@register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
+def _ensemble_to_ensemble(builder, c):
+    prevertex = builder.ensemble_vertices[c.pre]
+    postvertex = builder.ensemble_vertices[c.post]
+    edge = edges.DecoderEdge(c, prevertex, postvertex)
+    edge.index = prevertex.decoders.get_decoder_index(edge)
+    postvertex.filters.add_edge(edge)
+    return edge
+
+
+@register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
+def _ensemble_to_node(builder, c):
+    prevertex = builder.ensemble_vertices[c.pre]
+    postvertex = builder._tx_assigns[c.post]
+    edge = edges.DecoderEdge(c, prevertex, postvertex)
+    edge.index = prevertex.decoders.get_decoder_index(edge)
+    return edge
+
+
+@register_build_edge(pre=nengo.Node, post=nengo.Ensemble)
+def _node_to_ensemble(builder, c):
+    # If the Node has constant output then add to the direct input
+    # for the Ensemble and don't add an edge, otherwise add an
+    # edge from the appropriate Rx element to the Ensemble.
+    postvertex = builder.ensemble_vertices[c.post]
+    if c.pre.output is not None and not callable(c.pre.output):
+        postvertex.direct_input += np.asarray(c.pre.output)
+    else:
+        prevertex = builder._rx_assigns[c.pre]
+        edge = edges.InputEdge(c, prevertex, postvertex)
+        postvertex.filters.add_edge(edge)
+        return edge
+
+
+@register_build_edge(pre=nengo.Node, post=nengo.Node)
+def _node_to_node(builder, c):
+    builder._node_to_node_edges.append(c)
