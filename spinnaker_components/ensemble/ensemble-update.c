@@ -35,7 +35,7 @@ void ensemble_update( uint arg0, uint arg1 )
     i_membrane = g_ensemble.i_bias[n];
 
     // Encode the input and add to the membrane current
-    for( uchar d = 0; d < g_n_input_dimensions; d++ ) {
+    for( uchar d = 0; d < g_input.n_dimensions; d++ ) {
       i_membrane += neuron_encoder(n, d) * g_ensemble.input[d];
     }
 

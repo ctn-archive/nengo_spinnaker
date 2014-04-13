@@ -29,9 +29,8 @@ typedef struct region_system {
   uint machine_timestep;
   uint t_ref;
   value_t dt_over_t_rc;
-  value_t filter;
-  value_t filter_complement;
-  uint input_accumulator_mask;
+  uint n_filters;
+  uint n_filter_keys;
 } region_system_t;
 
 /**
@@ -73,6 +72,16 @@ bool data_get_decoders(
 bool data_get_keys(
   address_t addr,
   uint n_output_dimensions
+);
+
+bool data_get_filters(
+  address_t addr,
+  region_system_t *pars
+);
+
+bool data_get_filter_keys(
+  address_t addr,
+  region_system_t *pars
 );
 
 #endif

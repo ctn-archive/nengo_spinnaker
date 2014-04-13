@@ -173,6 +173,7 @@ def _ensemble_to_ensemble(builder, c):
     postvertex = builder.ensemble_vertices[c.post]
     edge = edges.DecoderEdge(c, prevertex, postvertex)
     edge.index = prevertex.decoders.get_decoder_index(edge)
+    postvertex.filters.add_edge(edge)
     return edge
 
 
@@ -195,7 +196,9 @@ def _node_to_ensemble(builder, c):
         postvertex.direct_input += np.asarray(c.pre.output)
     else:
         prevertex = builder._rx_assigns[c.pre]
-        return edges.InputEdge(c, prevertex, postvertex)
+        edge = edges.InputEdge(c, prevertex, postvertex)
+        postvertex.filters.add_edge(edge)
+        return edge
 
 
 @register_build_edge(pre=nengo.Node, post=nengo.Node)

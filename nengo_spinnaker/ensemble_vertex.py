@@ -20,7 +20,9 @@ class EnsembleVertex(graph.Vertex):
         'BIAS',
         'ENCODERS',
         'DECODERS',
-        'OUTPUT_KEYS'
+        'OUTPUT_KEYS',
+        'FILTERS',
+        'FILTER_ROUTING',
     )
 
     model_name = "nengo_ensemble"
@@ -163,6 +165,15 @@ class EnsembleVertex(graph.Vertex):
         # 1 word per output dimension
         return 4 * self.n_output_dimensions
 
+    def sizeof_region_filters(self):
+        # 3 words per filter
+        return 4 * 3 * len(self.filters)
+
+    def sizeof_region_filter_keys(self, subvertex):
+        # 3 words per entry
+        # 1 entry per in_subedge
+        return 4 * 3 * self.filters.num_keys(subvertex)
+
     def sdram_usage(self, lo_atom, hi_atom):
         """Return the amount of SDRAM used for the specified atoms."""
         # At the moment this is the same as the DTCM usage, though this may
@@ -178,6 +189,10 @@ class EnsembleVertex(graph.Vertex):
             self.sizeof_region_encoders(n_atoms),
             self.sizeof_region_decoders(n_atoms),
             self.sizeof_region_output_keys(),
+            self.sizeof_region_filters(),
+            5 * 3 * 4 * len(self.filters)  # Assume that we will have at most 5
+                                           # subvertices feeding into a given
+                                           # filter. TODO Improve when possible
         ])
 
     def cpu_usage(self, lo_atom, hi_atom):
@@ -219,10 +234,6 @@ class EnsembleVertex(graph.Vertex):
         # Encode any constant inputs, and add to the biases
         self.bias += np.dot(self.encoders, self.direct_input)
 
-        # Generate the filters
-        for e in self.in_edges:
-            self.filters.add_edge(e)
-
         # Generate the list of decoders, and the list of ouput keys
         subvertex.output_keys = list()
         x, y, p = processor.get_coordinates()
@@ -240,6 +251,10 @@ class EnsembleVertex(graph.Vertex):
         self.write_region_encoders(subvertex)
         self.write_region_decoders(subvertex)
         self.write_region_output_keys(subvertex)
+
+        if len(self.filters) > 0:
+            self.write_region_filters(subvertex)
+            self.write_region_filter_keys(subvertex)
 
         # Close the spec
         subvertex.spec.endSpec()
@@ -281,6 +296,15 @@ class EnsembleVertex(graph.Vertex):
             self.REGIONS.OUTPUT_KEYS,
             self.sizeof_region_output_keys()
         )
+        if len(self.filters) > 0:
+            subvertex.spec.reserveMemRegion(
+                self.REGIONS.FILTERS,
+                self.sizeof_region_filters()
+            )
+            subvertex.spec.reserveMemRegion(
+                self.REGIONS.FILTER_ROUTING,
+                self.sizeof_region_filter_keys(subvertex)
+            )
 
     def write_region_system(self, subvertex):
         """Write the system region for the given subvertex."""
@@ -293,9 +317,8 @@ class EnsembleVertex(graph.Vertex):
         # 4. Machine time step in us
         # 5. tau_ref in number of steps
         # 6. dt over tau_rc
-        # 7. Filter decay (TO BE CHANGED)
-        # 8. 1 - Filter decay (TO BE CHANGED)
-        # 9. Input accumulator mask (TO BE CHANGED - One per filter)
+        # 7. Number of filters
+        # 8. Number of filter keys
         """)
         subvertex.spec.write(data=self.n_input_dimensions)
         subvertex.spec.write(data=self.n_output_dimensions)
@@ -305,13 +328,10 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
 
         if len(self.in_edges) > 0:
-            filter = self.filters.filter_tcs(self.dt)
-            subvertex.spec.write(data=parameters.s1615(filter[0][0]))
-            subvertex.spec.write(data=parameters.s1615(filter[0][1]))
+            subvertex.spec.write(data=len(self.filters))
+            subvertex.spec.write(data=self.filters.num_keys(subvertex))
         else:
             subvertex.spec.write(data=0, repeats=2)
-
-        subvertex.spec.write(data=0)
 
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
@@ -351,6 +371,31 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
         for k in subvertex.output_keys:
             subvertex.spec.write(data=k)
+
+    def write_region_filters(self, subvertex):
+        """Write the filter parameters."""
+        subvertex.spec.switchWriteFocus(self.REGIONS.FILTERS)
+        subvertex.spec.comment("# Filter Parameters")
+        for f_ in self.filters:
+            f = f_.get_filter_tc(self.dt)
+            subvertex.spec.write(data=parameters.s1615(f[0]))
+            subvertex.spec.write(data=parameters.s1615(f[1]))
+            subvertex.spec.write(data=f_.accumulator_mask)
+
+    def write_region_filter_keys(self, subvertex):
+        # Write the filter routing entries
+        subvertex.spec.switchWriteFocus(self.REGIONS.FILTER_ROUTING)
+        subvertex.spec.comment("# Filter Routing Keys and Masks")
+        """
+        For each incoming subedge we write the key, mask and index of the
+        filter to which it is connected.  At some later point we can try
+        to combine keys and masks to minimise the number of comparisons
+        which are made in the SpiNNaker application.
+        """
+        for i, km in enumerate(self.filters.get_indexed_keys_masks(subvertex)):
+            subvertex.spec.write(data=km[0])
+            subvertex.spec.write(data=km[1])
+            subvertex.spec.write(data=i)
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
