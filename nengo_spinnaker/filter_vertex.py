@@ -24,7 +24,7 @@ class FilterVertex(graph.Vertex):
 
     model_name = "nengo_filter"
 
-    def __init__(self, dimensions, output_id, time_step=1000,
+    def __init__(self, dimensions, output_id, dt=0.001, time_step=1000,
                  output_period=100, constraints=None, label='filter'):
         """Create a new FilterVertex
 
@@ -36,6 +36,7 @@ class FilterVertex(graph.Vertex):
         self.time_step = time_step
         self.output_id = output_id
         self.output_period = output_period
+        self.dt = dt
 
         self.dimensions = dimensions
 
