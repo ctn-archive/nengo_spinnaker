@@ -41,7 +41,7 @@ value_t* initialise_output( region_system_t *pars ){
 
   // Setup Timer2, initialise output loop
   event_register_timer( SLOT_8 );
-  timer_schedule_proc( outgoing_dimension_callback, 0, 0, g_us_per_output );
+  spin1_schedule_callback(outgoing_dimension_callback, 0, 0, 1);
 
   // Return the output buffer
   return gp_output_values;
