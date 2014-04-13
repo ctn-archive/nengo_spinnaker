@@ -16,8 +16,9 @@ void filter_update(uint arg0, uint arg1) {
 
     for(uint d = 0; d < g_filter.n_dimensions; d++) {
       spin1_send_mc_packet(
-        g_filter.keys[d], g_filter.input[d], WITH_PAYLOAD);
-      io_printf(IO_STD, "[Filter] sent packet %d = %x\n", d, g_filter.input[d]);
+        g_filter.keys[d], bitsk(g_filter.input[d]), WITH_PAYLOAD);
+      io_printf(
+        IO_STD, "[Filter] sent packet %d = %x\n", d, bitsk(g_filter.input[d]));
     }
   }
 }
@@ -45,8 +46,8 @@ void data_get_output_keys(address_t addr) {
 void data_get_filters(address_t addr) {
   // TODO: Be less hacky
   for( uint f = 0; f < g_filter.n_filters; f++ ) {
-    g_input.filters[f]->filter = addr[3*f + 0];
-    g_input.filters[f]->n_filter = addr[3*f + 1];
+    g_input.filters[f]->filter = kbits(addr[3*f + 0]);
+    g_input.filters[f]->n_filter = kbits(addr[3*f + 1]);
     g_input.filters[f]->mask = addr[3*f + 2];
     g_input.filters[f]->mask_ = ~(addr[3*f + 2]);
   }
