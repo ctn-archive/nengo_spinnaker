@@ -152,16 +152,25 @@ class Builder(object):
         # TODO Modify to fallback to `isinstance` where possible
         edge = None
 
-        if (c.pre.__class__, c.post.__class__) in edge_builders:
-            edge = edge_builders[(c.pre.__class__, c.post.__class__)](self, c)
-        #elif (c.pre, None) in edge_builders:
-        #    edge = edge_builders[(c.pre, None)](c)
-        #elif (None, c.post) in edge_builders:
-        #    edge = edge_builders[(None, c.post)](c)
-        else:
-            raise TypeError("Cannot connect '%s' -> '%s'" % (
-                type(c.pre), type(c.post)))
+        pre_c = c.pre.__class__.__mro__
+        post_c = c.post.__class__.__mro__
 
+        pre_index = 0
+        post_index = 0
+        step = 0
+
+        while True:
+            if (pre_c[pre_index], post_c[post_index]) in edge_builders:
+                edge = edge_builders[(pre_c[pre_index],
+                                      post_c[post_index])](self, c)
+                break
+            if step % 2 == 0 and pre_index < pre_index - 1:
+                pre_index += 1
+            elif post_index < post_index-1:
+                post_index += 1
+            else:
+                raise TypeError("Cannot connect '%s' -> '%s'" % (
+                                type(c.pre), type(c.post)))
         if edge is not None:
             self.dao.add_edge(edge)
 
