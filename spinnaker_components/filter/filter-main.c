@@ -50,6 +50,11 @@ void data_get_filters(address_t addr) {
     g_input.filters[f]->n_filter = kbits(addr[3*f + 1]);
     g_input.filters[f]->mask = addr[3*f + 2];
     g_input.filters[f]->mask_ = ~(addr[3*f + 2]);
+
+    io_printf(IO_BUF, "Filter[%d] = %k, %k\n", f,
+      g_input.filters[f]->filter,
+      g_input.filters[f]->n_filter
+    );
   }
 }
 
