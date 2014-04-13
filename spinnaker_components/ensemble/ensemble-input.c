@@ -24,6 +24,7 @@ value_t* initialise_input( region_system_t *pars ){
   // Value preparation
   g_input.n_filters = pars->n_filters;
   g_input.n_dimensions = pars->n_input_dimensions;
+  g_input.n_routes = pars->n_filter_keys;
 
   io_printf( IO_BUF, "[Ensemble] n_filters = %d, n_input_dimensions = %d\n",
     g_input.n_filters, g_input.n_dimensions
