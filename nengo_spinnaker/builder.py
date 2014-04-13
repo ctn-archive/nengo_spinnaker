@@ -135,6 +135,7 @@ class Builder(object):
                 # Ensemble -> Ensemble
                 postvertex = self.ensemble_vertices[c.post]
                 edge = edges.DecoderEdge(c, prevertex, postvertex)
+                postvertex.filters.add_edge(edge)
             elif isinstance(c.post, nengo.Node):
                 # Ensemble -> Node
                 postvertex = self._tx_assigns[c.post]

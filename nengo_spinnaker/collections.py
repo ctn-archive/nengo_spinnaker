@@ -1,6 +1,7 @@
 """Object collections for the Nengo/SpiNNaker Integration
 """
 
+import itertools
 import numpy as np
 
 import nengo.decoders
@@ -154,31 +155,87 @@ class AssignedNodeBin(object):
 
 
 class FilterBinEntry(object):
-    def __init__(self, filter_value, edges=[]):
+    def __init__(self, filter_value, edges=[], is_accumulatory=True):
         self._value = filter_value
+        self._edges = edges
+        self._is_accumulatory = is_accumulatory
+
+    def add_edge(self, edge):
+        self._edges.append(edge)
 
     def get_filter_tc(self, dt):
         """Get the filter time constant and complement for the given dt."""
         tc = np.exp(-dt/self._value)
         return (tc, 1. - tc)
 
+    @property
+    def accumulator_mask(self):
+        if self._is_accumulatory:
+            # The accumulator is zeroed on each timestep
+            return 0x00000000
+        else:
+            # The accumulator is not zeroed, but is reset when written a new
+            # value
+            return 0xFFFFFFFF
+
+    def get_keys_masks(self, subvertex):
+        """Return the set of keys for edges which use this filter arriving at
+        the given subvertex."""
+        # Get the list of subedges
+        subedges = []
+        for edge in self._edges:
+            for subedge in edge.subedges:
+                if subedge.postsubvertex == subvertex:
+                    subedges.append(subedge)
+
+        # Get the list of keys
+        kms = []
+        for subedge in subedges:
+            km = subedge.presubvertex.vertex.generate_routing_info(subedge)
+            kms.append(km)
+
+        return kms
+
 
 class FilterCollection(object):
     """A collection of filters."""
     def __init__(self):
-        self._entries = []
+        self._acc_entries = {}
+        self._res_entries = {}
+
+    def __len__(self):
+        return len(self._acc_entries) + len(self._res_entries)
+
+    def __iter__(self):
+        return itertools.chain(
+            self._acc_entries.itervalues(),
+            self._res_entries.itervalues()
+        )
+
+    @property
+    def entries(self):
+        return iter(self)
+
+    def num_keys(self, subvertex):
+        """Return the number of key entries for a given subvertex."""
+        return sum(map(len, self.get_indexed_keys_masks(subvertex)))
 
     def add_edge(self, edge):
         """Add the given edge to the filter collection."""
         # Create a new filter if necessary
-        if not edge.filter in self._entries:
-            self._entries.append(FilterBinEntry(edge.filter))
+        if edge._filter_is_accumulatory:
+            if edge.filter not in self._acc_entries.keys():
+                self._acc_entries[edge.filter] = FilterBinEntry(edge.filter)
+            self._acc_entries[edge.filter].add_edge(edge)
+        else:
+            if edge.filter not in self._res_entries.keys():
+                self._res_entries[edge.filter] = FilterBinEntry(
+                    edge.filter, is_accumulatory=False)
+            self._res_entries[edge.filter].add_edge(edge)
 
-    @property
-    def filter_values(self):
-        """Return a list of filter values."""
-        return self._entries.keys()
-
-    def filter_tcs(self, dt):
-        """Return a list of tupled filter time constants and complements."""
-        return [f.get_filter_tc(dt) for f in self._entries]
+    def get_indexed_keys_masks(self, subvertex):
+        """Return a list of keys and masks for each filter in the collection
+        for the given postsubvertex.
+        """
+        return itertools.chain(
+            *[f.get_keys_masks(subvertex) for f in self.entries])
