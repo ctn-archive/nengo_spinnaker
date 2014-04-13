@@ -238,4 +238,4 @@ class FilterCollection(object):
         for the given postsubvertex.
         """
         return itertools.chain(
-            [f.get_keys_masks(subvertex) for f in self.entries])
+            *[f.get_keys_masks(subvertex) for f in self.entries])
