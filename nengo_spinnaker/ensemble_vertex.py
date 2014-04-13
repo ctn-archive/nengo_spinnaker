@@ -136,8 +136,8 @@ class EnsembleVertex(graph.Vertex):
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
-        # 9 words, 4 bytes per word
-        return 4 * 9
+        # 8 words, 4 bytes per word
+        return 4 * 8
 
     def sizeof_region_bias(self, n_atoms):
         """Get the size (in bytes) of the BIAS region for the given number of
