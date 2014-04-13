@@ -24,30 +24,32 @@ class FilterVertex(graph.Vertex):
 
     model_name = "nengo_filter"
 
-    def __init__(self, dimensions, output_id, time_step=100000,
-                 constraints=None):
+    def __init__(self, dimensions, output_id, time_step=1000,
+                 output_period=100, constraints=None):
         """Create a new FilterVertex
 
         :param dimensions: number of values
         :param output_id: id key to place in packet routing
         :param time_step: Machine timestep (in microseconds)
+        :param output_period: Time between output events (in ticks)
         """
         self.time_step = time_step
         self.output_id = output_id
+        self.output_period = output_period
 
         self.dimensions = dimensions
 
         self.filters = collections.FilterCollection()
 
         # Create the vertex
-        super(FilterVertex, self).__init__(n_neurons=0
-            constraints=constraints, label=ens.label
+        super(FilterVertex, self).__init__(0,
+            constraints=constraints, label='filter'
         )
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
-        # 4 words, 4 bytes per word
-        return 4 * 4
+        # 5 words, 4 bytes per word
+        return 5 * 4
 
     def sizeof_region_output_keys(self):
         """Get the size (in bytes) of the OUTPUT_KEYS region."""
@@ -178,11 +180,13 @@ class FilterVertex(graph.Vertex):
         # -------------
         # 1. Number of dimensions
         # 2. Machine time step in us
-        # 3. Number of filters
-        # 4. Number of filter keys
+        # 3. Output period in ticks
+        # 4. Number of filters
+        # 5. Number of filter keys
         """)
         subvertex.spec.write(data=self.dimensions)
         subvertex.spec.write(data=self.time_step)
+        subvertex.spec.write(data=self.output_period)
 
         if len(self.in_edges) > 0:
             subvertex.spec.write(data=len(self.filters))
