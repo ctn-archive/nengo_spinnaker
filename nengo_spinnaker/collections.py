@@ -176,7 +176,7 @@ class FilterBinEntry(object):
         else:
             # The accumulator is not zeroed, but is reset when written a new
             # value
-            return 0x11111111
+            return 0xFFFFFFFF
 
     def get_keys_masks(self, subvertex):
         """Return the set of keys for edges which use this filter arriving at
