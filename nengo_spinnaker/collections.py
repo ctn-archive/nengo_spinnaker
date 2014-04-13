@@ -237,4 +237,5 @@ class FilterCollection(object):
         """Return a list of keys and masks for each filter in the collection
         for the given postsubvertex.
         """
-        return [f.get_keys_masks(subvertex) for f in self.entries]
+        return itertools.chain(
+            [f.get_keys_masks(subvertex) for f in self.entries])
