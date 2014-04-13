@@ -7,6 +7,8 @@ void filter_update(uint arg0, uint arg1) {
   // Update the filters
   input_filter_step();
 
+  io_printf(IO_STD, "[Filter] update\n");
+
   // Increment the counter and transmit if necessary
   delay_remaining--;
   if(delay_remaining == 0) {
@@ -15,6 +17,7 @@ void filter_update(uint arg0, uint arg1) {
     for(uint d = 0; d < g_filter.n_dimensions; d++) {
       spin1_send_mc_packet(
         g_filter.keys[d], g_filter.input[d], WITH_PAYLOAD);
+      io_printf(IO_STD, "[Filter] sent packet %d = %x\n", d, g_filter.input[d]);
     }
   }
 }
@@ -26,7 +29,10 @@ void data_system(address_t addr) {
   g_filter.n_filters = addr[3];
   g_filter.n_filter_keys = addr[4];
 
-  initialise_input(
+  delay_remaining = g_filter.transmission_delay;
+  io_printf(IO_BUF, "[Filter] transmission delay = %d\n", delay_remaining);
+
+  g_filter.input = initialise_input(
     g_filter.n_filters, g_filter.n_dimensions, g_filter.n_filter_keys);
 }
 
