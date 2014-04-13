@@ -88,6 +88,9 @@ static inline filtered_input_buffer_t* input_filter( uint key ) {
     }
   }
   // No match
+  io_printf(IO_STD, "[Ensemble] ERROR Could not match incoming packet with key"
+    " %d with filter.\n", key
+  );
   return NULL;
 };
 
