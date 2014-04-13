@@ -9,6 +9,6 @@
 # ----------------------------------------------------------------------------
 
 APP = nengo_ensemble
-SOURCES = ensemble-main.c ensemble-data.c ensemble-harness.c ensemble-input.c ensemble-output.c ensemble-update.c
+SOURCES = ensemble-main.c ensemble-data.c ensemble-harness.c ../common/filtered-input.c ensemble-output.c ensemble-update.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

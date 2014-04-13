@@ -60,7 +60,8 @@ void initialise_ensemble( region_system_t *pars ) {
   );
 
   // Setup subcomponents
-  g_ensemble.input  = initialise_input ( pars );
+  g_ensemble.input  = initialise_input(
+    pars->n_filters, pars->n_input_dimensions);
   g_ensemble.output = initialise_output( pars );
 
   // Register the update function
