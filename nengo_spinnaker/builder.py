@@ -149,12 +149,12 @@ class Builder(object):
         # TODO Modify to fallback to `isinstance` where possible
         edge = None
 
-        if (c.pre, c.post) in edge_builders:
-            edge = edge_builders[(c.pre, c.post)](c)
-        elif (c.pre, None) in edge_builders:
-            edge = edge_builders[(c.pre, None)](c)
-        elif (None, c.post) in edge_builders:
-            edge = edge_builders[(None, c.post)](c)
+        if (c.pre.__class__, c.post.__class__) in edge_builders:
+            edge = edge_builders[(c.pre.__class__, c.post.__class__)](self, c)
+        #elif (c.pre, None) in edge_builders:
+        #    edge = edge_builders[(c.pre, None)](c)
+        #elif (None, c.post) in edge_builders:
+        #    edge = edge_builders[(None, c.post)](c)
         else:
             raise TypeError("Cannot connect '%s' -> '%s'" % (
                 type(c.pre), type(c.post)))
@@ -162,34 +162,34 @@ class Builder(object):
         if edge is not None:
             self.dao.add_edge(edge)
 
-    @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
-    def _ensemble_to_ensemble(self, c):
-        prevertex = self.ensemble_vertices[c.pre]
-        postvertex = self.ensemble_vertices[c.post]
-        edge = edges.DecoderEdge(c, prevertex, postvertex)
-        edge.index = prevertex.decoders.get_decoder_index(edge)
-        return edge
+@register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
+def _ensemble_to_ensemble(builder, c):
+    prevertex = builder.ensemble_vertices[c.pre]
+    postvertex = builder.ensemble_vertices[c.post]
+    edge = edges.DecoderEdge(c, prevertex, postvertex)
+    edge.index = prevertex.decoders.get_decoder_index(edge)
+    return edge
 
-    @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
-    def _ensemble_to_node(self, c):
-        prevertex = self.ensemble_vertices[c.pre]
-        postvertex = self._tx_assigns[c.post]
-        edge = edges.DecoderEdge(c, prevertex, postvertex)
-        edge.index = prevertex.decoders.get_decoder_index(edge)
-        return edge
+@register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
+def _ensemble_to_node(builder, c):
+    prevertex = builder.ensemble_vertices[c.pre]
+    postvertex = builder._tx_assigns[c.post]
+    edge = edges.DecoderEdge(c, prevertex, postvertex)
+    edge.index = prevertex.decoders.get_decoder_index(edge)
+    return edge
 
-    @register_build_edge(pre=nengo.Node, post=nengo.Ensemble)
-    def _node_to_ensemble(self, c):
-        # If the Node has constant output then add to the direct input
-        # for the Ensemble and don't add an edge, otherwise add an
-        # edge from the appropriate Rx element to the Ensemble.
-        postvertex = self.ensemble_vertices[c.post]
-        if c.pre.output is not None and not callable(c.pre.output):
-            postvertex.direct_input += np.asarray(c.pre.output)
-        else:
-            prevertex = self._rx_assigns[c.pre]
-            return edges.InputEdge(c, prevertex, postvertex)
+@register_build_edge(pre=nengo.Node, post=nengo.Ensemble)
+def _node_to_ensemble(builder, c):
+    # If the Node has constant output then add to the direct input
+    # for the Ensemble and don't add an edge, otherwise add an
+    # edge from the appropriate Rx element to the Ensemble.
+    postvertex = builder.ensemble_vertices[c.post]
+    if c.pre.output is not None and not callable(c.pre.output):
+        postvertex.direct_input += np.asarray(c.pre.output)
+    else:
+        prevertex = builder._rx_assigns[c.pre]
+        return edges.InputEdge(c, prevertex, postvertex)
 
-    @register_build_edge(pre=nengo.Node, post=nengo.Node)
-    def _node_to_node(self, c):
-        self._node_to_node_edges.append(c)
+@register_build_edge(pre=nengo.Node, post=nengo.Node)
+def _node_to_node(builder, c):
+    builder._node_to_node_edges.append(c)
