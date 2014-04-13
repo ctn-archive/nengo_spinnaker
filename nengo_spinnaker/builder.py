@@ -48,9 +48,12 @@ class Builder(object):
 
     def _build(self, obj):
         """Call the appropriate build function for the given object."""
-        if not type(obj) in self.builders:
+        for obj_class in obj.__class__.__mro__:
+            if obj_class in self.builders:
+                self.builders[obj_class](obj)
+                break
+        else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
-        self.builders[type(obj)](obj)
 
     def __call__(self, model, dt, seed=None):
         """Return a PACMAN103 DAO containing a representation of the given
