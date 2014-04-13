@@ -299,7 +299,7 @@ class EnsembleVertex(graph.Vertex):
             self.sizeof_region_filters()
         )
         subvertex.spec.reserveMemRegion(
-            self.REGIONS.FILTER_KEYS,
+            self.REGIONS.FILTER_ROUTING,
             self.sizeof_region_filter_keys(subvertex)
         )
 
