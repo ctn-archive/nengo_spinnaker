@@ -7,6 +7,7 @@ required by PACMAN.
 import inspect
 import re
 import numpy as np
+import itertools
 
 import nengo
 import nengo.utils.builder
@@ -15,7 +16,6 @@ from pacman103.core import dao
 
 from . import edges
 from . import ensemble_vertex, transmit_vertex, receive_vertex
-
 
 edge_builders = {}
 
@@ -155,24 +155,17 @@ class Builder(object):
         pre_c = c.pre.__class__.__mro__
         post_c = c.post.__class__.__mro__
 
-        pre_index = 0
-        post_index = 0
-        step = 0
-
-        while True:
-            if (pre_c[pre_index], post_c[post_index]) in edge_builders:
-                edge = edge_builders[(pre_c[pre_index],
-                                      post_c[post_index])](self, c)
+        for key in itertools.chain(*[[(a, b) for b in post_c] for a in pre_c]):
+            if key in edge_builders:
+                edge = edge_builders[key](self, c)
                 break
-            if step % 2 == 0 and pre_index < pre_index - 1:
-                pre_index += 1
-            elif post_index < post_index-1:
-                post_index += 1
-            else:
-                raise TypeError("Cannot connect '%s' -> '%s'" % (
-                                type(c.pre), type(c.post)))
+        else:
+            raise TypeError("Cannot connect '%s' -> '%s'" % (
+                type(c.pre), type(c.post)))
+
         if edge is not None:
             self.dao.add_edge(edge)
+
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
 def _ensemble_to_ensemble(builder, c):
@@ -182,6 +175,7 @@ def _ensemble_to_ensemble(builder, c):
     edge.index = prevertex.decoders.get_decoder_index(edge)
     return edge
 
+
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
 def _ensemble_to_node(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
@@ -189,6 +183,7 @@ def _ensemble_to_node(builder, c):
     edge = edges.DecoderEdge(c, prevertex, postvertex)
     edge.index = prevertex.decoders.get_decoder_index(edge)
     return edge
+
 
 @register_build_edge(pre=nengo.Node, post=nengo.Ensemble)
 def _node_to_ensemble(builder, c):
@@ -201,6 +196,7 @@ def _node_to_ensemble(builder, c):
     else:
         prevertex = builder._rx_assigns[c.pre]
         return edges.InputEdge(c, prevertex, postvertex)
+
 
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
