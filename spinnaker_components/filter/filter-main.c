@@ -14,11 +14,11 @@ void filter_update(uint arg0, uint arg1) {
   if(delay_remaining == 0) {
     delay_remaining = g_filter.transmission_delay;
 
+    uint val = 0x0000;
     for(uint d = 0; d < g_filter.n_dimensions; d++) {
-      spin1_send_mc_packet(
-        g_filter.keys[d], bitsk(g_filter.input[d]), WITH_PAYLOAD);
-      io_printf(
-        IO_STD, "[Filter] sent packet %d = %x\n", d, bitsk(g_filter.input[d]));
+      val = bitsk(g_filter.input[d]);
+      spin1_send_mc_packet(g_filter.keys[d], val, WITH_PAYLOAD);
+      io_printf(IO_STD, "[Filter] sent packet %d = %x\n", d, val);
     }
   }
 }
