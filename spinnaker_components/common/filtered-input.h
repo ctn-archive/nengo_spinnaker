@@ -56,7 +56,8 @@ extern filtered_input_t g_input; //!< Global input
  * \brief Initialise the input system
  * \param pars Formatted system region
  */
-value_t* initialise_input(uint n_filters, uint n_input_dimensions);
+value_t* initialise_input(
+  uint n_filters, uint n_input_dimensions, uint n_routes);
 
 /**
  * \brief Handle an incoming dimensional value.
