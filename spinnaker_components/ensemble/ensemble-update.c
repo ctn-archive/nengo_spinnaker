@@ -63,6 +63,7 @@ void ensemble_update( uint arg0, uint arg1 )
 
       // Zero the voltage, set the refractory time
       set_neuron_refractory( n );
+      set_neuron_voltage(n, 0.0k);
 
       /* Randomly peturb the refractory period to account for inter-tick
          spiking.*/
