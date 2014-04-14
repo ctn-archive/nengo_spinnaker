@@ -10,6 +10,7 @@ with model:
     b = nengo.Ensemble(nengo.LIF(9), D, label='b')
     def printout(t, x):
         print t, x
+        return []
     output = nengo.Node(printout, size_in=D, label='output')
 
     nengo.Connection(input, a, filter=0.01, transform=[[1]]*D)
@@ -22,6 +23,6 @@ sim = nengo_spinnaker.Simulator(model)
 
 # sim.builder.print_connections()
 #sim = nengo.Simulator(model)
-sim.run(0.1)
+sim.run(100)
 
 
