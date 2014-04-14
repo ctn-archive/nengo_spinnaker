@@ -21,7 +21,7 @@ class SerialVertex(common.ExternalDeviceVertex):
         # limitations).
         x = self.virtual_chip_coords['x']
         y = self.virtual_chip_coords['y']
-        i = self.edges.index(subedge.edge)
+        i = self.out_edges.index(subedge.edge)
 
         key = (x << 24) | (y << 16) | (i << 6)
         return key, 0xFFFFFFE0
