@@ -40,6 +40,7 @@ class EnsembleVertex(graph.Vertex):
         self._ens = ens
         self.dt = dt
         self.time_step = time_step
+        self.finalised = False
 
         # Create random number generator
         if ens.seed is None:
@@ -232,7 +233,10 @@ class EnsembleVertex(graph.Vertex):
 
         # Finalise the values for this Ensemble
         # Encode any constant inputs, and add to the biases
-        self.bias += np.dot(self.encoders, self.direct_input)
+        if not self.finalised:
+            self.encoders *= self.gain[:, None]
+            self.bias += np.dot(self.encoders, self.direct_input)
+            self.finalised = True
 
         # Generate the list of decoders, and the list of ouput keys
         subvertex.output_keys = list()
@@ -347,7 +351,7 @@ class EnsembleVertex(graph.Vertex):
             for d in range(self.n_input_dimensions):
                 subvertex.spec.write(
                     data=parameters.s1615(
-                        self.encoders[n, d] * self.gain[n]
+                        self.encoders[n, d]
                     )
                 )
 

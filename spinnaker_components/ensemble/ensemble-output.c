@@ -17,7 +17,7 @@
 
 #include "ensemble-output.h"
 
-uint g_n_output_dimensions, *gp_output_keys, g_us_per_output;
+uint g_n_output_dimensions, *gp_output_keys, g_output_period;
 value_t * gp_output_values;
 
 // Initialise everything necessary for the output system
@@ -37,35 +37,8 @@ value_t* initialise_output( region_system_t *pars ){
   );
 
   // Calculate the number of microseconds between transmitting output packets
-  g_us_per_output = pars->machine_timestep / pars->n_output_dimensions;
-
-  // Setup Timer2, initialise output loop
-  event_register_timer( SLOT_8 );
-  spin1_schedule_callback(outgoing_dimension_callback, 0, 0, 1);
+  g_output_period = pars->n_neurons / g_n_output_dimensions;
 
   // Return the output buffer
   return gp_output_values;
-}
-
-// Transmit a dimension
-void outgoing_dimension_callback( uint index, uint arg1 ) {
-  // Transmit the packet with the appropriate key
-  spin1_send_mc_packet(
-    gp_output_keys[ index ],
-    bitsk(gp_output_values[ index ]),
-    WITH_PAYLOAD
-  );
-
-  // Zero the output buffer and increment the output dimension counter
-  gp_output_values[ index ] = 0;
-  index++;
-  
-  if( index >= g_n_output_dimensions ) {
-    index = 0;
-  }
-
-  // Schedule this function to be called again
-  if( !timer_schedule_proc( (event_proc) outgoing_dimension_callback, index, 0, g_us_per_output ) ) {
-    io_printf( IO_BUF, "[Timer2] [ERROR] Failed to schedule next.\n" );
-  }
 }
