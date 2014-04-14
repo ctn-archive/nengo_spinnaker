@@ -15,7 +15,7 @@ import nengo.utils.builder
 from pacman103.core import dao
 
 from . import edges
-from . import ensemble_vertex, transmit_vertex, receive_vertex
+from . import ensemble_vertex, transmit_vertex, receive_vertex, serial_vertex
 
 edge_builders = {}
 
@@ -46,9 +46,8 @@ class Builder(object):
             if obj_name in objects:
                 self.builders[objects[obj_name]] = f
 
-    def _build(self, obj, use_serial):
+    def _build(self, obj):
         """Call the appropriate build function for the given object."""
-        self.use_serial = use_serial
         for obj_class in obj.__class__.__mro__:
             if obj_class in self.builders:
                 self.builders[obj_class](obj)
@@ -56,7 +55,7 @@ class Builder(object):
         else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
 
-    def __call__(self, model, dt, seed=None):
+    def __call__(self, model, dt, seed=None, use_serial=False):
         """Return a PACMAN103 DAO containing a representation of the given
         model, and a list of I/O Nodes with references to their connected Rx
         and Tx components.
@@ -71,6 +70,13 @@ class Builder(object):
         self.dao.rx_vertices = self._rx_vertices = list()
         self.dao.rx_assigns = self._rx_assigns = dict()
         self.dao.node_to_node_edges = self._node_to_node_edges = list()
+
+        # Add a serial vertex if required
+        self.use_serial = use_serial
+        self.serial = None
+        if use_serial:
+            self.serial = serial_vertex.SerialVertex()
+            self.dao.add_vertex(self.serial)
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -106,13 +112,9 @@ class Builder(object):
             node.spinnaker_build(self)
             return
 
-        # If we're using a serial connection then connect the Node to serial IO
-        if self.use_serial:
-            return
-
         # Otherwise the node is assigned to Rx and Tx components as required
         # If the Node has input, then assign the Node to a Tx component
-        if node.size_in > 0:
+        if node.size_in > 0 and not self.use_serial:
             # Try to fit the Node in an existing Tx Element
             # Most recently added Txes are nearer the start
             tx_assigned = False
@@ -135,7 +137,7 @@ class Builder(object):
 
         # If the Node has output, and that output is not constant, then assign
         # the Node to an Rx component.
-        if node.size_out > 0 and callable(node.output):
+        if node.size_out > 0 and callable(node.output) and not self.use_serial:
             # Try to fit the Node in an existing Rx Element
             # Most recently added Rxes are nearer the start
             rx_assigned = False
@@ -190,7 +192,12 @@ def _ensemble_to_ensemble(builder, c):
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
 def _ensemble_to_node(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
-    postvertex = builder._tx_assigns[c.post]
+
+    if builder.use_serial:
+        postvertex = builder.serial
+    else:
+        postvertex = builder._tx_assigns[c.post]
+
     edge = edges.DecoderEdge(c, prevertex, postvertex)
     edge.index = prevertex.decoders.get_decoder_index(edge)
     return edge
@@ -205,7 +212,10 @@ def _node_to_ensemble(builder, c):
     if c.pre.output is not None and not callable(c.pre.output):
         postvertex.direct_input += np.asarray(c.pre.output)
     else:
-        prevertex = builder._rx_assigns[c.pre]
+        if builder.use_serial:
+            prevertex = builder.serial
+        else:
+            prevertex = builder._rx_assigns[c.pre]
         edge = edges.InputEdge(c, prevertex, postvertex)
         postvertex.filters.add_edge(edge)
         return edge
