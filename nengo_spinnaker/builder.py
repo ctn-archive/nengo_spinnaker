@@ -199,7 +199,7 @@ def _ensemble_to_node(builder, c):
 
     if builder.use_serial:
         postvertex = filter_vertex.FilterVertex()
-        edge = edges.NengoEdge(postvertex, builder.serial)
+        edge = edges.NengoEdge(c.post.size_in, postvertex, builder.serial)
         builder.add_edge(edge)
     else:
         postvertex = builder._tx_assigns[c.post]
