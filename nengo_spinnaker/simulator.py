@@ -2,6 +2,7 @@ import sys
 
 from pacman103.core import control
 from pacman103 import conf
+from pacman103.lib import parameters
 
 from . import builder
 
@@ -57,10 +58,29 @@ class Simulator(object):
                 else:
                     self.serial_rx[node].append(key)
 
+    def send_inputs(self, t):
+        print 'send_inputs', t
+        for node, keys in self.serial_rx.iteritems():
+            value = parameters.s1615(node.output(t))
+            print '-->', value
+            for key in keys:
+                for d, v in enumerate(value):
+                    if v<0:
+                        v += 0x100000000
+                    msg = '%08x.%08x\n' % (key | d, v)
+                    self.serial.write(msg)
+        self.serial.flush()
+
+        #TODO: handle node to node and nodes that are both inputs and outputs
+
+
 
     def start_serial_io(self, time):
         import serial
         import time
+
+        input_period = 0.001
+        last_input = None
 
         self.serial = serial.Serial('/dev/ttyUSB0', baudrate=8000000,
                                     rtscts=True)
@@ -68,6 +88,10 @@ class Simulator(object):
         start = time.time()
         buffer = {}
         while True:
+            now = time.time()
+            if last_input is None or now > last_input + input_period:
+                self.send_inputs(now - start)
+
             line = self.serial.readline().strip()
             print line
             if '.' not in line:
@@ -93,7 +117,6 @@ class Simulator(object):
                         buffer[base_key] = vector
                     vector[d] = value
                     if None not in vector:
-                        now = time.time() - start
-                        node.output(now, vector)
+                        node.output(now - start, vector)
                         del buffer[base_key]
 
