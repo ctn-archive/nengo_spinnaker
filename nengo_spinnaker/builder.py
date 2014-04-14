@@ -14,6 +14,8 @@ import nengo
 import nengo.utils.builder
 
 from pacman103.core import dao
+from pacman103.front import common
+from pacman103.lib import graph
 
 from . import edges
 from . import ensemble_vertex
@@ -88,6 +90,9 @@ class Builder(object):
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
             *nengo.utils.builder.objs_and_connections(model)
         )
+
+        # Create a MultiCastVertex
+        self._mc_tx_vertex = None
 
         # Build each of the objects
         for obj in objs:
@@ -198,6 +203,18 @@ class Builder(object):
 
         if edge is not None:
             self.dao.add_edge(edge)
+
+        def connect_to_multicast_vertex(self, postvertex):
+            """Create a connection from the MultiCastVertex to the given
+            postvertex.
+
+            The postvertex must support the method `get_commands`.
+            """
+            if self._mc_tx_vertex is None:
+                self._mc_tx_vertex = common.MultiCastSource()
+                self.dao.add_vertex(self._mc_tx_vertex)
+
+            self.dao.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)

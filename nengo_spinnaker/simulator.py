@@ -19,6 +19,13 @@ class Simulator(object):
             sys.modules[__name__],
             conf.config.get('Machine', 'machineName')
         )
+
+        # Preparation functions
+        # Consider moving this into PACMAN103
+        for vertex in self.dao.vertices:
+            if hasattr(vertex, 'prepare_vertex'):
+                vertex.prepare_vertex()
+
         self.controller.dao = self.dao
         self.dao.set_hostname(conf.config.get('Machine', 'machineName'))
         self.controller.map_model()
