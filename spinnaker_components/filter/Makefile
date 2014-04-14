@@ -1,14 +1,14 @@
 # SpiNNaker Nengo Integration
-# Ensemble Component
+# Filter Component
 # ----------------------------------------------------------------------------
 # Authors:
 #  Andrew Mundy <mundya@cs.man.ac.uk>
 #  Terry Stewart
 #
-# February 2014
+# April 2014
 # ----------------------------------------------------------------------------
 
-APP = nengo_ensemble
-SOURCES = ensemble-main.c ensemble-data.c ensemble-harness.c ../common/filtered-input.c ensemble-output.c ensemble-update.c
+APP = nengo_filter
+SOURCES = filter-main.c ../common/filtered-input.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

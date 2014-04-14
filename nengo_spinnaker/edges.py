@@ -14,7 +14,9 @@ class NengoEdge(graph.Edge):
 
     @property
     def width(self):
-        if isinstance(self.conn.post, nengo.Ensemble):
+        if isinstance(self.conn, int):
+            return self.conn
+        elif isinstance(self.conn.post, nengo.Ensemble):
             return self.conn.post.dimensions
         elif isinstance(self.conn.post, nengo.Node):
             return self.conn.post.size_in

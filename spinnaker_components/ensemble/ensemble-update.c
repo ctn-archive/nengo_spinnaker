@@ -57,7 +57,7 @@ void ensemble_update( uint arg0, uint arg1 )
 
     // If this neuron has fired then process
     if( v_voltage > 1.0k ) {
-      io_printf( IO_STD, "[Ensemble] Neuron %d spiked.", n );
+      //io_printf( IO_STD, "[Ensemble] Neuron %d spiked.", n );
 
       // Zero the voltage, set the refractory time
       set_neuron_refractory( n );
@@ -75,7 +75,7 @@ void ensemble_update( uint arg0, uint arg1 )
           d, neuron_decoder(n,d), neuron_decoder(n,d) ); */
         g_ensemble.output[d] += neuron_decoder( n, d );
       }
-      io_printf( IO_STD, "\n" );
+      //io_printf( IO_STD, "\n" );
     }
   }
 }

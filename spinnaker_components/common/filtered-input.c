@@ -1,6 +1,6 @@
 /*
- * Ensemble - Input
- * ----------------
+ * Filtered Input
+ * --------------
  * Structures and functions to deal with arriving multicast packets (input).
  *
  * Authors:
@@ -14,19 +14,18 @@
  *      Theoretical Neuroscience, University of Waterloo
  */
 
-#include "ensemble-input.h"
+#include "filtered-input.h"
 
-// Globals
-ensemble_input_t g_input;
+filtered_input_t g_input;
 
-value_t* initialise_input( region_system_t *pars ){
-  io_printf( IO_BUF, "[Ensemble] INITIALISE_INPUT\n" );
+value_t* initialise_input(
+    uint n_filters, uint n_input_dimensions, uint n_routes) {
   // Value preparation
-  g_input.n_filters = pars->n_filters;
-  g_input.n_dimensions = pars->n_input_dimensions;
-  g_input.n_routes = pars->n_filter_keys;
+  g_input.n_filters = n_filters;
+  g_input.n_dimensions = n_input_dimensions;
+  g_input.n_routes = n_routes;
 
-  io_printf( IO_BUF, "[Ensemble] n_filters = %d, n_input_dimensions = %d\n",
+  io_printf( IO_BUF, "[Filters] n_filters = %d, n_input_dimensions = %d\n",
     g_input.n_filters, g_input.n_dimensions
   );
 
@@ -64,14 +63,14 @@ value_t* initialise_input( region_system_t *pars ){
 
 // Incoming spike callback
 void incoming_dimension_value_callback( uint key, uint payload ) {
-  uint dimension = key & 0x0000000f;
+  uint dimension = key & 0x0000003f;
 
   /*
    * 1. Look up key in input routing table entry
    * 2. Select appropriate filter
    * 3. Add value (payload) to appropriate dimension of given filter.
    */
-  input_buffer_acc(input_filter(key), dimension, payload);
+  input_buffer_acc(input_filter(key), dimension, kbits(payload));
 }
 
 // Input step

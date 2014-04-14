@@ -41,8 +41,9 @@
 #include "dimensional-io.h"
 
 #include "ensemble-data.h"
-#include "ensemble-input.h"
 #include "ensemble-output.h"
+
+#include "filtered-input.h"
 
 /* Structs ******************************************************************/
 /** \brief Persistent neuron variables.

@@ -1,5 +1,5 @@
 /**
- * Ensemble - Input
+ * Filtered Input
  * ----------------
  * Structures and functions to deal with arriving multicast packets (input).
  *
@@ -12,15 +12,17 @@
  *      University of Manchester
  *   - Computational Neuroscience Research Group, Centre for
  *      Theoretical Neuroscience, University of Waterloo
- * 
- * \addtogroup ensemble
- * @{
+ *
+ * \addtogroup filtered-input Filtered Input
  */
 
-#include "ensemble.h"
+#include "spin1_api.h"
+#include "common-typedefs.h"
 
-#ifndef __ENSEMBLE_INPUT_H__
-#define __ENSEMBLE_INPUT_H__
+#include "dimensional-io.h"
+
+#ifndef __FILTERED_INPUT_H__
+#define __FILTERED_INPUT_H__
 
 /* Structs *******************************************************************/
 /**
@@ -35,19 +37,18 @@ typedef struct input_filter_key {
 /**
  * \brief Struct containing all input components.
  */
-typedef struct ensemble_input {
+typedef struct filtered_input {
   uint n_filters;     //!< Number of filters
-  uint n_dimensions;  //!< Number of input dimensions for the ensemble
+  uint n_dimensions;  //!< Number of input dimensions
   uint n_routes;      //!< Number of input routing entries
 
   input_filter_key_t *routes;        //!< List of keys, masks, filter IDs
   filtered_input_buffer_t **filters; //!< Filters to apply to the inputs
 
   value_t *input;     //!< Resultant input value
-} ensemble_input_t;
+} filtered_input_t;
 
-/* Buffers and parameters ****************************************************/
-extern ensemble_input_t g_input;  //!< Input management
+extern filtered_input_t g_input; //!< Global input
 
 /* Functions *****************************************************************/
 
@@ -55,7 +56,8 @@ extern ensemble_input_t g_input;  //!< Input management
  * \brief Initialise the input system
  * \param pars Formatted system region
  */
-value_t* initialise_input( region_system_t *pars );
+value_t* initialise_input(
+  uint n_filters, uint n_input_dimensions, uint n_routes);
 
 /**
  * \brief Handle an incoming dimensional value.
@@ -88,8 +90,8 @@ static inline filtered_input_buffer_t* input_filter( uint key ) {
     }
   }
   // No match
-  io_printf(IO_STD, "[Ensemble] ERROR Could not match incoming packet with key"
-    " %d with filter.\n", key
+  io_printf(IO_STD, "[Filtered Input] ERROR Could not match incoming packet "
+    "with key %d with filter.\n", key
   );
   return NULL;
 };
