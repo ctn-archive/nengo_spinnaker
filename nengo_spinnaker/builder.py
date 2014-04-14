@@ -198,14 +198,19 @@ def _ensemble_to_node(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
 
     if builder.use_serial:
-        postvertex = filter_vertex.FilterVertex()
-        edge = edges.NengoEdge(c.post.size_in, postvertex, builder.serial)
+        postvertex = filter_vertex.FilterVertex(c.post.size_in,
+            output_id=0)
+        builder.add_vertex(postvertex)
+        edge = edges.NengoEdge(c, postvertex, builder.serial)
         builder.add_edge(edge)
     else:
         postvertex = builder._tx_assigns[c.post]
 
     edge = edges.DecoderEdge(c, prevertex, postvertex)
     edge.index = prevertex.decoders.get_decoder_index(edge)
+    if builder.use_serial:
+        postvertex.filters.add_edge(edge)
+
     return edge
 
 
