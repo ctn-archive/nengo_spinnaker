@@ -7,9 +7,9 @@ from . import builder
 
 
 class Simulator(object):
-    def __init__(self, model, dt=0.001, seed=None):
+    def __init__(self, model, dt=0.001, seed=None, use_serial=False):
         # Build the model
-        self.builder = builder.Builder()
+        self.builder = builder.Builder(use_serial=use_serial)
         self.dao = self.builder(model, dt, seed)
         self.dao.writeTextSpecs = True
 

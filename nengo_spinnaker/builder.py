@@ -32,7 +32,7 @@ def register_build_edge(pre=None, post=None):
 class Builder(object):
     """Converts a Nengo model into a PACMAN appropriate data structure."""
 
-    def __init__(self):
+    def __init__(self, use_serial):
         # Build by inspection the dictionary of things we can build
         builds = filter(lambda m: "_build_" == m[0][0:7],
                         inspect.getmembers(self, inspect.ismethod))
