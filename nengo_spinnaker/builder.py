@@ -8,6 +8,7 @@ import inspect
 import re
 import numpy as np
 import itertools
+import collections
 
 import nengo
 import nengo.utils.builder
@@ -42,6 +43,7 @@ class Builder(object):
                         inspect.getmembers(self, inspect.ismethod))
         objects = dict(inspect.getmembers(nengo, inspect.isclass))
         self.builders = dict()
+
 
         for (s, f) in builds:
             obj_name = re.sub(
@@ -94,6 +96,21 @@ class Builder(object):
         # Build each of the connections
         for conn in connections:
             self._build(conn)
+
+        if self.use_serial:
+            self.serial_rx = connections.defaultdict(list)
+            self.serial_tx = {}
+            for edge in self.serial.in_edges:
+                for subedge in edge.subedges:
+                    key = edge.prevertex.generate_routing_info(subedge)[0]
+                    node = edge.post
+                    self.serial_tx[key] = node
+
+            for edge in self.serial.out_edges:
+                for subedge in edge.subedges:
+                    key = edge.prevertex.generate_routing_info(subedge)[0]
+                    node = edge.pre
+                    self.serial_rx[node].append(key)
 
         # Return the DAO
         return self.dao
