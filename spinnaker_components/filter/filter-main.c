@@ -7,8 +7,6 @@ void filter_update(uint arg0, uint arg1) {
   // Update the filters
   input_filter_step();
 
-  io_printf(IO_STD, "[Filter] update\n");
-
   // Increment the counter and transmit if necessary
   delay_remaining--;
   if(delay_remaining == 0) {
