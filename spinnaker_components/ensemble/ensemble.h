@@ -74,6 +74,7 @@ typedef struct ensemble_parameters {
 
 /* Parameters and Buffers ***************************************************/
 extern ensemble_parameters_t g_ensemble;  //!< Global parameters
+extern uint g_output_period;       //!< Delay in transmitting decoded output
 
 /* Functions ****************************************************************/
 /**

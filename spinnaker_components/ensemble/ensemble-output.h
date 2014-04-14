@@ -27,9 +27,6 @@ extern uint g_n_output_dimensions; //!< Number of output dimensions \f$D_{out}\f
 extern uint * gp_output_keys;      //!< Output dimension keys \f$1 \times D_{out}\f$
 extern value_t * gp_output_values; //!< Output buffers \f$1 \times D_{out}\f$
 
-extern uint g_us_per_output;       //!< Microsecond delay between transmitting
-                                   //   decoded output
-
 /* Functions *****************************************************************/
 /**
  * \brief Initialise the output system.
