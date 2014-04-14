@@ -63,14 +63,14 @@ value_t* initialise_input(
 
 // Incoming spike callback
 void incoming_dimension_value_callback( uint key, uint payload ) {
-  uint dimension = key & 0x0000000f;
+  uint dimension = key & 0x0000003f;
 
   /*
    * 1. Look up key in input routing table entry
    * 2. Select appropriate filter
    * 3. Add value (payload) to appropriate dimension of given filter.
    */
-  input_buffer_acc(input_filter(key), dimension, payload);
+  input_buffer_acc(input_filter(key), dimension, kbits(payload));
 }
 
 // Input step
