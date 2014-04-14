@@ -66,10 +66,10 @@ void ensemble_update( uint arg0, uint arg1 )
 
       /* Randomly peturb the refractory period to account for inter-tick
          spiking.*/
-      if( bitsk(lfsr) * v_delta < v_voltage - 1.0k ) {
+      if(kbits(lfsr & 0x00007fff) * v_delta < v_voltage - 1.0k) {
         decrement_neuron_refractory( n );
       }
-      lfsr = ((lfsr >> 1) ^ (~lfsr & 0xB400)) & 0x00007fff;
+      lfsr = ((lfsr >> 1) ^ (~lfsr & 0xB400));
 
       // Update the output values
       for( uint d = 0; d < g_n_output_dimensions; d++ ) {
