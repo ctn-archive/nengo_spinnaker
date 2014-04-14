@@ -15,7 +15,11 @@ import nengo.utils.builder
 from pacman103.core import dao
 
 from . import edges
-from . import ensemble_vertex, transmit_vertex, receive_vertex, serial_vertex
+from . import ensemble_vertex
+from . import filter_vertex
+from . import receive_vertex
+from . import serial_vertex
+from . import transmit_vertex
 
 edge_builders = {}
 
@@ -194,7 +198,9 @@ def _ensemble_to_node(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
 
     if builder.use_serial:
-        postvertex = builder.serial
+        postvertex = filter_vertex.FilterVertex()
+        edge = edges.NengoEdge(postvertex, builder.serial)
+        builder.add_edge(edge)
     else:
         postvertex = builder._tx_assigns[c.post]
 
