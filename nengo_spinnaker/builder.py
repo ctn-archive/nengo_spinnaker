@@ -246,7 +246,7 @@ def _node_to_ensemble(builder, c):
         else:
             prevertex = builder._rx_assigns[c.pre]
         edge = edges.InputEdge(c, prevertex, postvertex,
-                filter_is_accumulatory=True)
+                filter_is_accumulatory=False)
         postvertex.filters.add_edge(edge)
         return edge
 
