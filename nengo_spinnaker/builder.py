@@ -32,7 +32,7 @@ def register_build_edge(pre=None, post=None):
 class Builder(object):
     """Converts a Nengo model into a PACMAN appropriate data structure."""
 
-    def __init__(self, use_serial):
+    def __init__(self):
         # Build by inspection the dictionary of things we can build
         builds = filter(lambda m: "_build_" == m[0][0:7],
                         inspect.getmembers(self, inspect.ismethod))
@@ -46,8 +46,9 @@ class Builder(object):
             if obj_name in objects:
                 self.builders[objects[obj_name]] = f
 
-    def _build(self, obj):
+    def _build(self, obj, use_serial):
         """Call the appropriate build function for the given object."""
+        self.use_serial = use_serial
         for obj_class in obj.__class__.__mro__:
             if obj_class in self.builders:
                 self.builders[obj_class](obj)
@@ -103,6 +104,10 @@ class Builder(object):
         # If the Node has a `spinnaker_build` function then ask it for a vertex
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
+            return
+
+        # If we're using a serial connection then connect the Node to serial IO
+        if self.use_serial:
             return
 
         # Otherwise the node is assigned to Rx and Tx components as required
