@@ -59,10 +59,8 @@ class Simulator(object):
                     self.serial_rx[node].append(key)
 
     def send_inputs(self, t):
-        print 'send_inputs', t
         for node, keys in self.serial_rx.iteritems():
             value = parameters.s1615(node.output(t))
-            print '-->', value
             for key in keys:
                 for d, v in enumerate(value):
                     if v<0:
@@ -74,49 +72,75 @@ class Simulator(object):
         #TODO: handle node to node and nodes that are both inputs and outputs
 
 
+    def handle_retina(self, x, y):
+        print 'retina', x, y
+
 
     def start_serial_io(self, time):
         import serial
         import time
 
-        input_period = 0.001
+        input_period = 0.1
         last_input = None
 
         self.serial = serial.Serial('/dev/ttyUSB0', baudrate=8000000,
                                     rtscts=True)
         self.serial.write("S+\n")   # send spinnaker packets to host
+        #self.serial.write("E+\n")   # send retina packets to host
+        #self.serial.write("Z+\n")   # turn on retina
         start = time.time()
         buffer = {}
+        line = ''
+        retina = False
         while True:
             now = time.time()
             if last_input is None or now > last_input + input_period:
                 self.send_inputs(now - start)
 
-            line = self.serial.readline().strip()
-            print line
-            if '.' not in line:
+            c = self.serial.read()
+            assert len(c) == 1
+            line += c
+
+            if retina and len(line) >= 2:
+                self.handle_retina(ord(line[-2]), ord(line[-1]))
+                line = ''
+                retina = False
                 continue
-            parts = line.split('.')
-            parts = [int(p,16) for p in parts]
-            if len(parts) == 3:
-                header, key, payload = parts
 
-                if payload & 0x80000000:
-                    payload -= 0x100000000
-                value = (payload * 1.0) / (2**15)
+            if ord(c) & 0x80:
+                retina = True
+                line = c
+                continue
 
-                base_key = key & 0xFFFFF800
-                d = (key & 0x0000003F)
+            if c == '\n':
+                if ord(line[0])==0:
+                    line = line[1:]
+                print line
+                if '.' not in line:
+                    continue
+                parts = line.split('.')
+                parts = [int(p,16) for p in parts]
+                if len(parts) == 3:
+                    header, key, payload = parts
 
-                if base_key in self.serial_tx:
-                    node = self.serial_tx[base_key]
+                    if payload & 0x80000000:
+                        payload -= 0x100000000
+                    value = (payload * 1.0) / (2**15)
 
-                    vector = buffer.get(base_key, None)
-                    if vector is None:
-                        vector = [None]*node.size_in
-                        buffer[base_key] = vector
-                    vector[d] = value
-                    if None not in vector:
-                        node.output(now - start, vector)
-                        del buffer[base_key]
+                    base_key = key & 0xFFFFF800
+                    d = (key & 0x0000003F)
+
+                    if base_key in self.serial_tx:
+                        node = self.serial_tx[base_key]
+
+                        vector = buffer.get(base_key, None)
+                        if vector is None:
+                            vector = [None]*node.size_in
+                            buffer[base_key] = vector
+                        vector[d] = value
+                        if None not in vector:
+                            node.output(now - start, vector)
+                            del buffer[base_key]
+                line = ''
+                retina = False
 
