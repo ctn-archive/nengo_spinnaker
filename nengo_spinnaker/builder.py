@@ -45,7 +45,6 @@ class Builder(object):
         objects = dict(inspect.getmembers(nengo, inspect.isclass))
         self.builders = dict()
 
-
         for (s, f) in builds:
             obj_name = re.sub(
                 r'_(\w)', lambda m: m.group(1).upper(), re.sub('_build', '', s)
@@ -188,17 +187,17 @@ class Builder(object):
         if edge is not None:
             self.dao.add_edge(edge)
 
-        def connect_to_multicast_vertex(self, postvertex):
-            """Create a connection from the MultiCastVertex to the given
-            postvertex.
+    def connect_to_multicast_vertex(self, postvertex):
+        """Create a connection from the MultiCastVertex to the given
+        postvertex.
 
-            The postvertex must support the method `get_commands`.
-            """
-            if self._mc_tx_vertex is None:
-                self._mc_tx_vertex = common.MultiCastSource()
-                self.dao.add_vertex(self._mc_tx_vertex)
+        The postvertex must support the method `get_commands`.
+        """
+        if self._mc_tx_vertex is None:
+            self._mc_tx_vertex = common.MultiCastSource()
+            self.dao.add_vertex(self._mc_tx_vertex)
 
-            self.dao.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
+        self.dao.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
@@ -217,7 +216,7 @@ def _ensemble_to_node(builder, c):
 
     if builder.use_serial:
         postvertex = filter_vertex.FilterVertex(c.post.size_in,
-            output_id=0, output_period=10)
+                                                output_id=0, output_period=10)
         builder.add_vertex(postvertex)
         edge = edges.NengoEdge(c, postvertex, builder.serial)
         builder.add_edge(edge)
@@ -246,7 +245,7 @@ def _node_to_ensemble(builder, c):
         else:
             prevertex = builder._rx_assigns[c.pre]
         edge = edges.InputEdge(c, prevertex, postvertex,
-                filter_is_accumulatory=False)
+                               filter_is_accumulatory=False)
         postvertex.filters.add_edge(edge)
         return edge
 
