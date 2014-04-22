@@ -18,10 +18,6 @@ from pacman103.lib import graph
 
 from . import edges
 from . import ensemble_vertex
-from . import filter_vertex
-from . import receive_vertex
-from . import serial_vertex
-from . import transmit_vertex
 
 edge_builders = {}
 
@@ -61,7 +57,7 @@ class Builder(object):
         else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
 
-    def __call__(self, model, dt, seed=None, use_serial=False):
+    def __call__(self, model, dt, seed=None, io_builder=None):
         """Return a PACMAN103 DAO containing a representation of the given
         model, and a list of I/O Nodes with references to their connected Rx
         and Tx components.
@@ -71,18 +67,10 @@ class Builder(object):
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.dao.ensemble_vertices = self.ensemble_vertices = dict()
-        self.dao.tx_vertices = self._tx_vertices = list()
-        self.dao.tx_assigns = self._tx_assigns = dict()
-        self.dao.rx_vertices = self._rx_vertices = list()
-        self.dao.rx_assigns = self._rx_assigns = dict()
         self.dao.node_to_node_edges = self._node_to_node_edges = list()
 
-        # Add a serial vertex if required
-        self.use_serial = use_serial
-        self.serial = None
-        if use_serial:
-            self.serial = serial_vertex.SerialVertex()
-            self.dao.add_vertex(self.serial)
+        # Store/Create an IOBuilder
+        self.io_builder = io_builder
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -112,60 +100,14 @@ class Builder(object):
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
-        self.dao.add_vertex(vertex)
+        self.add_vertex(vertex)
         self.ensemble_vertices[ens] = vertex
 
     def _build_node(self, node):
-        # If the Node has a `spinnaker_build` function then ask it for a vertex
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
-            return
-
-        # Otherwise the node is assigned to Rx and Tx components as required
-        # If the Node has input, then assign the Node to a Tx component
-        if node.size_in > 0 and not self.use_serial:
-            # Try to fit the Node in an existing Tx Element
-            # Most recently added Txes are nearer the start
-            tx_assigned = False
-            for tx in self._tx_vertices:
-                if tx.remaining_dimensions >= node.size_in:
-                    tx.assign_node(node)
-                    tx_assigned = True
-                    self._tx_assigns[node] = tx
-                    break
-
-            # Otherwise create a new Tx element
-            if not tx_assigned:
-                tx = transmit_vertex.TransmitVertex(
-                    label="Tx%d" % len(self._tx_vertices)
-                )
-                self.dao.add_vertex(tx)
-                tx.assign_node(node)
-                self._tx_assigns[node] = tx
-                self._tx_vertices.insert(0, tx)
-
-        # If the Node has output, and that output is not constant, then assign
-        # the Node to an Rx component.
-        if node.size_out > 0 and callable(node.output) and not self.use_serial:
-            # Try to fit the Node in an existing Rx Element
-            # Most recently added Rxes are nearer the start
-            rx_assigned = False
-            for rx in self._rx_vertices:
-                if rx.remaining_dimensions >= node.size_out:
-                    rx.assign_node(node)
-                    rx_assigned = True
-                    self._rx_assigns[node] = rx
-                    break
-
-            # Otherwise create a new Rx element
-            if not rx_assigned:
-                rx = receive_vertex.ReceiveVertex(
-                    label="Rx%d" % len(self._rx_vertices)
-                )
-                self.dao.add_vertex(rx)
-                rx.assign_node(node)
-                self._rx_assigns[node] = rx
-                self._rx_vertices.insert(0, rx)
+        else:
+            self.io_builder.build_node(self, node)
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
@@ -185,7 +127,7 @@ class Builder(object):
                 type(c.pre), type(c.post)))
 
         if edge is not None:
-            self.dao.add_edge(edge)
+            self.add_edge(edge)
 
     def connect_to_multicast_vertex(self, postvertex):
         """Create a connection from the MultiCastVertex to the given
@@ -195,9 +137,17 @@ class Builder(object):
         """
         if self._mc_tx_vertex is None:
             self._mc_tx_vertex = common.MultiCastSource()
-            self.dao.add_vertex(self._mc_tx_vertex)
+            self.add_vertex(self._mc_tx_vertex)
 
-        self.dao.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
+        self.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
+
+    def get_node_in_vertex(self, c):
+        """Get the Vertex for input to the given Node."""
+        return self.io_builder.get_node_in_vertex(self, c)
+
+    def get_node_out_vertex(self, c):
+        """Get the Vertex for output from the given Node."""
+        return self.io_builder.get_node_out_vertex(self, c)
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
@@ -212,20 +162,16 @@ def _ensemble_to_ensemble(builder, c):
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
 def _ensemble_to_node(builder, c):
+    # Get the vertices
     prevertex = builder.ensemble_vertices[c.pre]
+    postvertex = builder.io_builder.get_node_in_vertex(c)
 
-    if builder.use_serial:
-        postvertex = filter_vertex.FilterVertex(c.post.size_in,
-                                                output_id=0, output_period=10)
-        builder.add_vertex(postvertex)
-        edge = edges.NengoEdge(c, postvertex, builder.serial)
-        builder.add_edge(edge)
-    else:
-        postvertex = builder._tx_assigns[c.post]
-
+    # Create the edge
     edge = edges.DecoderEdge(c, prevertex, postvertex)
     edge.index = prevertex.decoders.get_decoder_index(edge)
-    if builder.use_serial:
+
+    # Store the filter value if necessary
+    if hasattr(postvertex, "filters"):
         postvertex.filters.add_edge(edge)
 
     return edge
@@ -240,10 +186,7 @@ def _node_to_ensemble(builder, c):
     if c.pre.output is not None and not callable(c.pre.output):
         postvertex.direct_input += np.asarray(c.pre.output)
     else:
-        if builder.use_serial:
-            prevertex = builder.serial
-        else:
-            prevertex = builder._rx_assigns[c.pre]
+        prevertex = builder.io_builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)
         postvertex.filters.add_edge(edge)

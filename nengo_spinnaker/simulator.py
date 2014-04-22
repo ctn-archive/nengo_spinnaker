@@ -5,13 +5,21 @@ from pacman103 import conf
 from pacman103.lib import parameters
 
 from . import builder
+from . import io as io_builders
 
 
 class Simulator(object):
-    def __init__(self, model, dt=0.001, seed=None, use_serial=False):
+    def __init__(self, model, dt=0.001, seed=None, io=None):
         # Build the model
         self.builder = builder.Builder()
-        self.dao = self.builder(model, dt, seed, use_serial=use_serial)
+
+        if io is None:
+            # TODO Get IP address of machine from perspective of SpiNNaker
+            # board
+            # io = io_builders.Ethernet(addr)
+            raise NotImplementedError
+
+        self.dao = self.builder(model, dt, seed, io_builder=io)
         self.dao.writeTextSpecs = True
 
     def run(self, time):
