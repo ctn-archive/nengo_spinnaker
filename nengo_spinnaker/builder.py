@@ -70,7 +70,7 @@ class Builder(object):
         self.dao.node_to_node_edges = self._node_to_node_edges = list()
 
         # Store/Create an IOBuilder
-        self.io_builder = io_builder
+        self.io_builder = io_builder(self)
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -107,7 +107,7 @@ class Builder(object):
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
         else:
-            self.io_builder.build_node(self, node)
+            self.io_builder.build_node(node)
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
@@ -142,12 +142,15 @@ class Builder(object):
         self.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
 
     def get_node_in_vertex(self, c):
-        """Get the Vertex for input to the given Node."""
-        return self.io_builder.get_node_in_vertex(self, c)
+        """Get the Vertex for input to the terminating Node of the given
+        Connection
+        """
+        return self.io_builder.get_node_in_vertex(c)
 
     def get_node_out_vertex(self, c):
-        """Get the Vertex for output from the given Node."""
-        return self.io_builder.get_node_out_vertex(self, c)
+        """Get the Vertex for output from the originating Node of the given
+        Connection"""
+        return self.io_builder.get_node_out_vertex(c)
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)

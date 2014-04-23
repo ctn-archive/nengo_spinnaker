@@ -1,7 +1,8 @@
 from . import receive_vertex, transmit_vertex
+from . import io_builder
 
 
-class Ethernet(object):
+class Ethernet(io_builder.IOBuilder):
     def __init__(self, address, port=5555):
         self.address = address
         self.port = port
@@ -28,7 +29,7 @@ class Ethernet(object):
                 tx = transmit_vertex.TransmitVertex(
                     label="Tx%d" % len(self._tx_vertices)
                 )
-                builder.add_vertex(tx)
+                self.builder.add_vertex(tx)
                 tx.assign_node(node)
                 self._tx_assigns[node] = tx
                 self._tx_vertices.insert(0, tx)
@@ -41,7 +42,6 @@ class Ethernet(object):
             for rx in self._rx_vertices:
                 if rx.remaining_dimensions >= node.size_out:
                     rx.assign_node(node)
-                    rx_assigned = True
                     self._rx_assigns[node] = rx
                     break
             else:
@@ -49,23 +49,23 @@ class Ethernet(object):
                 rx = receive_vertex.ReceiveVertex(
                     label="Rx%d" % len(self._rx_vertices)
                 )
-                builder.add_vertex(rx)
+                self.builder.add_vertex(rx)
                 rx.assign_node(node)
                 self._rx_assigns[node] = rx
                 self._rx_vertices.insert(0, rx)
 
-    def get_node_in_vertex(self, builder, c):
-        """Get the Vertex which accepts input for the Node
+    def get_node_in_vertex(self, c):
+        """Get the Vertex for input to the terminating Node of the given
+        Connection
+
+        :raises KeyError: if the Node is not built/known
         """
         return self._tx_assigns[c.post]
 
-    def get_node_out_vertex(self, builder, c):
-        """Get the Vertex which transmits output from the Node
+    def get_node_out_vertex(self, c):
+        """Get the Vertex for output from the originating Node of the given
+        Connection
+
+        :raises KeyError: if the Node is not built/known
         """
         return self._rx_assigns[c.pre]
-
-    def get_node_input(self, node):
-        raise NotImplementedError
-
-    def set_node_output(self, node):
-        raise NotImplementedError
