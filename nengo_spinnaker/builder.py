@@ -66,8 +66,7 @@ class Builder(object):
 
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
-        self.dao.ensemble_vertices = self.ensemble_vertices = dict()
-        self.dao.node_to_node_edges = self._node_to_node_edges = list()
+        self.ensemble_vertices = dict()
 
         # Store a Node Builder
         self.node_builder = node_builder
@@ -198,4 +197,4 @@ def _node_to_ensemble(builder, c):
 
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
-    builder._node_to_node_edges.append(c)
+    builder.node_builder.node_to_node_edges.append(c)

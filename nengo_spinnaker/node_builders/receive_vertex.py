@@ -37,12 +37,20 @@ class ReceiveVertex(graph.Vertex):
         return lib_map.Resources(1, 1, 1)
 
     @property
+    def n_assigned_dimensions(self):
+        return self._assigned_nodes.n_assigned_dimensions
+
+    @property
     def remaining_dimensions(self):
         return self._assigned_nodes.remaining_space
 
     def assign_node(self, node):
         """Assign a Nengo Node to this ReceiveVertex."""
         self._assigned_nodes.append(node)
+
+    def node_index(self, node):
+        """Get the offset of this Node in the ReceiveVertex."""
+        return self._assigned_nodes.node_index(node)
 
     @property
     def nodes(self):

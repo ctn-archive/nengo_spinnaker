@@ -145,6 +145,14 @@ class AssignedNodeBin(object):
         for an in self._node_list:
             yield an.node
 
+    def node_index(self, node):
+        """Get the offset of this Node"""
+        for n in self._node_list:
+            if n.node == node:
+                return n.index
+        else:
+            raise KeyError
+
     def append(self, node):
         """Add a Node to the bin."""
         if not self._width_f(node) <= self.remaining_space:

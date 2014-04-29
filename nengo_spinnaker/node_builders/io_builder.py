@@ -15,22 +15,6 @@ class IOBuilder(object):
         """
         raise NotImplementedError
 
-    def get_node_input(self, node):
-        """Return the latest input for the given Node
-
-        :return: an array of data for the Node, or None if no data received
-        :raises KeyError: if the Node is not a valid Node
-        """
-        raise NotImplementedError
-
-    def set_node_output(self, node, output):
-        """Set the output of the given Node
-
-        Transmits the value given to the simulation
-        :raises KeyError: if the Node is not a valid Node
-        """
-        raise NotImplementedError
-
     def __enter__(self):
         """Perform any tasks necessary to communicate with the live simulation
         """
