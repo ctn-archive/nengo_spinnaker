@@ -5,6 +5,7 @@ import time
 
 from pacman103.core import control
 from pacman103 import conf
+from pacman103.core.spinnman.interfaces import iptag
 
 from . import builder
 from . import node_builders
@@ -46,6 +47,7 @@ class Simulator(object):
                                   # manually check for application termination
                                   # i.e., we want to do something during the
                                   # simulation time, not pause in the TxRx.
+        self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
 
         # TODO: All of the following will become more modular!
         self.controller.map_model()

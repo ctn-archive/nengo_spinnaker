@@ -39,22 +39,13 @@ class Ethernet(io_builder.IOBuilder):
 
         # If the Node has input, then assign the Node to a Tx component
         if node.size_in > 0:
-            # Try to fit the Node in an existing Tx Element
-            # Most recently added Txes are nearer the start
-            for tx in self._tx_vertices:
-                if tx.remaining_dimensions >= node.size_in:
-                    tx.assign_node(node)
-                    self._tx_assigns[node] = tx
-                    break
-            else:
-                # Otherwise create a new Tx element
-                tx = transmit_vertex.TransmitVertex(
-                    label="Tx%d" % len(self._tx_vertices)
-                )
-                builder.add_vertex(tx)
-                tx.assign_node(node)
-                self._tx_assigns[node] = tx
-                self._tx_vertices.insert(0, tx)
+            tx = transmit_vertex.TransmitVertex(
+                node=node,
+                label="Tx for %s" % node
+            )
+            builder.add_vertex(tx)
+            self._tx_assigns[node] = tx
+            self._tx_vertices.insert(0, tx)
 
         # If the Node has output, and that output is not constant, then assign
         # the Node to an Rx component.
@@ -140,7 +131,7 @@ class EthernetCommunicator(object):
         # Generate a mapping of (x, y, p) to Node
         self._node_coords = dict(
             [(tx.subvertices[0].placement.processor.get_coordinates(),
-              list(tx.nodes)) for tx in tx_vertices]
+              tx.node) for tx in tx_vertices]
         )
 
         # Parameters
@@ -204,12 +195,13 @@ class EthernetCommunicator(object):
             data = self._in_sock.recv(512)
             msg = sdp.SDPMessage(data)
 
-            node = self._node_coords[(msg.src_x, msg.src_y, msg.src_cpu)][0]
+            node = self._node_coords[(msg.src_x, msg.src_y, msg.src_cpu)]
 
             # Convert the data
-            data = msg.data[12:]
+            data = msg.data[16:]
             assert(not len(data) % 4)
-            vals = struct.unpack("%di" % (len(data) / 4), data)
+            vals = [struct.unpack("I", data[n*4:n*4 + 4])[0] for
+                    n in range(len(data) / 4)]
             values = [(v - 0x100000000) * 2**-15 if v & 0x80000000 else
                       v * 2**-16 for v in vals]
 

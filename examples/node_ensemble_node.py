@@ -11,7 +11,7 @@ with model:
         return val
 
     def out_f(t, val):
-        print("Output %.3f" % val)
+        print("Output %.3f" % val[0])
 
     a = nengo.Node(in_f, size_in=0, size_out=1, label="Input")
     b = nengo.Ensemble(nengo.LIF(100), 1)
