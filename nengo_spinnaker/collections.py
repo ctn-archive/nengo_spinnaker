@@ -73,6 +73,10 @@ class DecoderBin(object):
                 solver = nengo.decoders.lstsq_L2nz
 
             decoder = solver(activities, targets, self.rng)
+
+            if isinstance(decoder, tuple):
+                decoder = decoder[0]
+
             self._decoders_by_func[e.function] = decoder
 
         # Combine the decoder with the transform and record it in the list
@@ -224,14 +228,14 @@ class FilterCollection(object):
         """Add the given edge to the filter collection."""
         # Create a new filter if necessary
         if edge._filter_is_accumulatory:
-            if edge.filter not in self._acc_entries.keys():
-                self._acc_entries[edge.filter] = FilterBinEntry(edge.filter)
-            self._acc_entries[edge.filter].add_edge(edge)
+            if edge.synapse not in self._acc_entries.keys():
+                self._acc_entries[edge.synapse] = FilterBinEntry(edge.synapse)
+            self._acc_entries[edge.synapse].add_edge(edge)
         else:
-            if edge.filter not in self._res_entries.keys():
-                self._res_entries[edge.filter] = FilterBinEntry(
-                    edge.filter, is_accumulatory=False)
-            self._res_entries[edge.filter].add_edge(edge)
+            if edge.synapse not in self._res_entries.keys():
+                self._res_entries[edge.synapse] = FilterBinEntry(
+                    edge.synapse, is_accumulatory=False)
+            self._res_entries[edge.synapse].add_edge(edge)
 
     def get_indexed_keys_masks(self, subvertex):
         """Return a list of keys and masks for each filter in the collection
