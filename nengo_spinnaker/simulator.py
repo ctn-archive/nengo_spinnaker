@@ -5,7 +5,7 @@ from pacman103 import conf
 from pacman103.lib import parameters
 
 from . import builder
-from . import io as io_builders
+from . import node_builders
 
 
 class Simulator(object):

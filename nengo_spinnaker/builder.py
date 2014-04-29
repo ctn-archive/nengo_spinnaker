@@ -57,7 +57,7 @@ class Builder(object):
         else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
 
-    def __call__(self, model, dt, seed=None, io_builder=None):
+    def __call__(self, model, dt, seed=None, node_builder=None):
         """Return a PACMAN103 DAO containing a representation of the given
         model, and a list of I/O Nodes with references to their connected Rx
         and Tx components.
@@ -69,8 +69,8 @@ class Builder(object):
         self.dao.ensemble_vertices = self.ensemble_vertices = dict()
         self.dao.node_to_node_edges = self._node_to_node_edges = list()
 
-        # Store/Create an IOBuilder
-        self.io_builder = io_builder(self)
+        # Store a Node Builder
+        self.node_builder = node_builder
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -107,7 +107,7 @@ class Builder(object):
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
         else:
-            self.io_builder.build_node(node)
+            self.node_builder.build_node(self, node)
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
@@ -145,12 +145,12 @@ class Builder(object):
         """Get the Vertex for input to the terminating Node of the given
         Connection
         """
-        return self.io_builder.get_node_in_vertex(c)
+        return self.node_builder.get_node_in_vertex(c)
 
     def get_node_out_vertex(self, c):
         """Get the Vertex for output from the originating Node of the given
         Connection"""
-        return self.io_builder.get_node_out_vertex(c)
+        return self.node_builder.get_node_out_vertex(c)
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
@@ -167,7 +167,7 @@ def _ensemble_to_ensemble(builder, c):
 def _ensemble_to_node(builder, c):
     # Get the vertices
     prevertex = builder.ensemble_vertices[c.pre]
-    postvertex = builder.io_builder.get_node_in_vertex(c)
+    postvertex = builder.node_builder.get_node_in_vertex(c)
 
     # Create the edge
     edge = edges.DecoderEdge(c, prevertex, postvertex)
@@ -189,7 +189,7 @@ def _node_to_ensemble(builder, c):
     if c.pre.output is not None and not callable(c.pre.output):
         postvertex.direct_input += np.asarray(c.pre.output)
     else:
-        prevertex = builder.io_builder.get_node_out_vertex(c)
+        prevertex = builder.node_builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)
         postvertex.filters.add_edge(edge)
