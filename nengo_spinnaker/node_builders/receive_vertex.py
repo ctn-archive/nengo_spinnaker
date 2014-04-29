@@ -11,7 +11,8 @@ class ReceiveVertex(graph.Vertex):
     """
 
     REGIONS = enums.enum1(
-        'SYSTEM'
+        'SYSTEM',
+        'OUTPUT_KEYS'
     )
     MAX_DIMENSIONS = 64
 
@@ -57,6 +58,16 @@ class ReceiveVertex(graph.Vertex):
         """Return the Nodes assigned to this ReceiveVertex."""
         return self._assigned_nodes.nodes
 
+    def sizeof_region_system(self):
+        """Get the size (in bytes) of the SYSTEM region."""
+        # 2 words
+        return 4 * 2
+
+    def sizeof_region_output_keys(self):
+        """Get the size (in bytes) of the OUTPUT_KEYS region."""
+        # 1 word per edge
+        return 4 * len(self.out_edges)
+
     def generateDataSpec(self, processor, subvertex, dao):
         # Get the executable
         x, y, p = processor.get_coordinates()
@@ -66,25 +77,54 @@ class ReceiveVertex(graph.Vertex):
         )
 
         # Generate the spec
-        spec = data_spec_gen.DataSpec(processor, dao)
-        spec.initialise(0xABCE, dao)
-        spec.comment("# Nengo Rx Component")
+        subvertex.spec = data_spec_gen.DataSpec(processor, dao)
+        subvertex.spec.initialise(0xABCE, dao)
+        subvertex.spec.comment("# Nengo Rx Component")
 
-        spec.reserveMemRegion(1, 4)
-        spec.switchWriteFocus(1)
+        # Fill in the spec
+        self.reserve_regions(subvertex)
+        self.write_region_system(subvertex)
+        self.write_region_output_keys(subvertex)
 
-        x, y, p = processor.get_coordinates()
-        key = (x << 24) | (y << 16) | ((p-1) << 11)
-
-        spec.write(data=key)
-
-        spec.endSpec()
-        spec.closeSpecFile()
+        subvertex.spec.endSpec()
+        subvertex.spec.closeSpecFile()
 
         return (executable_target, list(), list())
 
+    def reserve_regions(self, subvertex):
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.SYSTEM,
+            self.sizeof_region_system()
+        )
+        subvertex.spec.reserveMemRegion(
+            self.REGIONS.OUTPUT_KEYS,
+            self.sizeof_region_output_keys()
+        )
+
+    def write_region_system(self, subvertex):
+        subvertex.spec.switchWriteFocus(self.REGIONS.SYSTEM)
+        subvertex.spec.comment("""# System Region
+        # -------------
+        # 1. Number of us between transmitting MC packets
+        # 2. Number of dimensions
+        """)
+        subvertex.spec.write(data=1000/self.n_assigned_dimensions)
+        subvertex.spec.write(data=self.n_assigned_dimensions)
+
+    def write_region_output_keys(self, subvertex):
+        subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
+        subvertex.spec.comment("# Output Keys")
+
+        keys = [self.generate_routing_info(subedge)[0] for subedge in
+                subvertex.out_subedges]
+
+        for (base, subedge) in zip(keys, subvertex.out_subedges):
+            for d in range(subedge.edge.width):
+                subvertex.spec.write(data=base | d)
+
     def generate_routing_info(self, subedge):
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        key = (x << 24) | (y << 16) | ((p-1) << 11)
+        i = self.node_index(subedge.edge.pre)
+        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
         return key, 0xFFFFFFE0
