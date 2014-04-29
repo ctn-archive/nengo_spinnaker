@@ -203,7 +203,7 @@ class EthernetCommunicator(object):
             vals = [struct.unpack("I", data[n*4:n*4 + 4])[0] for
                     n in range(len(data) / 4)]
             values = [(v - 0x100000000) * 2**-15 if v & 0x80000000 else
-                      v * 2**-16 for v in vals]
+                      v * 2**-15 for v in vals]
 
             # Save the data
             assert(len(vals) == node.size_in)

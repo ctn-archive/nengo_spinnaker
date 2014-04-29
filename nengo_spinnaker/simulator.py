@@ -3,6 +3,8 @@ import logging
 import threading
 import time
 
+from nengo.utils.compat import is_callable
+
 from pacman103.core import control
 from pacman103 import conf
 from pacman103.core.spinnman.interfaces import iptag
@@ -60,7 +62,7 @@ class Simulator(object):
         with self.io as node_io:
             # Create the Node threads
             node_sims = [NodeSimulator(node, node_io, self.dt, time_in_seconds)
-                         for node in self.io.nodes]
+                         for node in self.io.nodes if is_callable(node.output)]
 
             # Sleep for simulation time/forever
             try:
