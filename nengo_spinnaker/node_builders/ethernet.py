@@ -245,7 +245,7 @@ class EthernetCommunicator(object):
 
                 packet = sdp.SDPMessage(dst_x=x, dst_y=y, dst_cpu=p, data=data)
                 self._out_sock.sendto(str(packet), (self.machinename, 17893))
-                time.sleep(0.0005)
+                time.sleep(0.005)
 
             self.tx_timer = threading.Timer(self.tx_period, self.tx_tick)
             self.tx_timer.start()
