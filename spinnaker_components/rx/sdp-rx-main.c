@@ -33,6 +33,8 @@ void data_system(address_t addr) {
   g_sdp_rx.transmission_period = addr[0];
   g_sdp_rx.n_dimensions = addr[1];
 
+  io_printf(IO_BUF, "[SDP Rx] Transmission period: %d\n",
+            g_sdp_rx.transmission_period);
   io_printf(IO_BUF, "[SDP Rx] %d dimensions.\n", g_sdp_rx.n_dimensions);
 
   g_sdp_rx.output = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(value_t));

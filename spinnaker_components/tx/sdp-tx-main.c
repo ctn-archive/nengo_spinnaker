@@ -22,9 +22,6 @@ void sdp_tx_update(uint arg0, uint arg1) {
     message.tag = 1;                   // Send to IPtag 1
 
     message.cmd_rc = 1;
-    message.arg1 = 0xBEEFBEEF;
-    message.arg2 = 0xDEADDEAD;
-    message.arg3 = 0xBEADBEAD;
     spin1_memcpy(
       message.data, g_sdp_tx.input, g_sdp_tx.n_dimensions * sizeof(value_t));
 
