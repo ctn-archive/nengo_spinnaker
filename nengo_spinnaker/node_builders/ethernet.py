@@ -19,7 +19,7 @@ class Ethernet(io_builder.IOBuilder):
           set outputs.
         * Getting and setting `Node` inputs and outputs.
     """
-    def __init__(self, machinename, port=17895, input_period=0.01):
+    def __init__(self, machinename, port=17895, input_period=10./32):
         self.machinename = machinename
         self.port = port
         self.input_period = input_period
@@ -107,7 +107,7 @@ class EthernetCommunicator(object):
     """
     def __init__(self, tx_assigns, tx_vertices, rx_assigns, rx_vertices,
                  machinename, rx_port=17895, rx_period=0.00001,
-                 tx_period=0.01):
+                 tx_period=0.05):
         """Create a new EthernetCommunicator to handle communication with
         the given set of nodes.
 
@@ -147,6 +147,7 @@ class EthernetCommunicator(object):
 
         # Generate sockets for IO
         self._out_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._out_sock.setblocking(0)
         self._in_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._in_sock.bind(("", rx_port))
         self._in_sock.setblocking(0)
