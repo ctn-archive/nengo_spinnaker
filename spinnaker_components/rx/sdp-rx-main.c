@@ -5,9 +5,13 @@ sdp_rx_parameters_t g_sdp_rx;
 /** \brief Timer tick
  */
 void sdp_rx_tick(uint arg0, uint arg1) {
-  spin1_send_mc_packet(g_sdp_rx.keys[g_sdp_rx.current_dimension],
-                       bitsk(g_sdp_rx.output[g_sdp_rx.current_dimension]),
-                       WITH_PAYLOAD);
+  uint d = g_sdp_rx.current_dimension;
+  if (g_sdp_rx.fresh[d]) {
+    spin1_send_mc_packet(g_sdp_rx.keys[d],
+                         bitsk(g_sdp_rx.output[d]),
+                         WITH_PAYLOAD);
+    g_sdp_rx.fresh[d] = false;
+  }
 
   g_sdp_rx.current_dimension++;
   if (g_sdp_rx.current_dimension >= g_sdp_rx.n_dimensions) {
@@ -24,6 +28,11 @@ void sdp_received(uint mailbox, uint port) {
   spin1_memcpy(g_sdp_rx.output, message->data,
                g_sdp_rx.n_dimensions * sizeof(value_t));
 
+  // Mark values as being fresh
+  for (uint d = 0; d < g_sdp_rx.n_dimensions; d++) {
+    g_sdp_rx.fresh[d] = true;
+  }
+
   spin1_msg_free(message);
 }
 
@@ -38,6 +47,7 @@ void data_system(address_t addr) {
   io_printf(IO_BUF, "[SDP Rx] %d dimensions.\n", g_sdp_rx.n_dimensions);
 
   g_sdp_rx.output = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(value_t));
+  g_sdp_rx.fresh = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(bool));
   g_sdp_rx.keys = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(uint));
 }
 
@@ -62,6 +72,7 @@ void c_main(void) {
 
   for (uint d = 0; d < g_sdp_rx.n_dimensions; d++) {
     g_sdp_rx.output[d] = 0x00000000;
+    g_sdp_rx.fresh[d] = false;
   }
 
   // Set up routing tables

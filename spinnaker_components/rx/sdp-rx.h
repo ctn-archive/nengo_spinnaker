@@ -27,6 +27,7 @@ typedef struct sdp_rx_parameters {
   uint current_dimension;   //!< Index of the currently selected dimension
 
   value_t *output;          //!< Currently cached output value
+  bool *fresh;              //!< Freshness of output
   uint *keys;               //!< Output keys
 } sdp_rx_parameters_t;
 extern sdp_rx_parameters_t g_sdp_rx; //!< Global parameters
