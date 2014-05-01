@@ -40,6 +40,8 @@ void data_system(address_t addr) {
   g_sdp_tx.n_filter_keys = addr[4];
 
   delay_remaining = g_sdp_tx.transmission_delay;
+  io_printf(IO_BUF, "[SDP Tx] Tick period = %d microseconds\n",
+            g_sdp_tx.machine_timestep);
   io_printf(IO_BUF, "[SDP Tx] transmission delay = %d\n", delay_remaining);
 
   g_sdp_tx.input = initialise_input(
