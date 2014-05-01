@@ -61,7 +61,7 @@ class Simulator(object):
         # Start the IO and perform host computation
         with self.io as node_io:
             # Create the Node threads
-            node_sims = [NodeSimulator(node, node_io, self.dt*100,
+            node_sims = [NodeSimulator(node, node_io, self.dt,
                                        time_in_seconds)
                          for node in self.io.nodes if is_callable(node.output)]
 
