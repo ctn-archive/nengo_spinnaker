@@ -78,7 +78,7 @@ static inline void input_buffer_step( filtered_input_buffer_t *buffer ) {
 //! Apply the given input to a dimension of the input buffer
 static inline void input_buffer_acc(filtered_input_buffer_t *b, uint d,
     value_t v) {
-  b->accumulator[d] += kbits(b->mask_ & bitsk(v));
+  b->accumulator[d] = kbits(bitsk(b->accumulator[d]) & b->mask_) + v;
 }
 
 #endif
