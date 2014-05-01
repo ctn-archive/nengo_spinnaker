@@ -38,6 +38,7 @@ value_t* initialise_input(
     g_input.filters[f]->filter = 0;   // Initialised later
     g_input.filters[f]->n_filter = 0; // Initialised later
     g_input.filters[f]->mask = 0;     // Initialised later
+    g_input.filters[f]->mask_ = 0xffffffff;  // Initialised later
   };
 
   g_input.input = spin1_malloc( g_input.n_dimensions * sizeof( value_t ) );
