@@ -25,15 +25,14 @@ void sdp_received(uint mailbox, uint port) {
   sdp_msg_t *message = (sdp_msg_t*) mailbox;
 
   // Copy the data into the output buffer
-  spin1_memcpy(g_sdp_rx.output, message->data,
-               g_sdp_rx.n_dimensions * sizeof(value_t));
-
   // Mark values as being fresh
+  value_t * data = (value_t*) message->data;
   for (uint d = 0; d < g_sdp_rx.n_dimensions; d++) {
+    g_sdp_rx.output[d] = data[d];
     g_sdp_rx.fresh[d] = true;
   }
-
   spin1_msg_free(message);
+  io_printf(IO_BUF, "[Rx] [0] = %k\n", g_sdp_rx.output[0]);
 }
 
 /** \brief Load in system parameters
@@ -85,7 +84,7 @@ void c_main(void) {
 
   // Setup timer tick, start
   spin1_set_timer_tick(g_sdp_rx.transmission_period);
-  spin1_callback_on(SDP_PACKET_RX, sdp_received, 0);
-  spin1_callback_on(TIMER_TICK, sdp_rx_tick, 2);
+  spin1_callback_on(SDP_PACKET_RX, sdp_received, -1);
+  spin1_callback_on(TIMER_TICK, sdp_rx_tick, 0);
   spin1_start();
 }
