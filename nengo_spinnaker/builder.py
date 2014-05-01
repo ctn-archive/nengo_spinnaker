@@ -190,7 +190,7 @@ def _node_to_ensemble(builder, c):
     else:
         prevertex = builder.node_builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
-                               filter_is_accumulatory=False)
+                               filter_is_accumulatory=True)
         postvertex.filters.add_edge(edge)
         return edge
 
