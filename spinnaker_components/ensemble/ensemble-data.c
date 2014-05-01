@@ -77,9 +77,10 @@ bool data_get_filters( address_t addr, region_system_t *pars ) {
     g_input.filters[f]->mask = addr[3*f + 2];
     g_input.filters[f]->mask_ = ~(addr[3*f + 2]);
 
-    io_printf(IO_BUF, "Filter[%d] = %k, %k\n", f,
+    io_printf(IO_BUF, "Filter[%d] = %k, %k, MASK=0x%08x\n", f,
       g_input.filters[f]->filter,
-      g_input.filters[f]->n_filter
+      g_input.filters[f]->n_filter,
+      g_input.filters[f]->mask
     );
   }
   return true;
@@ -91,9 +92,10 @@ bool data_get_filter_keys( address_t addr, region_system_t *pars ) {
   spin1_memcpy( g_input.routes, addr,
     g_input.n_routes * sizeof( input_filter_key_t )
   );
-  for (int i = 0; i<g_input.n_routes; i++) {
-    io_printf(IO_BUF, "FilterKey[%d] = %x, %x\n", i, g_input.routes[i].key,
-            g_input.routes[i].mask);
+  for (int i = 0; i < g_input.n_routes; i++) {
+    io_printf(IO_BUF, "FilterKey[%d] = 0x%08x, 0x%08x => %d\n", i,
+              g_input.routes[i].key, g_input.routes[i].mask,
+              g_input.routes[i].filter);
   }
   return true;
 }
