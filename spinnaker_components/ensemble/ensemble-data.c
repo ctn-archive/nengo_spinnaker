@@ -77,10 +77,11 @@ bool data_get_filters( address_t addr, region_system_t *pars ) {
     g_input.filters[f]->mask = addr[3*f + 2];
     g_input.filters[f]->mask_ = ~(addr[3*f + 2]);
 
-    io_printf(IO_BUF, "Filter[%d] = %k, %k, MASK=0x%08x\n", f,
+    io_printf(IO_BUF, "Filter[%d] = %k, %k, MASK=0x%08x/0x%08x\n", f,
       g_input.filters[f]->filter,
       g_input.filters[f]->n_filter,
-      g_input.filters[f]->mask
+      g_input.filters[f]->mask,
+      g_input.filters[f]->mask_
     );
   }
   return true;
