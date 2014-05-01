@@ -151,6 +151,10 @@ class EthernetCommunicator(object):
         self._in_sock.bind(("", rx_port))
         self._in_sock.setblocking(0)
 
+        # Locks
+        self._out_lock = threading.Lock()
+        self._in_lock = threading.Lock()
+
         # Create and start the timers
         self.tx_timer = threading.Timer(self.tx_period, self.tx_tick)
         self.rx_timer = threading.Timer(self.rx_period, self.rx_tick)
@@ -173,7 +177,8 @@ class EthernetCommunicator(object):
         :return: an array of data for the Node, or None if no data received
         :raises KeyError: if the Node is not a valid Node
         """
-        return self._vals[node]
+        with self._in_lock:
+            return self._vals[node]
 
     def set_node_output(self, node, output):
         """Set the output of the given Node
@@ -182,8 +187,11 @@ class EthernetCommunicator(object):
         """
         rx = self.rx_assigns[node]  # Get the Rx element
         i = rx.node_index(node)  # The offset of this Node in the Rx element
-        self._output_cache[rx][i:i+node.size_out] = output
-        self._output_fresh[rx] = True
+
+        with self._out_lock:
+            if self._output_cache[rx][i:i+node.size_out] != output:
+                self._output_cache[rx][i:i+node.size_out] = output
+                self._output_fresh[rx] = True
 
     def rx_tick(self):
         """Internal "thread" used to receive inputs from SpiNNaker
@@ -207,7 +215,8 @@ class EthernetCommunicator(object):
 
             # Save the data
             assert(len(vals) == node.size_in)
-            self._vals[node] = values
+            with self._in_lock:
+                self._vals[node] = values
         except IOError:  # There was no data to receive
             pass
 
@@ -225,9 +234,13 @@ class EthernetCommunicator(object):
                     rx_vertex.subvertices[0].placement.processor\
                     .get_coordinates()
 
+                with self._out_lock:
+                    vals = self._output_cache[rx_vertex]
+                    self._output_fresh[rx_vertex] = False
+
                 data = struct.pack(
                     "H14x%di" % rx_vertex.n_assigned_dimensions, 1,
-                    *parameters.s1615(self._output_cache[rx_vertex])
+                    *parameters.s1615(vals)
                 )
 
                 packet = sdp.SDPMessage(dst_x=x, dst_y=y, dst_cpu=p, data=data)
