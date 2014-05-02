@@ -202,13 +202,13 @@ class EthernetCommunicator(object):
 
         :raises KeyError: if the Node is not a valid Node
         """
-        for nrx in self._node_out[node].items():
+        for nrx in self._node_out[node].values():
             # Transform the output and cache
             t_output = np.dot(nrx.transform, output)
 
             with self._out_lock:
-                if self._output_cache[nrx.rx][nrx.start:nrx.end] != t_output:
-                    self._output_cache[nrx.rx][nrx.start:nrx.end] = t_output
+                if self._output_cache[nrx.rx][nrx.start:nrx.stop] != t_output:
+                    self._output_cache[nrx.rx][nrx.start:nrx.stop] = t_output
                     self._output_fresh[nrx.rx] = True
 
     def rx_tick(self):
