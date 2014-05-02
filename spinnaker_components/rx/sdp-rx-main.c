@@ -32,7 +32,6 @@ void sdp_received(uint mailbox, uint port) {
     g_sdp_rx.fresh[d] = true;
   }
   spin1_msg_free(message);
-  io_printf(IO_BUF, "[Rx] [0] = %k\n", g_sdp_rx.output[0]);
 }
 
 /** \brief Load in system parameters
