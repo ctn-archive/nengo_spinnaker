@@ -1,11 +1,5 @@
 import os
-import numpy as np
 
-import nengo
-import nengo.builder
-import nengo.decoders
-from nengo.utils import distributions as dists
-from nengo.utils.compat import is_integer
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
@@ -44,8 +38,8 @@ class FilterVertex(graph.Vertex):
 
         # Create the vertex
         super(FilterVertex, self).__init__(1,
-            constraints=constraints, label=label
-        )
+                                           constraints=constraints,
+                                           label=label)
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
@@ -74,7 +68,6 @@ class FilterVertex(graph.Vertex):
 
     def dtcm_usage(self, lo_atom, hi_atom):
         """Return the amount of DTCM used for the specified atoms."""
-        n_atoms = hi_atom - lo_atom + 1
         return sum([
             self.sizeof_region_system(),
             self.sizeof_region_output_keys(),
