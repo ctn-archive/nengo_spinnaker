@@ -1,5 +1,7 @@
-import sys
+import collections
 import logging
+import numpy as np
+import sys
 import threading
 import time
 
@@ -7,7 +9,6 @@ from nengo.utils.compat import is_callable
 
 from pacman103.core import control
 from pacman103 import conf
-from pacman103.core.spinnman.interfaces import iptag
 
 from . import builder
 from . import node_builders
@@ -33,6 +34,50 @@ class Simulator(object):
 
         self.dt = dt
 
+    def get_node_input(self, node):
+        """Return the latest input for the given Node
+
+        :return: an array of data for the Node, or None if no data received
+        :raises KeyError: if the Node is not a valid Node
+        """
+        # Get the input from the board
+        try:
+            i = self.node_io.get_node_input(node)
+        except KeyError:
+            # Node does not receive input from the board
+            i = np.zeros(node.size_in)
+
+        if i is None or None in i:
+            # Incomplete input, return None
+            return None
+
+        # Add Node->Node input if required
+        if node not in self._internode_cache:
+            return i
+
+        i_s = [self._internode_cache[n].values() for
+               n in self._internode_cache[node]]
+
+        if None in i_s:
+            # Incomplete input, return None
+            return None
+
+        # Return input from board + input from other Nodes on host
+        return np.sum([i, np.sum(i_s, axis=0)], axis=0)
+
+    def set_node_output(self, node, output):
+        """Set the output of the given Node
+
+        :raises KeyError: if the Node is not a valid Node
+        """
+        # Output to board
+        self.node_io.set_node_output(node, output)
+
+        # Output to other Nodes on host
+        if node in self._internode_out_maps:
+            for (post, transform) in self._internode_out_maps[node]:
+                self._internode_cache[post][node] = np.dot(transform, output)
+
     def run(self, time_in_seconds=None):
         """Run the model, currently ignores the time."""
         self.controller = control.Controller(
@@ -45,6 +90,16 @@ class Simulator(object):
             if hasattr(vertex, 'prepare_vertex'):
                 vertex.prepare_vertex()
 
+        # Create some caches for Node->Node connections, and a map of Nodes to
+        # other Nodes on host
+        # TODO: Filters on Node->Node connections
+        self._internode_cache = collections.defaultdict(dict)
+        self._internode_out_maps = collections.defaultdict(list)
+        for c in self.node_node_connections:
+            self._internode_cache[c.post][c.pre] = None
+            self._internode_out_maps[c.pre].append((c.post, c.transform))
+
+        # PACMANify!
         self.controller.dao = self.dao
         self.dao.set_hostname(self.machinename)
         self.dao.run_time = None  # TODO: Modify Transceiver so that we can
@@ -62,10 +117,11 @@ class Simulator(object):
 
         # Start the IO and perform host computation
         with self.io as node_io:
+            self.node_io = node_io
+
             # Create the Node threads
-            node_sims = [NodeSimulator(node, node_io, self.dt,
-                                       time_in_seconds)
-                         for node in self.io.nodes if is_callable(node.output)]
+            node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds)
+                         for node in self.nodes if is_callable(node.output)]
 
             # Sleep for simulation time/forever
             try:
@@ -84,17 +140,17 @@ class Simulator(object):
 
 class NodeSimulator(object):
     """A "thread" to periodically evaluate a Node."""
-    def __init__(self, node, io, dt, time_in_seconds):
+    def __init__(self, node, simulator, dt, time_in_seconds):
         """Create a new NodeSimulator
 
         :param node: the `Node` to simulate
-        :param io: the IO handler, providing functions `get_node_input` and
-                   `set_node_output`
+        :param simulator: the simulator, providing functions `get_node_input`
+                          and `set_node_output`
         :param dt: timestep with which to evaluate the `Node`
         :param time_in_seconds: duration of the simulation
         """
         self.node = node
-        self.io = io
+        self.simulator = simulator
         self.dt = dt
         self.time = time_in_seconds
         self.time_passed = 0.
@@ -114,7 +170,7 @@ class NodeSimulator(object):
         node_output = None
 
         if self.node.size_in > 0:
-            node_input = self.io.get_node_input(self.node)
+            node_input = self.simulator.get_node_input(self.node)
 
             if node_input is not None and None not in node_input:
                 node_output = self.node.output(self.time_passed, node_input)
@@ -122,7 +178,7 @@ class NodeSimulator(object):
             node_output = self.node.output(self.time_passed)
 
             if node_output is not None:
-                self.io.set_node_output(self.node, node_output)
+                self.simulator.set_node_output(self.node, node_output)
         stop = time.clock()
 
         if stop - start > self.dt:
