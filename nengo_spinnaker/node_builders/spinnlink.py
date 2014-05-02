@@ -8,7 +8,7 @@ from .. import filter_vertex, edges
 from . import io_builder
 
 
-class SpiNNlinkUSB(io_builder.IOBuilder):
+class SpiNNlinkUSB(object):
     def __init__(self):
         self._serial_vertex = serial_vertex.SerialVertex()
         self.node_to_node_edges = list()
@@ -26,11 +26,11 @@ class SpiNNlinkUSB(io_builder.IOBuilder):
         # Create a Filter vertex to relay data out to SpiNNlink
         postvertex = filter_vertex.FilterVertex(
             c.post.size_in, output_id=0, output_period=10)
-        self.builder.add_vertex(postvertex)
+        builder.add_vertex(postvertex)
 
         # Create an edge from the Filter vertex to the Serial Vertex
         edge = edges.NengoEdge(c, postvertex, self._serial_vertex)
-        self.builder.add_edge(edge)
+        builder.add_edge(edge)
 
         # Return the Filter vertex
         return postvertex

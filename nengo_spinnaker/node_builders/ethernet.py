@@ -16,7 +16,7 @@ from .. import utils
 NodeRx = collections.namedtuple('NodeRx', ['rx', 'transform', 'start', 'stop'])
 
 
-class Ethernet(io_builder.IOBuilder):
+class Ethernet(object):
     """IO handler for Ethernet connectivity to a SpiNNaker board.
 
     Handles:
