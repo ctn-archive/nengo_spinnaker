@@ -2,7 +2,7 @@ import os
 
 from pacman103.lib import data_spec_gen, graph, lib_map, parameters
 from pacman103.front.common import enums
-from .. import collections
+from .. import bins
 
 
 class TransmitVertex(graph.Vertex):
@@ -25,7 +25,7 @@ class TransmitVertex(graph.Vertex):
         self.time_step = time_step
         self.output_period = output_period
 
-        self.filters = collections.FilterCollection()
+        self.filters = bins.FilterCollection()
 
         # Create the vertex
         super(TransmitVertex, self).__init__(
