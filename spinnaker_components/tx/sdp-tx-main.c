@@ -79,11 +79,8 @@ void c_main(void) {
     system_lead_app_configured();
   }
 
-  // Load core map
-  system_load_core_map();
-
   // Setup timer tick, start
   spin1_set_timer_tick(g_sdp_tx.machine_timestep);
   spin1_callback_on(TIMER_TICK, sdp_tx_update, 2);
-  spin1_start();
+  spin1_start(SYNC_WAIT);
 }
