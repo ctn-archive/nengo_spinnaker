@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 import socket
 import struct
@@ -10,6 +11,9 @@ from pacman103.core.spinnman.sdp import sdp_message as sdp
 from . import receive_vertex, transmit_vertex
 from . import io_builder
 from .. import utils
+
+
+NodeRx = collections.namedtuple('NodeRx', ['rx', 'transform', 'start', 'stop'])
 
 
 class Ethernet(io_builder.IOBuilder):
@@ -25,10 +29,11 @@ class Ethernet(io_builder.IOBuilder):
         self.port = port
         self.input_period = input_period
 
-        self._tx_vertices = list()
-        self._tx_assigns = dict()
-        self._rx_vertices = list()
-        self._rx_assigns = dict()
+        self._tx_vertices = list()  # List of Tx vertices
+        self._tx_assigns = dict()   # Map of Nodes to Tx vertices
+        self._rx_vertices = list()  # List of Rx vertices
+        self._rx_assigns = dict()   # Map of assigned Nodes and Transforms
+                                    # to Rx vertices
 
         self.node_to_node_edges = list()
         self.nodes = list()
@@ -48,26 +53,6 @@ class Ethernet(io_builder.IOBuilder):
             self._tx_assigns[node] = tx
             self._tx_vertices.insert(0, tx)
 
-        # If the Node has output, and that output is not constant, then assign
-        # the Node to an Rx component.
-        if node.size_out > 0 and callable(node.output):
-            # Try to fit the Node in an existing Rx Element
-            # Most recently added Rxes are nearer the start
-            for rx in self._rx_vertices:
-                if rx.remaining_dimensions >= node.size_out:
-                    rx.assign_node(node)
-                    self._rx_assigns[node] = rx
-                    break
-            else:
-                # Otherwise create a new Rx element
-                rx = receive_vertex.ReceiveVertex(
-                    label="Rx%d" % len(self._rx_vertices)
-                )
-                builder.add_vertex(rx)
-                rx.assign_node(node)
-                self._rx_assigns[node] = rx
-                self._rx_vertices.insert(0, rx)
-
     def get_node_in_vertex(self, builder, c):
         """Get the Vertex for input to the terminating Node of the given
         Connection
@@ -78,11 +63,32 @@ class Ethernet(io_builder.IOBuilder):
 
     def get_node_out_vertex(self, builder, c):
         """Get the Vertex for output from the originating Node of the given
-        Connection
-
-        :raises KeyError: if the Node is not built/known
+        Connection, given the transform applied by this Connection.
         """
-        return self._rx_assigns[c.pre]
+        nte = receive_vertex.NodeTransformEntry(c.pre, c.transform,
+                                                utils.get_connection_width(c))
+
+        # See if the combination of this Node and transform has already been
+        # assigned
+        if nte in self._rx_assigns:
+            return self._rx_assigns[nte]
+
+        # Try and fit the Node/Transform combination in an existing Rx element,
+        # otherwise create a new one
+        for rx in self._rx_vertices:
+            if nte.width <= rx.n_remaining_dimensions:
+                self._rx_assigns[nte] = rx
+                rx.add_node_transform(nte.node, nte.transform)
+                return rx
+        else:
+            rx = receive_vertex.ReceiveVertex(
+                label="Rx%d" % len(self._rx_vertices)
+            )
+            rx.add_node_transform(nte.node, nte.transform, nte.width)
+            builder.add_vertex(rx)
+            self._rx_assigns[nte] = rx
+            self._rx_vertices.insert(0, rx)
+            return rx
 
     def __enter__(self):
         """Create and return a Communicator to handle input/output over
@@ -114,7 +120,8 @@ class EthernetCommunicator(object):
 
         :param tx_assigns: dictionary mapping `Node`s to `TransmitVertex`s
         :param tx_vertices: iterable of `TransmitVertex`s
-        :param rx_assigns: dictionary mapping `Node`s to `ReceiveVertex`s
+        :param rx_assigns: dictionary mapping `Node`s and Transforms to
+                           `ReceiveVertex`s
         :param rx_vertices: iterable of `ReceiveVertex`s
         :param machinename: hostname of the SpiNNaker machine
         :param rx_port: port number on which to listen for incoming packets
@@ -134,6 +141,14 @@ class EthernetCommunicator(object):
             [(tx.subvertices[0].placement.processor.get_coordinates(),
               tx.node) for tx in tx_vertices]
         )
+
+        # Generate a mapping of Nodes to Rxs, transforms and indices
+        self._node_out = collections.defaultdict({})
+        for (nte, rx) in rx_assigns.items():
+            offset = rx.get_node_transform_offset(nte.node, nte.transform)
+            nrx = NodeRx(rx, np.array(nte.transform),
+                         offset, offset + nte.width)
+            self._node_out[nte.node][nte.transform] = nrx
 
         # Parameters
         self.machinename = machinename
@@ -187,13 +202,14 @@ class EthernetCommunicator(object):
 
         :raises KeyError: if the Node is not a valid Node
         """
-        rx = self.rx_assigns[node]  # Get the Rx element
-        i = rx.node_index(node)  # The offset of this Node in the Rx element
+        for nrx in self._node_out[node].items():
+            # Transform the output and cache
+            t_output = np.dot(nrx.transform, output)
 
-        with self._out_lock:
-            if self._output_cache[rx][i:i+node.size_out] != output:
-                self._output_cache[rx][i:i+node.size_out] = output
-                self._output_fresh[rx] = True
+            with self._out_lock:
+                if self._output_cache[nrx.rx][nrx.start:nrx.end] != t_output:
+                    self._output_cache[nrx.rx][nrx.start:nrx.end] = t_output
+                    self._output_fresh[nrx.rx] = True
 
     def rx_tick(self):
         """Internal "thread" used to receive inputs from SpiNNaker

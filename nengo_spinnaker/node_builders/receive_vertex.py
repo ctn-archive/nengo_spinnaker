@@ -1,8 +1,20 @@
+import collections
 import os
 
 from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
-from .. import collections
+
+from .. import utils
+
+
+node_transform_entry_t = collections.namedtuple(
+    'NodeTransformEntry', ['node', 'transform', 'width']
+)
+
+
+def NodeTransformEntry(node, transform, width):
+    t = utils.totuple(transform)
+    return node_transform_entry_t(node, t, width)
 
 
 class ReceiveVertex(graph.Vertex):
@@ -19,16 +31,36 @@ class ReceiveVertex(graph.Vertex):
     model_name = "nengo_rx"
 
     def __init__(self, time_step=1000, constraints=None, label=None):
-        # Dimension management
-        self._assigned_dimensions = 0
-        self._assigned_nodes = collections.AssignedNodeBin(
-            self.MAX_DIMENSIONS, lambda n: n.size_out
-        )
+        super(ReceiveVertex, self).__init__(1, constraints=constraints,
+                                            label=label)
+        self.assigned_nodes_transforms = list()
 
-        # Create the vertex
-        super(ReceiveVertex, self).__init__(
-            1, constraints=constraints, label=label
-        )
+    @property
+    def n_assigned_dimensions(self):
+        return sum([e.width for e in self.assigned_nodes_transforms])
+
+    @property
+    def n_remaining_dimensions(self):
+        return self.MAX_DIMENSIONS - self.n_assigned_dimensions
+
+    def add_node_transform(self, node, transform, width):
+        nt = NodeTransformEntry(node, transform, width)
+        self.assigned_nodes_transforms.append(nt)
+
+    def get_node_transform_offset(self, node, transform):
+        """Get the offset of the given Node and transform in the vector output
+        Vector of the Node.
+
+        :raises KeyError: if the Node and transform are not assigned to this
+                          Vertex.
+        """
+        offset = 0
+        for nte in self.assigned_nodes_transforms:
+            if nte.node == node and nte.transform == utils.totuple(transform):
+                return offset
+            offset += nte.width
+        else:
+            raise KeyError
 
     def get_maximum_atoms_per_core(self):
         return 1
@@ -36,27 +68,6 @@ class ReceiveVertex(graph.Vertex):
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
                                 machine_time_step_us, partition_data_object):
         return lib_map.Resources(1, 1, 1)
-
-    @property
-    def n_assigned_dimensions(self):
-        return self._assigned_nodes.n_assigned_dimensions
-
-    @property
-    def remaining_dimensions(self):
-        return self._assigned_nodes.remaining_space
-
-    def assign_node(self, node):
-        """Assign a Nengo Node to this ReceiveVertex."""
-        self._assigned_nodes.append(node)
-
-    def node_index(self, node):
-        """Get the offset of this Node in the ReceiveVertex."""
-        return self._assigned_nodes.node_index(node)
-
-    @property
-    def nodes(self):
-        """Return the Nodes assigned to this ReceiveVertex."""
-        return self._assigned_nodes.nodes
 
     def sizeof_region_system(self):
         """Get the size (in bytes) of the SYSTEM region."""
@@ -115,16 +126,33 @@ class ReceiveVertex(graph.Vertex):
         subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
         subvertex.spec.comment("# Output Keys")
 
-        keys = [self.generate_routing_info(subedge)[0] for subedge in
-                subvertex.out_subedges]
-
-        for (base, subedge) in zip(keys, subvertex.out_subedges):
-            for d in range(subedge.edge.width):
+        for nte in self.assigned_nodes_transforms:
+            base = self.get_routing_key_for_node_transform(
+                subvertex, nte.node, nte.transform
+            )
+            for d in range(nte.width):
                 subvertex.spec.write(data=base | d)
 
-    def generate_routing_info(self, subedge):
-        x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = self.node_index(subedge.edge.pre)
-        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
+    def get_routing_id_for_node_transform(self, node, transform):
+        """Get the routing ID for the given Node and transform.
 
+        :raises KeyError: if the Node and Transform are not assigned to this
+                          vertex.
+        """
+        for i, nte in enumerate(self.assigned_nodes_transforms):
+            if nte.node == node and nte.transform == utils.totuple(transform):
+                return i
+        else:
+            raise KeyError
+
+    def get_routing_key_for_node_transform(self, subvertex, node, transform):
+        """Get the routing key for the given subvertex, Node and transform."""
+        x, y, p = subvertex.placement.processor.get_coordinates()
+        i = self.get_routing_id_for_node_transform(node, transform)
+        return (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
+
+    def generate_routing_info(self, subedge):
+        key = self.get_routing_key_for_node_transform(subedge.presubvertex,
+                                                      subedge.edge.pre,
+                                                      subedge.edge.transform)
         return key, 0xFFFFFFE0
