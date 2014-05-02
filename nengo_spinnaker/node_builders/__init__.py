@@ -1,2 +1,6 @@
 from ethernet import Ethernet
-from spinnlink import SpiNNlinkUSB
+
+try:
+    from spinnlink import SpiNNlinkUSB
+except ImportError:
+    SpiNNlinkUSB = None
