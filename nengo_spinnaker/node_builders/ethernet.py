@@ -9,6 +9,7 @@ from pacman103.core.spinnman.sdp import sdp_message as sdp
 
 from . import receive_vertex, transmit_vertex
 from . import io_builder
+from .. import utils
 
 
 class Ethernet(io_builder.IOBuilder):
