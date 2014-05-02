@@ -166,7 +166,7 @@ def _ensemble_to_ensemble(builder, c):
 def _ensemble_to_node(builder, c):
     # Get the vertices
     prevertex = builder.ensemble_vertices[c.pre]
-    postvertex = builder.node_builder.get_node_in_vertex(c)
+    postvertex = builder.get_node_in_vertex(c)
 
     # Create the edge
     edge = edges.DecoderEdge(c, prevertex, postvertex)
@@ -188,7 +188,7 @@ def _node_to_ensemble(builder, c):
     if c.pre.output is not None and not callable(c.pre.output):
         postvertex.direct_input += np.asarray(c.pre.output)
     else:
-        prevertex = builder.node_builder.get_node_out_vertex(c)
+        prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)
         postvertex.filters.add_edge(edge)
