@@ -143,7 +143,7 @@ class EthernetCommunicator(object):
         )
 
         # Generate a mapping of Nodes to Rxs, transforms and indices
-        self._node_out = collections.defaultdict({})
+        self._node_out = collections.defaultdict(dict)
         for (nte, rx) in rx_assigns.items():
             offset = rx.get_node_transform_offset(nte.node, nte.transform)
             nrx = NodeRx(rx, np.array(nte.transform),
