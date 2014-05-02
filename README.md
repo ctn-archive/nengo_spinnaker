@@ -9,18 +9,18 @@ Building SpiNNaker Components
 
 To build SpiNNaker components you will require a release of the latest
 SpiNNaker103 package and an appropriate ARM cross compiler toolchain.
-The lates SpiNNaker103 package (when released) will be available from
+The latest SpiNNaker103 package (when released) will be available from
 [the SpiNNaker website](https://spinnaker.cs.man.ac.uk/).
 
-If ```${SPINN103_DIR``` is the location where you have installed the SpiNNaker
+If ```${SPINN103_DIR}``` is the location where you have installed the SpiNNaker
 package (e.g., ```~/spinnaker_103```), and ```${NENGO_SPINNAKER}``` is the 
 directory where you downloaded/cloned nengo_spinnaker, then building the
 components requires that you:
 
 ```bash
 # 1. Edit and source the SpiNNaker tools
-$ cd ${SPINN103_DIR}/spinnaker_tools/
-# Edit the file `setup` as appropriate
+$ cd ${SPINN103_DIR}
+# Edit the file `spinnaker_tools/setup` as appropriate
 $ source ./setup
 ```
 
