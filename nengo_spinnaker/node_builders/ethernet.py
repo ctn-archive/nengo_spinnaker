@@ -9,7 +9,6 @@ from pacman103.lib import parameters
 from pacman103.core.spinnman.sdp import sdp_message as sdp
 
 from . import receive_vertex, transmit_vertex
-from . import io_builder
 from .. import utils
 
 
@@ -35,14 +34,9 @@ class Ethernet(object):
         self._rx_assigns = dict()   # Map of assigned Nodes and Transforms
                                     # to Rx vertices
 
-        self.node_to_node_edges = list()
-        self.nodes = list()
-
     def build_node(self, builder, node):
         """Build the given Node
         """
-        self.nodes.append(node)
-
         # If the Node has input, then assign the Node to a Tx component
         if node.size_in > 0:
             tx = transmit_vertex.TransmitVertex(

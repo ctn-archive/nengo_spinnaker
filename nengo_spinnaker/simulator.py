@@ -26,7 +26,9 @@ class Simulator(object):
             io = node_builders.Ethernet(self.machinename)
         self.io = io
 
-        self.dao = self.builder(model, dt, seed, node_builder=io)
+        (self.dao, self.nodes, self.node_node_connections) = self.builder(
+            model, dt, seed, node_builder=io
+        )
         self.dao.writeTextSpecs = True
 
         self.dt = dt

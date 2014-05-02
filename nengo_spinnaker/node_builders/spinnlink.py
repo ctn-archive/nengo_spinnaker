@@ -5,19 +5,16 @@ from pacman103.lib import parameters
 
 from . import serial_vertex
 from .. import filter_vertex, edges
-from . import io_builder
 
 
 class SpiNNlinkUSB(object):
     def __init__(self):
         self._serial_vertex = serial_vertex.SerialVertex()
-        self.node_to_node_edges = list()
-        self.nodes = list()
 
     def build_node(self, builder, node):
         """Build the given Node
         """
-        self.nodes.append(node)
+        pass
 
     def get_node_in_vertex(self, builder, c):
         """Get the Vertex for input to the terminating Node of the given

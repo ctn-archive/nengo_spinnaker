@@ -67,6 +67,8 @@ class Builder(object):
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.ensemble_vertices = dict()
+        self.nodes = list()
+        self.node_node_connections = list()
 
         # Store a Node Builder
         self.node_builder = node_builder
@@ -88,7 +90,7 @@ class Builder(object):
             self._build(conn)
 
         # Return the DAO
-        return self.dao
+        return self.dao, self.nodes, self.node_node_connections
 
     def add_vertex(self, vertex):
         self.dao.add_vertex(vertex)
@@ -106,6 +108,7 @@ class Builder(object):
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
         else:
+            self.nodes.append(node)
             self.node_builder.build_node(self, node)
 
     def _build_connection(self, c):
@@ -197,4 +200,4 @@ def _node_to_ensemble(builder, c):
 
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
-    builder.node_builder.node_to_node_edges.append(c)
+    builder.node_node_connections.append(c)
