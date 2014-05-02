@@ -37,15 +37,7 @@ class Ethernet(object):
     def build_node(self, builder, node):
         """Build the given Node
         """
-        # If the Node has input, then assign the Node to a Tx component
-        if node.size_in > 0:
-            tx = transmit_vertex.TransmitVertex(
-                node=node,
-                label="Tx for %s" % node
-            )
-            builder.add_vertex(tx)
-            self._tx_assigns[node] = tx
-            self._tx_vertices.insert(0, tx)
+        pass
 
     def get_node_in_vertex(self, builder, c):
         """Get the Vertex for input to the terminating Node of the given
@@ -53,7 +45,22 @@ class Ethernet(object):
 
         :raises KeyError: if the Node is not built/known
         """
-        return self._tx_assigns[c.post]
+        node = c.post
+        assert(node.size_in > 0)
+
+        # If the Node already has a Tx, then return it
+        if node in self._tx_assigns:
+            return self._tx_assigns[node]
+
+        # Otherwise create one
+        tx = transmit_vertex.TransmitVertex(
+            node=node,
+            label="Tx for %s" % node
+        )
+        builder.add_vertex(tx)
+        self._tx_assigns[node] = tx
+        self._tx_vertices.insert(0, tx)
+        return tx
 
     def get_node_out_vertex(self, builder, c):
         """Get the Vertex for output from the originating Node of the given
