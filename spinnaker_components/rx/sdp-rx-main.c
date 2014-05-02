@@ -78,12 +78,9 @@ void c_main(void) {
     system_lead_app_configured();
   }
 
-  // Load core map
-  system_load_core_map();
-
   // Setup timer tick, start
   spin1_set_timer_tick(g_sdp_rx.transmission_period);
   spin1_callback_on(SDP_PACKET_RX, sdp_received, -1);
   spin1_callback_on(TIMER_TICK, sdp_rx_tick, 0);
-  spin1_start();
+  spin1_start(SYNC_WAIT);
 }

@@ -19,11 +19,8 @@ void c_main( void ) {
     system_lead_app_configured( );
   }
 
-  // Load core map
-  system_load_core_map( );
-
   // Setup timer tick, start
   io_printf( IO_BUF, "[Ensemble] C_MAIN Set timer and spin1_start.\n" );
   spin1_set_timer_tick( g_ensemble.machine_timestep );
-  spin1_start( );
+  spin1_start(SYNC_WAIT);
 }
