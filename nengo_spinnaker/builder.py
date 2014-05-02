@@ -144,12 +144,12 @@ class Builder(object):
         """Get the Vertex for input to the terminating Node of the given
         Connection
         """
-        return self.node_builder.get_node_in_vertex(c)
+        return self.node_builder.get_node_in_vertex(self, c)
 
     def get_node_out_vertex(self, c):
         """Get the Vertex for output from the originating Node of the given
         Connection"""
-        return self.node_builder.get_node_out_vertex(c)
+        return self.node_builder.get_node_out_vertex(self, c)
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)

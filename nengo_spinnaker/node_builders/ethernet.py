@@ -67,7 +67,7 @@ class Ethernet(io_builder.IOBuilder):
                 self._rx_assigns[node] = rx
                 self._rx_vertices.insert(0, rx)
 
-    def get_node_in_vertex(self, c):
+    def get_node_in_vertex(self, builder, c):
         """Get the Vertex for input to the terminating Node of the given
         Connection
 
@@ -75,7 +75,7 @@ class Ethernet(io_builder.IOBuilder):
         """
         return self._tx_assigns[c.post]
 
-    def get_node_out_vertex(self, c):
+    def get_node_out_vertex(self, builder, c):
         """Get the Vertex for output from the originating Node of the given
         Connection
 
