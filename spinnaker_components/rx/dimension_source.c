@@ -35,7 +35,6 @@ void c_main(void)
   // Read in values
   address_t address = system_load_sram();
   // copy_in_system_region(region_start(1, address));
-  system_load_core_map();
 
   // Routing and core map
   if(leadAp){
@@ -47,7 +46,7 @@ void c_main(void)
   // spin1_callback_on(TIMER_TICK, timer_callback, 0);
 
   // Go!
-  spin1_start();
+  spin1_start(SYNC_WAIT);
 }
 
 void timer_callback(uint simulation_time, uint none)

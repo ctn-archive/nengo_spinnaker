@@ -26,9 +26,7 @@ United Kingdom                      Canada
 
 void c_main( void )
 {
-  // Load core map
   system_load_sram();
-  system_load_core_map();
 
   // Set up routing tables
   if(leadAp){
@@ -38,7 +36,7 @@ void c_main( void )
   // Setup the mc_packet_received callback
   //spin1_set_timer_tick( 10000 );
   spin1_callback_on(MCPL_PACKET_RECEIVED, mc_packet_received, 0);
-  spin1_start();
+  spin1_start(SYNC_WAIT);
 }
 
 void mc_packet_received(uint key, uint payload)
