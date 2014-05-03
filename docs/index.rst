@@ -3,15 +3,47 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Nengo SpiNNaker's documentation!
-===========================================
+SpiNNaker backend for Nengo
+===========================
 
-Contents:
+`Nengo <https://github.com/ctn-waterloo/nengo/>`_ is a suite of software used
+to build and simulate large-scale brain models using the methods of the
+`Neural Engineering Framework
+<http://compneuro.uwaterloo.ca/research/nef.html>`_.
+`SpiNNaker <https://apt.cs.manchester.ac.uk/projects/SpiNNaker>`_ is a
+neuromorphic hardware platform designed to run large-scale spiking neural
+models in real-time.
+Using SpiNNaker to simulate Nengo models allows you to run models
+in real-time and interface with external hardware devices such as robots.
 
 .. toctree::
    :maxdepth: 2
 
+   installation
 
+If you're new to Nengo we recommend reading through the Nengo documentation and
+trying a few examples before progressing on to running examples on SpiNNaker.
+
+.. toctree::
+   :maxdepth: 2
+
+   usage
+
+Some hardware is already supported by Nengo SpiNNaker and more will be added
+over time.
+
+* `"PushBot" <https://github.com/ctn-waterloo/nengo_pushbot>`_ - `Neuroscientific System Theory (NST) <http://www.nst.ei.tum.de>`_ 
+  
+
+Bandwidth issues between your PC and SpiNNaker can limit the effectiveness of
+``Nodes`` as a modelling device.  To alleviate this issue we recommend
+rewriting complex or particularly important ``Nodes`` as SpiNNaker executables.
+A set of C and Python libraries is made available for this.
+
+.. toctree::
+   :maxdepth: 3
+
+   nodes
 
 Indices and tables
 ==================
