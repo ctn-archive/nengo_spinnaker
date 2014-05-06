@@ -20,7 +20,7 @@ class Ethernet(object):
 
     Handles:
         * Building `Node`s (adding appropriate executables to read inputs and
-          set outputs.
+          set outputs).
         * Getting and setting `Node` inputs and outputs.
     """
     def __init__(self, machinename, port=17895, input_period=10./32):
@@ -175,7 +175,9 @@ class EthernetCommunicator(object):
 
         # Create and start the timers
         self.tx_timer = threading.Timer(self.tx_period, self.tx_tick)
+        self.tx_timer.name = "EthernetTx"
         self.rx_timer = threading.Timer(self.rx_period, self.rx_tick)
+        self.rx_timer.name = "EthernetRx"
         self.tx_timer.start()
         self.rx_timer.start()
 
@@ -222,7 +224,12 @@ class EthernetCommunicator(object):
             data = self._in_sock.recv(512)
             msg = sdp.SDPMessage(data)
 
-            node = self._node_coords[(msg.src_x, msg.src_y, msg.src_cpu)]
+            try:
+                node = self._node_coords[(msg.src_x, msg.src_y, msg.src_cpu)]
+            except KeyError:
+                raise Exception("Received packet from core (%3d, %3d, %2d). "
+                                "No Node is assigned to this core. "
+                                "Board may require rebooting.")
 
             # Convert the data
             data = msg.data[16:]
@@ -240,6 +247,7 @@ class EthernetCommunicator(object):
             pass
 
         self.rx_timer = threading.Timer(self.rx_period, self.rx_tick)
+        self.rx_timer.name = "EthernetRx"
         self.rx_timer.start()
 
     def tx_tick(self):
@@ -267,6 +275,7 @@ class EthernetCommunicator(object):
                 time.sleep(0.005)
 
             self.tx_timer = threading.Timer(self.tx_period, self.tx_tick)
+            self.tx_timer.name = "EthernetTx"
             self.tx_timer.start()
         except KeyboardInterrupt:
             pass
