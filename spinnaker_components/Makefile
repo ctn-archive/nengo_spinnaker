@@ -15,8 +15,8 @@ COMPLETE_SOURCE = ./*/*.c ./*/*.h
 DEVELOPER = $(filter nengo_spinnaker, $(notdir $(wildcard ../*)))
 
 all :
-	mkdir -p $(APP_OUTPUT_DIR)
 	for a in $(APPS); do ( cd $$a; "$(MAKE)"  ) || exit $$?; done
+	for a in $(APPS); do ( cp $(APP_OUTPUT_DIR)/nengo_$$a.aplx ../nengo_spinnaker/binaries/ ); done
 
 docs : ${COMPLETE_SOURCE}
 	doxygen
@@ -24,3 +24,4 @@ docs : ${COMPLETE_SOURCE}
 clean :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)" clean  ) || exit $$?; done
 	rm -rf ./docs/
+	rm ../nengo_spinnaker/binaries/*.aplx
