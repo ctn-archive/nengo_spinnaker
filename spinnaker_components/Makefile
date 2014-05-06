@@ -12,8 +12,6 @@ APPS = ensemble tx rx filter
 APP_OUTPUT_DIR = $(PWD)/binaries
 COMPLETE_SOURCE = ./*/*.c ./*/*.h
 
-DEVELOPER = $(filter nengo_spinnaker, $(notdir $(wildcard ../*)))
-
 all :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)"  ) || exit $$?; done
 	for a in $(APPS); do ( cp $(APP_OUTPUT_DIR)/nengo_$$a.aplx ../nengo_spinnaker/binaries/ ); done
