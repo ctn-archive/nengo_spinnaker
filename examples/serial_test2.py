@@ -31,7 +31,9 @@ with model:
     nengo.Connection(b, output, synapse=0.01)
 
 import nengo_spinnaker
-sim = nengo_spinnaker.Simulator(model, seed=3, use_serial=True)
+sim = nengo_spinnaker.Simulator(
+    model, seed=3, io=nengo_spinnaker.io.SpiNNlinkUSB('/dev/ttyUSB0')
+)
 
 # sim.builder.print_connections()
 #sim = nengo.Simulator(model)
