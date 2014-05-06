@@ -15,7 +15,7 @@ with model:
 
     osc = nengo.Ensemble(nengo.LIF(100), 2, label='osc')
     nengo.Connection(osc, osc, transform=[[1.1, 0.1], [-0.1, 1.1]],
-            filter=0.1)
+            synapse=0.1)
 
 
     def printout2(t, x):
@@ -23,12 +23,12 @@ with model:
         return []
 
     output2 = nengo.Node(printout2, size_in=D, label='output')
-    nengo.Connection(osc, output2, filter=0.03)
+    nengo.Connection(osc, output2, synapse=0.03)
 
-    nengo.Connection(input, a, filter=0.01)
-    nengo.Connection(a, b, filter=0.01)
-    #nengo.Connection(b, b, transform=0.9, filter=0.1)
-    nengo.Connection(b, output, filter=0.01)
+    nengo.Connection(input, a, synapse=0.01)
+    nengo.Connection(a, b, synapse=0.01)
+    #nengo.Connection(b, b, transform=0.9, synapse=0.1)
+    nengo.Connection(b, output, synapse=0.01)
 
 import nengo_spinnaker
 sim = nengo_spinnaker.Simulator(model, seed=3, use_serial=True)

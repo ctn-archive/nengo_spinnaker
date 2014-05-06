@@ -12,9 +12,9 @@ with model:
         print t, x
     output = nengo.Node(printout, size_in=D, label='output')
 
-    nengo.Connection(input, b, filter=0.01, transform=[[1]]*D)
-    #nengo.Connection(a, b, filter=0.01)
-    nengo.Connection(b, output, filter=0.01)
+    nengo.Connection(input, b, synapse=0.01, transform=[[1]]*D)
+    #nengo.Connection(a, b, synapse=0.01)
+    nengo.Connection(b, output, synapse=0.01)
 
 import nengo_spinnaker
 sim = nengo_spinnaker.Simulator(model)
