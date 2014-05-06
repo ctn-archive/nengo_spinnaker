@@ -59,8 +59,16 @@ class Builder(object):
 
     def __call__(self, model, dt, seed=None, node_builder=None):
         """Return a PACMAN103 DAO containing a representation of the given
-        model, and a list of I/O Nodes with references to their connected Rx
-        and Tx components.
+        model, and a list of Nodes and list of Node->Node connections.
+
+        :param model: the Nengo model to build
+        :param dt: timestep to use in simulation (e.g., 0.001)
+        :param seed: seed for random number generators
+        :param node_builder: a builder for constructing the IO required by
+                             Nodes
+
+        :returns: a 3-tuple of a DAO, list of Nodes, list of Node->Node
+                  connections
         """
         self.rng = np.random.RandomState(seed)
 
@@ -89,7 +97,7 @@ class Builder(object):
         for conn in connections:
             self._build(conn)
 
-        # Return the DAO
+        # Return the DAO, Nodes and Node->Node connections
         return self.dao, self.nodes, self.node_node_connections
 
     def add_vertex(self, vertex):
