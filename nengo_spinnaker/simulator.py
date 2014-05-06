@@ -55,7 +55,8 @@ class Simulator(object):
         if node not in self._internode_cache:
             return i
 
-        i_s = self._internode_cache[node].values()
+        with self._internode_cache_lock:
+            i_s = self._internode_cache[node].values()
 
         if None in i_s:
             # Incomplete input, return None
@@ -74,8 +75,10 @@ class Simulator(object):
 
         # Output to other Nodes on host
         if node in self._internode_out_maps:
-            for (post, transform) in self._internode_out_maps[node]:
-                self._internode_cache[post][node] = np.dot(transform, output)
+            with self._internode_cache_lock:
+                for (post, transform) in self._internode_out_maps[node]:
+                    self._internode_cache[post][node] = np.dot(transform,
+                                                               output)
 
     def run(self, time_in_seconds=None):
         """Run the model, currently ignores the time."""
@@ -97,6 +100,8 @@ class Simulator(object):
         for c in self.node_node_connections:
             self._internode_cache[c.post][c.pre] = None
             self._internode_out_maps[c.pre].append((c.post, c.transform))
+
+        self._internode_cache_lock = threading.Lock()
 
         # PACMANify!
         self.controller.dao = self.dao
