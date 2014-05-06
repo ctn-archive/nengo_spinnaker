@@ -55,8 +55,7 @@ class Simulator(object):
         if node not in self._internode_cache:
             return i
 
-        i_s = [self._internode_cache[n].values() for
-               n in self._internode_cache[node]]
+        i_s = self._internode_cache[node].values()
 
         if None in i_s:
             # Incomplete input, return None
@@ -177,8 +176,8 @@ class NodeSimulator(object):
         else:
             node_output = self.node.output(self.time_passed)
 
-            if node_output is not None:
-                self.simulator.set_node_output(self.node, node_output)
+        if node_output is not None:
+            self.simulator.set_node_output(self.node, node_output)
         stop = time.clock()
 
         if stop - start > self.dt:
