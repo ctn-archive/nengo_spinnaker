@@ -11,7 +11,7 @@ from pacman103.core import control
 from pacman103 import conf
 
 from . import builder
-from . import node_builders
+from . import nodes
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Simulator(object):
         # Set up the IO
         self.machinename = conf.config.get('Machine', 'machineName')
         if io is None:
-            io = node_builders.Ethernet(self.machinename)
+            io = nodes.Ethernet(self.machinename)
         self.io = io
 
         (self.dao, self.nodes, self.node_node_connections) = self.builder(
