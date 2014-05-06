@@ -124,6 +124,10 @@ class Simulator(object):
             self.node_io = node_io
 
             # Create the Node threads
+            for node in self.nodes:
+                if not is_callable(node.output):
+                    self.set_node_output(node, node.output)
+
             node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds)
                          for node in self.nodes if is_callable(node.output)]
 
