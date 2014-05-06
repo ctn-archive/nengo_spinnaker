@@ -37,7 +37,9 @@ class Simulator(object):
     def get_node_input(self, node):
         """Return the latest input for the given Node
 
-        :return: an array of data for the Node, or None if no data received
+        :return: None if the input data is not complete, otherwise a tuple
+                 containing filtered input from the board and a dict of input
+                 from different Nodes.
         :raises KeyError: if the Node is not a valid Node
         """
         # Get the input from the board
@@ -53,17 +55,18 @@ class Simulator(object):
 
         # Add Node->Node input if required
         if node not in self._internode_cache:
-            return i
+            return i, {}
 
         with self._internode_cache_lock:
-            i_s = self._internode_cache[node].values()
+            i_s = self._internode_cache[node]
 
-        if None in i_s:
+        if None in i_s.values():
+            print "Incomplete Node->Node input", node, i_s
             # Incomplete input, return None
             return None
 
-        # Return input from board + input from other Nodes on host
-        return np.sum([i, np.sum(i_s, axis=0)], axis=0)
+        # Return input from board, input from other Nodes on host
+        return i, i_s
 
     def set_node_output(self, node, output):
         """Set the output of the given Node
@@ -94,12 +97,15 @@ class Simulator(object):
 
         # Create some caches for Node->Node connections, and a map of Nodes to
         # other Nodes on host
-        # TODO: Filters on Node->Node connections
         self._internode_cache = collections.defaultdict(dict)
         self._internode_out_maps = collections.defaultdict(list)
+        self._internode_filters = collections.defaultdict(dict)
         for c in self.node_node_connections:
             self._internode_cache[c.post][c.pre] = None
             self._internode_out_maps[c.pre].append((c.post, c.transform))
+
+            ftc = np.exp(-self.dt/c.synapse)
+            self._internode_filters[c.post][c.pre] = (ftc, 1. - ftc)
 
         self._internode_cache_lock = threading.Lock()
 
@@ -128,7 +134,8 @@ class Simulator(object):
                 if not is_callable(node.output):
                     self.set_node_output(node, node.output)
 
-            node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds)
+            node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds,
+                                       self._internode_filters[node])
                          for node in self.nodes if is_callable(node.output)]
 
             # Sleep for simulation time/forever
@@ -148,7 +155,7 @@ class Simulator(object):
 
 class NodeSimulator(object):
     """A "thread" to periodically evaluate a Node."""
-    def __init__(self, node, simulator, dt, time_in_seconds):
+    def __init__(self, node, simulator, dt, time_in_seconds, infilters={}):
         """Create a new NodeSimulator
 
         :param node: the `Node` to simulate
@@ -162,6 +169,9 @@ class NodeSimulator(object):
         self.dt = dt
         self.time = time_in_seconds
         self.time_passed = 0.
+        self.infilters = infilters
+
+        self.filtered_inputs = collections.defaultdict(lambda : 0.)
 
         self.timer = threading.Timer(self.dt, self.tick)
         self.timer.name = "%sEvalThread" % self.node
@@ -181,8 +191,19 @@ class NodeSimulator(object):
         if self.node.size_in > 0:
             node_input = self.simulator.get_node_input(self.node)
 
-            if node_input is not None and None not in node_input:
-                node_output = self.node.output(self.time_passed, node_input)
+            if node_input is not None:
+                # Filter the inputs
+                for (node, value) in node_input[1].items():
+                    self.filtered_inputs[node] = (
+                        value * self.infilters[node][0] +
+                        self.filtered_inputs[node] * self.infilters[node][1]
+                    )
+
+                # Sum the inputs
+                complete_input = (np.sum(self.filtered_inputs.values()) +
+                                  node_input[0])
+                node_output = self.node.output(self.time_passed,
+                                               complete_input)
         else:
             node_output = self.node.output(self.time_passed)
 
