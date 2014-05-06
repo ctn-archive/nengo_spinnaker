@@ -1,5 +1,6 @@
 import nengo
 
+from . import bins
 
 def totuple(a):
     """Convert any object (e.g., numpy array) to a Tuple.

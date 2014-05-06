@@ -3,7 +3,7 @@ import os
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
-from . import bins
+from .utils import bins
 
 
 class FilterVertex(graph.Vertex):

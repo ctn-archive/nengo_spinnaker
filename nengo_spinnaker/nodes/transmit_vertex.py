@@ -2,7 +2,7 @@ import os
 
 from pacman103.lib import data_spec_gen, graph, lib_map, parameters
 from pacman103.front.common import enums
-from .. import bins
+from ..utils import bins
 
 
 class TransmitVertex(graph.Vertex):
