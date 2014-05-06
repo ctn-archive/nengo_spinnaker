@@ -8,13 +8,21 @@ from .. import filter_vertex, edges
 
 
 class SpiNNlinkUSB(object):
-    def __init__(self):
-        self._serial_vertex = serial_vertex.SerialVertex()
+    def __init__(self, device):
+        self._serial_vertex = None
+        self.device = device
 
     def build_node(self, builder, node):
         """Build the given Node
         """
         pass
+
+    def get_serial_vertex(self, builder):
+        """Get (or create) the serial vertex."""
+        if self._serial_vertex is None:
+            self._serial_vertex = serial_vertex.SerialVertex()
+            builder.add_vertex(self._serial_vertex)
+        return self._serial_vertex
 
     def get_node_in_vertex(self, builder, c):
         """Get the Vertex for input to the terminating Node of the given
@@ -26,6 +34,7 @@ class SpiNNlinkUSB(object):
         builder.add_vertex(postvertex)
 
         # Create an edge from the Filter vertex to the Serial Vertex
+        serial_vertex = self.get_serial_vertex(builder)
         edge = edges.NengoEdge(c, postvertex, self._serial_vertex)
         builder.add_edge(edge)
 
@@ -36,7 +45,7 @@ class SpiNNlinkUSB(object):
         """Get the Vertex for output from the originating Node of the given
         Connection
         """
-        return self._serial_vertex
+        return self.get_serial_vertex(builder)
 
     def generate_serial_key_maps(self):
         """Generate a map from incoming keys to Nodes, and from outgoing Nodes
@@ -64,7 +73,7 @@ class SpiNNlinkUSB(object):
 
     def __enter__(self):
         self.communicator = SpiNNlinkUSBCommunicator(
-            *self.generate_serial_key_maps())
+            *self.generate_serial_key_maps(), dev=self.device)
         return self.communicator
 
     def __exit__(self, exc_type, exc_val, trace):
@@ -88,6 +97,7 @@ class SpiNNlinkUSBCommunicator(object):
         self.serial_tx = serial_tx
         self.rx_period = rx_period
 
+
         # Create the Serial connection
         self.serial = serial.Serial(dev, baudrate=8000000, rtscts=True,
                                     timeout=rx_period)
@@ -95,6 +105,7 @@ class SpiNNlinkUSBCommunicator(object):
 
         # Start the thread(s)
         self.rx_timer = threading.Timer(self.rx_period, self.rx_tick)
+        self.rx_timer.name = "SpiNNlinkUSBRx"
         self.rx_timer.start()
 
     def stop(self):
@@ -153,4 +164,5 @@ class SpiNNlinkUSBCommunicator(object):
             print "IOError"
 
         self.rx_timer = threading.Timer(self.rx_period, self.rx_tick)
+        self.rx_timer.name = "SpiNNlinkUSBRx"
         self.rx_timer.start()
