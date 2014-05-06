@@ -9,9 +9,13 @@
 # Code derived from Andrew Rowley, University of Manchester
 
 APPS = ensemble tx rx filter
+APP_OUTPUT_DIR = $(PWD)/binaries
 COMPLETE_SOURCE = ./*/*.c ./*/*.h
 
+DEVELOPER = $(filter nengo_spinnaker, $(notdir $(wildcard ../*)))
+
 all :
+	mkdir -p $(APP_OUTPUT_DIR)
 	for a in $(APPS); do ( cd $$a; "$(MAKE)"  ) || exit $$?; done
 
 docs : ${COMPLETE_SOURCE}
