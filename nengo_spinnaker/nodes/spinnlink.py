@@ -35,7 +35,7 @@ class SpiNNlinkUSB(object):
 
         # Create an edge from the Filter vertex to the Serial Vertex
         serial_vertex = self.get_serial_vertex(builder)
-        edge = edges.NengoEdge(c, postvertex, self._serial_vertex)
+        edge = edges.NengoEdge(c, postvertex, serial_vertex)
         builder.add_edge(edge)
 
         # Return the Filter vertex
@@ -96,7 +96,6 @@ class SpiNNlinkUSBCommunicator(object):
         self.serial_rx = serial_rx
         self.serial_tx = serial_tx
         self.rx_period = rx_period
-
 
         # Create the Serial connection
         self.serial = serial.Serial(dev, baudrate=8000000, rtscts=True,
