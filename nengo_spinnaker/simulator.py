@@ -164,6 +164,7 @@ class NodeSimulator(object):
         self.time_passed = 0.
 
         self.timer = threading.Timer(self.dt, self.tick)
+        self.timer.name = "%sEvalThread" % self.node
         self.timer.start()
 
     def stop(self):
@@ -197,4 +198,5 @@ class NodeSimulator(object):
         self.time_passed += self.dt
         if self.time is None or self.time_passed < self.time:
             self.timer = threading.Timer(self.dt, self.tick)
+            self.timer.name = "EvalThread(%s)" % self.node
             self.timer.start()
