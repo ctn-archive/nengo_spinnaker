@@ -4,6 +4,7 @@ from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
 from .utils import bins
+from . import vertices
 
 
 class FilterVertex(graph.Vertex):
@@ -135,10 +136,8 @@ class FilterVertex(graph.Vertex):
         # Get the executable
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
-            os.path.join(
-                dao.get_common_binaries_directory(),
-                'nengo_filter.aplx'
-            ),
+            vertices.resource_filename("nengo_spinnaker",
+                                       "binaries/%s.aplx" % self.model_name),
             x, y, p
         )
 

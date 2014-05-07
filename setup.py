@@ -12,19 +12,29 @@ except ImportError:
         from distutils.core import setup
 
 
-description = ("SpiNNaker backeng for Nengo")
+description = ("SpiNNaker backend for the Nengo neural modelling framework")
+long_description = """Nengo is a suite of software used to build and simulate
+large-scale brain models using the methods of the Neural Engineering Framework.
+SpiNNaker is a neuromorphic hardware platform designed to run large-scale
+spiking neural models in real-time. Using SpiNNaker to simulate Nengo models
+allows you to run models in real-time and interface with external hardware
+devices such as robots.
+"""
 setup(
     name="nengo_spinnaker",
     version="0.0.1.dev",
-    author="CNRGlab at UWaterloo",
-    author_email="https://github.com/tcstewar/nengo_spinnaker/issues",
+    author="CNRGlab at UWaterloo and APT Group, University of Manchester",
+    author_email="https://github.com/ctn-waterloo/nengo_spinnaker/issues",
+    url="https://github.com/ctn-waterloo/nengo_spinnaker",
     packages=['nengo_spinnaker'],
+    package_data={'nengo_spinnaker': ['binaries/*.aplx']},
     scripts=[],
     license="GPLv3",
     description=description,
-    long_description="",
+    long_description=long_description,
     requires=[
         "nengo",
+        "numpy",
     ],
     test_suite='nengo_spinnaker.test',
 )

@@ -8,7 +8,6 @@ import time
 from nengo.utils.compat import is_callable
 
 from pacman103.core import control
-from pacman103 import conf
 
 from . import builder
 from . import nodes
@@ -17,14 +16,28 @@ logger = logging.getLogger(__name__)
 
 
 class Simulator(object):
-    def __init__(self, model, dt=0.001, seed=None, io=None):
+    def __init__(self, model, machine_name=None, dt=0.001, seed=None, io=None):
         # Build the model
         self.builder = builder.Builder()
 
         # Set up the IO
-        self.machinename = conf.config.get('Machine', 'machineName')
+        if machine_name is None:
+            import ConfigParser
+            from pacman103 import conf
+            try:
+                machine_name = conf.config.get("Machine", "machineName")
+            except ConfigParser.Error:
+                machine_name = None
+
+            if machine_name is None or machine_name == "None":
+                raise Exception("You must specify a SpiNNaker machine as "
+                                "either an option to the Simulator or in a "
+                                "PACMAN103 configuration file.")
+
+        self.machine_name = machine_name
+
         if io is None:
-            io = nodes.Ethernet(self.machinename)
+            io = nodes.Ethernet(self.machine_name)
         self.io = io
 
         (self.dao, self.nodes, self.node_node_connections) = self.builder(
@@ -86,10 +99,8 @@ class Simulator(object):
 
     def run(self, time_in_seconds=None):
         """Run the model, currently ignores the time."""
-        self.controller = control.Controller(
-            sys.modules[__name__],
-            conf.config.get('Machine', 'machineName')
-        )
+        self.controller = control.Controller(sys.modules[__name__],
+                                             self.machine_name)
 
         # Preparation functions
         for vertex in self.dao.vertices:
@@ -112,7 +123,7 @@ class Simulator(object):
 
         # PACMANify!
         self.controller.dao = self.dao
-        self.dao.set_hostname(self.machinename)
+        self.dao.set_hostname(self.machine_name)
         self.dao.run_time = None  # TODO: Modify Transceiver so that we can
                                   # manually check for application termination
                                   # i.e., we want to do something during the
