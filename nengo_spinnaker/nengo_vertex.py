@@ -3,6 +3,7 @@ import os
 from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
 from . import collections
+from . import vertices
 
 
 class NengoVertex(graph.Vertex):
@@ -41,7 +42,7 @@ class NengoVertex(graph.Vertex):
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
             vertices.resource_filename("nengo_spinnaker",
-            "binaries/%s.aplx" % self.model_name),
+                                       "binaries/%s.aplx" % self.model_name),
             x, y, p
         )
 

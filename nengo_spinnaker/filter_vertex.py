@@ -144,7 +144,7 @@ class FilterVertex(graph.Vertex):
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
             vertices.resource_filename("nengo_spinnaker",
-            "binaries/%s.aplx" % self.model_name),
+                                       "binaries/%s.aplx" % self.model_name),
             x, y, p
         )
 
