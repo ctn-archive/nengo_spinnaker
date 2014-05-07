@@ -1,4 +1,3 @@
-import ConfigParser
 import sys
 
 from pacman103.core import control
@@ -14,6 +13,7 @@ class Simulator(object):
         self.dao.writeTextSpecs = True
 
         if machine_name is None:
+            import ConfigParser
             from pacman103 import conf
             try:
                 machine_name = conf.config.get("Machine", "machineName")
