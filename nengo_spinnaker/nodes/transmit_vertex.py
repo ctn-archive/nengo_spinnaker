@@ -1,11 +1,11 @@
-from pacman103.lib import data_spec_gen, graph, lib_map, parameters
+from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
 
 from ..utils import bins
 from .. import vertices
 
 
-class TransmitVertex(graph.Vertex):
+class TransmitVertex(graph.Vertex, vertices.VertexWithFilters):
     """PACMAN Vertex for an object which receives input for a Node and
     transmits it to the host.
     """
@@ -43,17 +43,6 @@ class TransmitVertex(graph.Vertex):
         """Get the size (in bytes) of the SYSTEM region."""
         # 5 words
         return 4 * 5
-
-    def sizeof_region_filters(self):
-        """Get the size (in bytes) of the FILTERS region."""
-        # 3 words per filter
-        return 4 * 3 * len(self.filters)
-
-    def sizeof_region_filter_keys(self, subvertex):
-        """Get the size (in bytes) if the FILTER_ROUTING region."""
-        # 3 words per entry
-        # 1 entry per filter
-        return 4 * 3 * self.filters.num_keys(subvertex)
 
     def generateDataSpec(self, processor, subvertex, dao):
         # Get the executable
@@ -121,29 +110,3 @@ class TransmitVertex(graph.Vertex):
             subvertex.spec.write(data=self.filters.num_keys(subvertex))
         else:
             subvertex.spec.write(data=0, repeats=2)
-
-    def write_region_filters(self, subvertex):
-        """Write the filter parameters."""
-        subvertex.spec.switchWriteFocus(self.REGIONS.FILTERS)
-        subvertex.spec.comment("# Filter Parameters")
-        for f_ in self.filters:
-            f = f_.get_filter_tc(self.dt)
-            print "Filter value:", parameters.s1615(f)
-            subvertex.spec.write(data=parameters.s1615(f[0]))
-            subvertex.spec.write(data=parameters.s1615(f[1]))
-            subvertex.spec.write(data=f_.accumulator_mask)
-
-    def write_region_filter_keys(self, subvertex):
-        # Write the filter routing entries
-        subvertex.spec.switchWriteFocus(self.REGIONS.FILTER_ROUTING)
-        subvertex.spec.comment("# Filter Routing Keys and Masks")
-        """
-        For each incoming subedge we write the key, mask and index of the
-        filter to which it is connected.  At some later point we can try
-        to combine keys and masks to minimise the number of comparisons
-        which are made in the SpiNNaker application.
-        """
-        for i, km in enumerate(self.filters.get_indexed_keys_masks(subvertex)):
-            subvertex.spec.write(data=km[0])
-            subvertex.spec.write(data=km[1])
-            subvertex.spec.write(data=i)

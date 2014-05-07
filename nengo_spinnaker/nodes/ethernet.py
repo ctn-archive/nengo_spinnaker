@@ -5,11 +5,11 @@ import struct
 import threading
 import time
 
-from pacman103.lib import parameters
 from pacman103.core.spinnman.sdp import sdp_message as sdp
 
 from . import receive_vertex, transmit_vertex
 from .. import utils
+from ..utils import fp
 
 
 NodeRx = collections.namedtuple('NodeRx', ['rx', 'transform', 'start', 'stop'])
@@ -236,8 +236,7 @@ class EthernetCommunicator(object):
             assert(not len(data) % 4)
             vals = [struct.unpack("I", data[n*4:n*4 + 4])[0] for
                     n in range(len(data) / 4)]
-            values = [(v - 0x100000000) * 2**-15 if v & 0x80000000 else
-                      v * 2**-15 for v in vals]
+            values = fp.kbits(vals)
 
             # Save the data
             assert(len(vals) == node.size_in)
@@ -267,7 +266,7 @@ class EthernetCommunicator(object):
 
                 data = struct.pack(
                     "H14x%di" % rx_vertex.n_assigned_dimensions, 1,
-                    *parameters.s1615(vals)
+                    *fp.bitsk(vals)
                 )
 
                 packet = sdp.SDPMessage(dst_x=x, dst_y=y, dst_cpu=p, data=data)

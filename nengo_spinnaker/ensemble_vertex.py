@@ -1,4 +1,3 @@
-import os
 import numpy as np
 
 import nengo
@@ -6,14 +5,14 @@ import nengo.builder
 import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
-from pacman103.lib import graph, data_spec_gen, lib_map, parameters
+from pacman103.lib import graph, data_spec_gen, lib_map
 from pacman103.front.common import enums
 
-from .utils import bins
+from .utils import bins, fp
 from . import vertices
 
 
-class EnsembleVertex(graph.Vertex):
+class EnsembleVertex(graph.Vertex, vertices.VertexWithFilters):
     """PACMAN Vertex for an Ensemble."""
 
     REGIONS = enums.enum1(
@@ -167,15 +166,6 @@ class EnsembleVertex(graph.Vertex):
         # 1 word per output dimension
         return 4 * self.n_output_dimensions
 
-    def sizeof_region_filters(self):
-        # 3 words per filter
-        return 4 * 3 * len(self.filters)
-
-    def sizeof_region_filter_keys(self, subvertex):
-        # 3 words per entry
-        # 1 entry per in_subedge
-        return 4 * 3 * self.filters.num_keys(subvertex)
-
     def sdram_usage(self, lo_atom, hi_atom):
         """Return the amount of SDRAM used for the specified atoms."""
         # At the moment this is the same as the DTCM usage, though this may
@@ -328,7 +318,7 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.write(data=subvertex.n_atoms)
         subvertex.spec.write(data=self.time_step)
         subvertex.spec.write(data=self._tau_ref_in_steps)
-        subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
+        subvertex.spec.write(data=fp.bitsk(self._dt_over_tau_rc))
 
         if len(self.in_edges) > 0:
             subvertex.spec.write(data=len(self.filters))
@@ -339,7 +329,7 @@ class EnsembleVertex(graph.Vertex):
     def write_region_bias(self, subvertex):
         """Write the bias region for the given subvertex."""
         subvertex.spec.switchWriteFocus(self.REGIONS.BIAS)
-        subvertex.spec.write_array(parameters.s1615(
+        subvertex.spec.write_array(fp.bitsk(
             self.bias[subvertex.lo_atom:subvertex.hi_atom+1]))
 
     def write_region_encoders(self, subvertex):
@@ -348,11 +338,7 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.comment("# Encoders Region")
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             for d in range(self.n_input_dimensions):
-                subvertex.spec.write(
-                    data=parameters.s1615(
-                        self.encoders[n, d]
-                    )
-                )
+                subvertex.spec.write(data=fp.bitsk(self.encoders[n, d]))
 
     def write_region_decoders(self, subvertex):
         """Write the decoder region for the given subvertex."""
@@ -364,9 +350,7 @@ class EnsembleVertex(graph.Vertex):
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             # Write the decoders for all the atoms within this subvertex
             for d in range(self.n_output_dimensions):
-                subvertex.spec.write(
-                    data=parameters.s1615(decoders[n][d] / self.dt)
-                )
+                subvertex.spec.write(data=fp.bitsk(decoders[n][d] / self.dt))
 
     def write_region_output_keys(self, subvertex):
         """Write the output keys region for the given subvertex."""
@@ -374,31 +358,6 @@ class EnsembleVertex(graph.Vertex):
         subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
         for k in subvertex.output_keys:
             subvertex.spec.write(data=k)
-
-    def write_region_filters(self, subvertex):
-        """Write the filter parameters."""
-        subvertex.spec.switchWriteFocus(self.REGIONS.FILTERS)
-        subvertex.spec.comment("# Filter Parameters")
-        for f_ in self.filters:
-            f = f_.get_filter_tc(self.dt)
-            subvertex.spec.write(data=parameters.s1615(f[0]))
-            subvertex.spec.write(data=parameters.s1615(f[1]))
-            subvertex.spec.write(data=f_.accumulator_mask)
-
-    def write_region_filter_keys(self, subvertex):
-        # Write the filter routing entries
-        subvertex.spec.switchWriteFocus(self.REGIONS.FILTER_ROUTING)
-        subvertex.spec.comment("# Filter Routing Keys and Masks")
-        """
-        For each incoming subedge we write the key, mask and index of the
-        filter to which it is connected.  At some later point we can try
-        to combine keys and masks to minimise the number of comparisons
-        which are made in the SpiNNaker application.
-        """
-        for i, km in enumerate(self.filters.get_indexed_keys_masks(subvertex)):
-            subvertex.spec.write(data=km[0])
-            subvertex.spec.write(data=km[1])
-            subvertex.spec.write(data=i)
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""

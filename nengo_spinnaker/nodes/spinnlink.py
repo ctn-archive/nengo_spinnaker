@@ -1,10 +1,9 @@
 import serial
 import threading
 
-from pacman103.lib import parameters
-
 from . import serial_vertex
 from .. import filter_vertex, edges
+from ..utils import fp
 
 
 class SpiNNlinkUSB(object):
@@ -126,9 +125,7 @@ class SpiNNlinkUSBCommunicator(object):
         """
         for key in self.serial_rx[node]:
             for d, v in enumerate(output):
-                value = parameters.s1615(v)
-                if value < 0:
-                    value += 1 << 32
+                value = fp.bitsk(v)
 
                 msg = "%08x.%08x\n" % (key | d, value)
                 self.serial.write(msg)
@@ -145,9 +142,7 @@ class SpiNNlinkUSBCommunicator(object):
                 if len(parts) == 3:
                     (header, key, payload) = parts
 
-                if payload & 0x80000000:
-                    payload -= 0x100000000
-                value = (payload * 1.0) / (2**15)
+                value = fp.kbits(payload)
 
                 base_key = key & 0xFFFFF800
                 d = (key & 0x0000003F)
