@@ -3,7 +3,11 @@
 sdp_tx_parameters_t g_sdp_tx;
 uint delay_remaining;
 
-void sdp_tx_update(uint arg0, uint arg1) {
+void sdp_tx_update(uint ticks, uint arg1) {
+  if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
+    spin1_exit(0);
+  }
+
   // Update the filters
   input_filter_step();
 

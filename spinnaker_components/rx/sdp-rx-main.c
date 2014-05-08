@@ -4,7 +4,11 @@ sdp_rx_parameters_t g_sdp_rx;
 
 /** \brief Timer tick
  */
-void sdp_rx_tick(uint arg0, uint arg1) {
+void sdp_rx_tick(uint ticks, uint arg1) {
+  if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
+    spin1_exit(0);
+  }
+
   uint d = g_sdp_rx.current_dimension;
   if (g_sdp_rx.fresh[d]) {
     spin1_send_mc_packet(g_sdp_rx.keys[d],
@@ -76,6 +80,11 @@ void c_main(void) {
   // Set up routing tables
   if(leadAp) {
     system_lead_app_configured();
+  }
+
+  // Account for difference in tick period
+  if (simulation_ticks != UINT32_MAX) {
+    simulation_ticks /= g_sdp_rx.n_dimensions;
   }
 
   // Setup timer tick, start

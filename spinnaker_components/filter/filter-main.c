@@ -3,7 +3,11 @@
 filter_parameters_t g_filter;
 uint delay_remaining;
 
-void filter_update(uint arg0, uint arg1) {
+void filter_update(uint ticks, uint arg1) {
+  if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
+    spin1_exit(0);
+  }
+
   // Update the filters
   input_filter_step();
 
