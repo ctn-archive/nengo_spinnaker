@@ -8,7 +8,8 @@ If this is how your Nengo model currently works::
 
   model = nengo.Network()
   with model:
-      # ...
+      # ... Build a model
+      a = nengo.Ensemble(nengo.LIF(100))
 
   sim = nengo.Simulator(model)
   sim.run(10.)
@@ -20,7 +21,8 @@ Then porting it to Nengo SpiNNaker requires very few changes::
 
   model = nengo.Network()
   with model:
-      # ...
+    # ... Build a model
+    a = nengo.Ensemble(nengo.LIF(100))
 
   sim = nengo_spinnaker.Simulator(model)
   sim.run(10.)

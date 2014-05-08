@@ -36,8 +36,7 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['pacman103', 'pacman103.core', 'pacman103.conf',
-                'pacman103.lib', 'nengo', 'numpy']
+MOCK_MODULES = ['pacman103', 'nengo', 'numpy', 'pyNN.random']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
