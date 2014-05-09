@@ -235,7 +235,7 @@ class NodeSimulator(object):
             logger.warning("%s took longer than one timestep to simulate. "
                            "Decreasing frequency of evaluation." % self.node)
 
-        self.time_passed += self.dt
+        self.time_passed += self.dt + (stop - start)
         if self.time is None or self.time_passed < self.time:
             self.timer = threading.Timer(self.dt, self.tick)
             self.timer.name = "EvalThread(%s)" % self.node
