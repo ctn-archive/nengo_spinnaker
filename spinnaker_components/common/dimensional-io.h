@@ -29,6 +29,7 @@ United Kingdom                      Canada
 #define __DIMENSIONAL_IO_H__
 
 #include "nengo_typedefs.h"
+#include "nengo-common.h"
 #include "common-typedefs.h"
 #include "spin1_api.h"
 
@@ -49,14 +50,24 @@ typedef struct filtered_input_buffer {
 //! Create and initialise an input buffer, and zero the accumulator
 static inline filtered_input_buffer_t* input_buffer_initialise( uint d_in ) {
   // Create the buffer on the heap
-  filtered_input_buffer_t *buffer = spin1_malloc(
-    sizeof( filtered_input_buffer_t )
-  );
+  filtered_input_buffer_t *buffer;
+  MALLOC_FAIL_NULL(buffer, sizeof(filtered_input_buffer_t),
+                   "[Common/Filters]");
+
   buffer->d_in = d_in;
 
   // Initialise the buffer accumulator and values
-  buffer->accumulator = spin1_malloc( sizeof( value_t ) * d_in );
-  buffer->filtered = spin1_malloc( sizeof( value_t ) * d_in );
+  MALLOC_FAIL_NULL(buffer->accumulator,
+                   d_in * sizeof(value_t),
+                   "[Common/Filters]");
+  MALLOC_FAIL_NULL(buffer->filtered,
+                   d_in * sizeof(value_t),
+                   "[Common/Filters]");
+
+  for (uint d = 0; d < d_in; d++) {
+    buffer->accumulator[d] = 0.0k;
+    buffer->filtered[d] = 0.0k;
+  }
 
   return buffer;
 }

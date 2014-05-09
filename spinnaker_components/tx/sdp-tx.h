@@ -1,7 +1,7 @@
 /**
- * \addtogroup Filter
+ * \addtogroup SDP_TX
  * \brief A component which filters its input and provides output of that
- *        filtered value at regular intervals.
+ *        filtered value at regular intervals over SDP.
  *
  * \copyright Advanced Processor Technologies, School of Computer Science,
  *   University of Manchester
@@ -10,18 +10,17 @@
  * @{
  */
 
-#ifndef __FILTER_H__
-#define __FILTER_H__
+#ifndef __SDP_TX_H__
+#define __SDP_TX_H__
 
 #include "spin1_api.h"
 #include "filtered-input.h"
-#include "nengo-common.h"
 
 #include "common-impl.h"
 
-/** \brief Shared filter parameters.
+/** \brief Shared Tx parameters.
   */
-typedef struct filter_parameters {
+typedef struct sdp_tx_parameters {
   uint machine_timestep;   //!< Machine time step / useconds
   uint transmission_delay; //!< Number of ticks between output transmissions
 
@@ -31,11 +30,10 @@ typedef struct filter_parameters {
 
   value_t *input;          //!< Input buffer
   uint *keys;              //!< Output keys
-} filter_parameters_t;
-extern filter_parameters_t g_filter; //!< Global parameters
+} sdp_tx_parameters_t;
+extern sdp_tx_parameters_t g_sdp_tx; //!< Global parameters
 
 bool data_system(address_t addr);
-bool data_get_output_keys(address_t addr);
 void data_get_filters(address_t addr);
 void data_get_filter_routing(address_t addr);
 
