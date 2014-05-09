@@ -128,12 +128,13 @@ class Simulator(object):
         run_ticks = ((1 << 32) - 1 if time_in_seconds is None else
                      time_in_seconds * 1000)  # TODO Deal with timestep scaling
         for vertex in self.dao.vertices:
-            for subvertex in vertex.subvertices:
-                x, y, p = subvertex.placement.processor.get_coordinates()
-                addr = 0xe5007000 + 128 * p + 116  # Space reserved for _p_
-                self.dao.mem_write_targets.append(lib_map.MemWriteTarget(
-                    x, y, p, addr, run_ticks
-                ))
+            if not vertex.virtual:
+                for subvertex in vertex.subvertices:
+                    x, y, p = subvertex.placement.processor.get_coordinates()
+                    addr = 0xe5007000 + 128 * p + 116  # Space reserved for _p_
+                    self.dao.mem_write_targets.append(lib_map.MemWriteTarget(
+                        x, y, p, addr, run_ticks
+                    ))
 
         self.controller.load_targets()
         self.controller.load_write_mem()
