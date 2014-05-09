@@ -10,8 +10,8 @@ with model:
         print t, x
     output = nengo.Node(printout, size_in=D, label='output')
     bg = nengo.networks.BasalGanglia(D, 20, label='BG')
-    nengo.Connection(input, bg.input, filter=0.01)
-    nengo.Connection(bg.output, output, filter=0.01)
+    nengo.Connection(input, bg.input, synapse=0.01)
+    nengo.Connection(bg.output, output, synapse=0.01)
     
 import nengo_spinnaker
 sim = nengo_spinnaker.Simulator(model)
