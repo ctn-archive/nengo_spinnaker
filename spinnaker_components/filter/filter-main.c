@@ -4,6 +4,7 @@ filter_parameters_t g_filter;
 uint delay_remaining;
 
 void filter_update(uint ticks, uint arg1) {
+  use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
   }
@@ -25,7 +26,7 @@ void filter_update(uint ticks, uint arg1) {
   }
 }
 
-void data_system(address_t addr) {
+bool data_system(address_t addr) {
   g_filter.n_dimensions = addr[0];
   g_filter.machine_timestep = addr[1];
   g_filter.transmission_delay = addr[2];
@@ -37,12 +38,20 @@ void data_system(address_t addr) {
 
   g_filter.input = initialise_input(
     g_filter.n_filters, g_filter.n_dimensions, g_filter.n_filter_keys);
+
+  if (g_filter.input == NULL)
+    return false;
+  return true;
 }
 
-void data_get_output_keys(address_t addr) {
-  g_filter.keys = spin1_malloc(g_filter.n_dimensions * sizeof(uint));
+bool data_get_output_keys(address_t addr) {
+  MALLOC_FAIL_FALSE(g_filter.keys,
+                    g_filter.n_dimensions * sizeof(uint),
+                    "[Filter]");
   spin1_memcpy(
     g_filter.keys, addr, g_filter.n_dimensions * sizeof(uint));
+
+  return true;
 }
 
 void data_get_filters(address_t addr) {
@@ -67,8 +76,14 @@ void data_get_filter_routing(address_t addr) {
 
 void c_main(void) {
   address_t address = system_load_sram();
-  data_system(region_start(1, address));
-  data_get_output_keys(region_start(2, address));
+  if (!data_system(region_start(1, address))) {
+    io_printf(IO_BUF, "[Filter] Failed to initialise.\n");
+    return;
+  }
+  if (!data_get_output_keys(region_start(2, address))) {
+    io_printf(IO_BUF, "[Filter] Failed to initialise.\n");
+    return;
+  }
   data_get_filters(region_start(3, address));
   data_get_filter_routing(region_start(4, address));
 

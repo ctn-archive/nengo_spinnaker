@@ -25,12 +25,13 @@ value_t* initialise_output( region_system_t *pars ){
   io_printf( IO_BUF, "[Ensemble] INITIALISE_OUTPUT.\n" );
   // Store globals, initialise arrays
   g_n_output_dimensions = pars->n_output_dimensions;
-  gp_output_values = spin1_malloc(
-    pars->n_output_dimensions * sizeof( value_t )
-  );
-  gp_output_keys = spin1_malloc(
-    pars->n_output_dimensions * sizeof( uint )
-  );
+
+  MALLOC_FAIL_NULL(gp_output_values,
+                   pars->n_output_dimensions * sizeof(value_t),
+                   "[Ensemble]");
+  MALLOC_FAIL_NULL(gp_output_keys,
+                   pars->n_output_dimensions * sizeof(uint),
+                   "[Ensemble]");
 
   io_printf( IO_BUF, "[Ensemble] n_output_dimensions = %d\n",
     g_n_output_dimensions

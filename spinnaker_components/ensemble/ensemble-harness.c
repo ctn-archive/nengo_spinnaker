@@ -34,20 +34,14 @@ bool initialise_ensemble(region_system_t *pars) {
   );
 
   // Holder for bias currents
-  g_ensemble.i_bias = spin1_malloc(g_ensemble.n_neurons * sizeof(current_t));
-
-  if (g_ensemble.i_bias == NULL) {
-    io_printf(IO_BUF, "[Ensemble] Malloc fail i_bias.\n");
-    return false;
-  }
+  MALLOC_FAIL_FALSE(g_ensemble.i_bias,
+                    g_ensemble.n_neurons * sizeof(current_t),
+                    "[Ensemble]");
 
   // Holder for refractory period and voltages
-  g_ensemble.status = spin1_malloc(
-    g_ensemble.n_neurons * sizeof(neuron_status_t));
-  if (g_ensemble.status == NULL) {
-    io_printf(IO_BUF, "[Ensemble] Malloc fail status.\n");
-    return false;
-  }
+  MALLOC_FAIL_FALSE(g_ensemble.status,
+                    g_ensemble.n_neurons * sizeof(neuron_status_t),
+                    "[Ensemble]");
 
   for (uint n = 0; n < g_ensemble.n_neurons; n++) {
     g_ensemble.status[n].refractory_time = 0;
@@ -55,24 +49,25 @@ bool initialise_ensemble(region_system_t *pars) {
   }
 
   // Initialise some buffers
-  g_ensemble.encoders = spin1_malloc(
-    g_ensemble.n_neurons * pars->n_input_dimensions * sizeof(value_t));
-  if (g_ensemble.encoders == NULL) {
-    io_printf(IO_BUF, "[Ensemble] Malloc fail encoders.\n");
-    return false;
-  }
+  MALLOC_FAIL_FALSE(g_ensemble.encoders,
+                    g_ensemble.n_neurons * pars->n_input_dimensions *
+                      sizeof(value_t),
+                    "[Ensemble]");
 
-  g_ensemble.decoders = spin1_malloc(
-    g_ensemble.n_neurons * pars->n_output_dimensions * sizeof(value_t));
-  if (g_ensemble.decoders == NULL) {
-    io_printf(IO_BUF, "[Ensemble] Malloc fail decoders.\n");
-    return false;
-  }
+  MALLOC_FAIL_FALSE(g_ensemble.decoders,
+                    g_ensemble.n_neurons * pars->n_output_dimensions *
+                      sizeof(value_t),
+                    "[Ensemble]");
 
   // Setup subcomponents
-  g_ensemble.input  = initialise_input(
+  g_ensemble.input = initialise_input(
     pars->n_filters, pars->n_input_dimensions, pars->n_filter_keys);
+  if (g_ensemble.input == NULL)
+    return false;
+
   g_ensemble.output = initialise_output(pars);
+  if (g_ensemble.output == NULL)
+    return false;
 
   // Register the update function
   spin1_callback_on(TIMER_TICK, ensemble_update, 2);

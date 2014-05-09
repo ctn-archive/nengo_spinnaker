@@ -4,6 +4,7 @@ sdp_tx_parameters_t g_sdp_tx;
 uint delay_remaining;
 
 void sdp_tx_update(uint ticks, uint arg1) {
+  use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
   }
@@ -36,7 +37,7 @@ void sdp_tx_update(uint ticks, uint arg1) {
   }
 }
 
-void data_system(address_t addr) {
+bool data_system(address_t addr) {
   g_sdp_tx.n_dimensions = addr[0];
   g_sdp_tx.machine_timestep = addr[1];
   g_sdp_tx.transmission_delay = addr[2];
@@ -50,6 +51,10 @@ void data_system(address_t addr) {
 
   g_sdp_tx.input = initialise_input(
     g_sdp_tx.n_filters, g_sdp_tx.n_dimensions, g_sdp_tx.n_filter_keys);
+
+  if (g_sdp_tx.input == NULL)
+    return false;
+  return true;
 }
 
 void data_get_filters(address_t addr) {
@@ -74,7 +79,10 @@ void data_get_filter_routing(address_t addr) {
 
 void c_main(void) {
   address_t address = system_load_sram();
-  data_system(region_start(1, address));
+  if (!data_system(region_start(1, address))) {
+    io_printf(IO_BUF, "[Tx] Failed to initialise.\n");
+    return;
+  }
   data_get_filters(region_start(2, address));
   data_get_filter_routing(region_start(3, address));
 

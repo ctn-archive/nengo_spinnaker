@@ -38,6 +38,7 @@
 #include "common-typedefs.h"
 
 #include "nengo_typedefs.h"
+#include "nengo-common.h"
 #include "dimensional-io.h"
 
 #include "ensemble-data.h"

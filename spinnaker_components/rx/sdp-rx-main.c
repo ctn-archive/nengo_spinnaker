@@ -5,6 +5,7 @@ sdp_rx_parameters_t g_sdp_rx;
 /** \brief Timer tick
  */
 void sdp_rx_tick(uint ticks, uint arg1) {
+  use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
   }
@@ -26,6 +27,7 @@ void sdp_rx_tick(uint ticks, uint arg1) {
 /** \brief Receive packed data packed in SDP message
  */
 void sdp_received(uint mailbox, uint port) {
+  use(port);
   sdp_msg_t *message = (sdp_msg_t*) mailbox;
 
   // Copy the data into the output buffer
@@ -40,7 +42,7 @@ void sdp_received(uint mailbox, uint port) {
 
 /** \brief Load in system parameters
  */
-void data_system(address_t addr) {
+bool data_system(address_t addr) {
   g_sdp_rx.transmission_period = addr[0];
   g_sdp_rx.n_dimensions = addr[1];
 
@@ -48,9 +50,17 @@ void data_system(address_t addr) {
             g_sdp_rx.transmission_period);
   io_printf(IO_BUF, "[SDP Rx] %d dimensions.\n", g_sdp_rx.n_dimensions);
 
-  g_sdp_rx.output = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(value_t));
-  g_sdp_rx.fresh = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(bool));
-  g_sdp_rx.keys = spin1_malloc(g_sdp_rx.n_dimensions * sizeof(uint));
+  MALLOC_FAIL_FALSE(g_sdp_rx.output,
+                    g_sdp_rx.n_dimensions * sizeof(value_t),
+                    "[Rx]");
+  MALLOC_FAIL_FALSE(g_sdp_rx.fresh,
+                    g_sdp_rx.n_dimensions * sizeof(bool),
+                    "[Rx]");
+  MALLOC_FAIL_FALSE(g_sdp_rx.keys,
+                    g_sdp_rx.n_dimensions * sizeof(uint),
+                    "[Rx]");
+
+  return true;
 }
 
 /** \brief Load output keys
@@ -67,7 +77,11 @@ void data_get_keys(address_t addr) {
  */
 void c_main(void) {
   address_t address = system_load_sram();
-  data_system(region_start(1, address));
+  if (!data_system(region_start(1, address))) {
+    io_printf(IO_BUF, "[Rx] Failed to initialise.\n");
+    return;
+  }
+
   data_get_keys(region_start(2, address));
 
   g_sdp_rx.current_dimension = 0;
