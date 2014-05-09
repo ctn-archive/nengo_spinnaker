@@ -182,4 +182,6 @@ class FilterCollection(object):
         for the given postsubvertex.
         """
         return itertools.chain(
-            *[f.get_keys_masks(subvertex) for f in self.entries])
+            [[(km[0], km[1], i) for km in f.get_keys_masks(subvertex)] for
+             (i, f) in enumerate(self.entries)]
+        )
