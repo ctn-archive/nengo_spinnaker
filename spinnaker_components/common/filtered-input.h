@@ -18,6 +18,7 @@
 
 #include "spin1_api.h"
 #include "common-typedefs.h"
+#include "nengo-common.h"
 
 #include "dimensional-io.h"
 

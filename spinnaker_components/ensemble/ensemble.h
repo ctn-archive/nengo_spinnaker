@@ -38,6 +38,7 @@
 #include "common-typedefs.h"
 
 #include "nengo_typedefs.h"
+#include "nengo-common.h"
 #include "dimensional-io.h"
 
 #include "ensemble-data.h"
@@ -80,7 +81,7 @@ extern uint g_output_period;       //!< Delay in transmitting decoded output
 /**
  * \brief Initialise the ensemble.
  */
-void initialise_ensemble(
+bool initialise_ensemble(
   region_system_t *pars  //!< Pointer to formatted system region
 );
 

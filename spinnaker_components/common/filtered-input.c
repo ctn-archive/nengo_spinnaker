@@ -30,27 +30,35 @@ value_t* initialise_input(
   );
 
   // Buffer initialisation
-  g_input.filters = spin1_malloc(
-    g_input.n_filters * sizeof( filtered_input_buffer_t* )
-  );
-  for( uint f = 0; f < g_input.n_filters; f++ ) {
-    g_input.filters[f] = input_buffer_initialise( g_input.n_dimensions );
-    g_input.filters[f]->filter = 0;   // Initialised later
-    g_input.filters[f]->n_filter = 0; // Initialised later
-    g_input.filters[f]->mask = 0;     // Initialised later
-    g_input.filters[f]->mask_ = 0xffffffff;  // Initialised later
-  };
+  if (g_input.n_filters > 0) {
+    MALLOC_FAIL_NULL(g_input.filters,
+                     g_input.n_filters * sizeof(filtered_input_buffer_t*),
+                     "[Common/Input]");
 
-  g_input.input = spin1_malloc( g_input.n_dimensions * sizeof( value_t ) );
+    for( uint f = 0; f < g_input.n_filters; f++ ) {
+      g_input.filters[f] = input_buffer_initialise( g_input.n_dimensions );
+      g_input.filters[f]->filter = 0;   // Initialised later
+      g_input.filters[f]->n_filter = 0; // Initialised later
+      g_input.filters[f]->mask = 0;     // Initialised later
+      g_input.filters[f]->mask_ = 0xffffffff;  // Initialised later
+    };
+  }
+
+  MALLOC_FAIL_NULL(g_input.input,
+                   g_input.n_dimensions * sizeof(value_t),
+                   "[Common/Input]");
 
   // Routes initialisation
-  g_input.routes = spin1_malloc(
-    g_input.n_routes * sizeof( input_filter_key_t )
-  );
-  for( uint r = 0; r < g_input.n_routes; r++ ) {
-    g_input.routes[r].key    = 0x00000000;  // Initialised later
-    g_input.routes[r].mask   = 0x00000000;  // Initialised later
-    g_input.routes[r].filter = 0x00000000;  // Initialised later
+  if (g_input.n_filters > 0 && g_input.n_routes > 0) {
+    MALLOC_FAIL_NULL(g_input.routes,
+                     g_input.n_routes * sizeof(input_filter_key_t),
+                     "[Common/Input]");
+
+    for( uint r = 0; r < g_input.n_routes; r++ ) {
+      g_input.routes[r].key    = 0x00000000;  // Initialised later
+      g_input.routes[r].mask   = 0x00000000;  // Initialised later
+      g_input.routes[r].filter = 0x00000000;  // Initialised later
+    }
   }
 
   // Set up the multicast callback

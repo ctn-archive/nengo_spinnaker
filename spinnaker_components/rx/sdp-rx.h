@@ -16,6 +16,7 @@
 
 #include "spin1_api.h"
 #include "common-impl.h"
+#include "nengo-common.h"
 #include "nengo_typedefs.h"
 
 /** \brief Shared Rx parameters.
@@ -32,7 +33,7 @@ typedef struct sdp_rx_parameters {
 } sdp_rx_parameters_t;
 extern sdp_rx_parameters_t g_sdp_rx; //!< Global parameters
 
-void data_system(address_t addr);
+bool data_system(address_t addr);
 void data_get_keys(address_t addr);
 
 #endif

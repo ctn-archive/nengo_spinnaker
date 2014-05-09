@@ -33,7 +33,7 @@ typedef struct sdp_tx_parameters {
 } sdp_tx_parameters_t;
 extern sdp_tx_parameters_t g_sdp_tx; //!< Global parameters
 
-void data_system(address_t addr);
+bool data_system(address_t addr);
 void data_get_filters(address_t addr);
 void data_get_filter_routing(address_t addr);
 

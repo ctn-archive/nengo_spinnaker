@@ -8,6 +8,8 @@ import time
 from nengo.utils.compat import is_callable
 
 from pacman103.core import control
+from pacman103.lib import lib_map
+from pacman103 import conf
 
 from . import builder
 from . import nodes
@@ -97,8 +99,8 @@ class Simulator(object):
                     self._internode_cache[post][node] = np.dot(transform,
                                                                output)
 
-    def run(self, time_in_seconds=None):
-        """Run the model, currently ignores the time."""
+    def run(self, time_in_seconds=None, clean=True):
+        """Run the model for the specified amount of time."""
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
@@ -133,6 +135,19 @@ class Simulator(object):
         # TODO: All of the following will become more modular!
         self.controller.map_model()
         self.controller.generate_output()
+
+        # Write the runtime to each used core, UINT32_MAX means "run forever"
+        run_ticks = ((1 << 32) - 1 if time_in_seconds is None else
+                     time_in_seconds * 1000)  # TODO Deal with timestep scaling
+        for vertex in self.dao.vertices:
+            if not vertex.virtual:
+                for subvertex in vertex.subvertices:
+                    x, y, p = subvertex.placement.processor.get_coordinates()
+                    addr = 0xe5007000 + 128 * p + 116  # Space reserved for _p_
+                    self.dao.mem_write_targets.append(lib_map.MemWriteTarget(
+                        x, y, p, addr, run_ticks
+                    ))
+
         self.controller.load_targets()
         self.controller.load_write_mem()
         self.controller.run(self.dao.app_id)
@@ -163,6 +178,10 @@ class Simulator(object):
                 # Any necessary teardown functions
                 for sim in node_sims:
                     sim.stop()
+
+            # Stop the application from executing
+            if clean:
+                self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
 
 
 class NodeSimulator(object):
@@ -228,7 +247,7 @@ class NodeSimulator(object):
             logger.warning("%s took longer than one timestep to simulate. "
                            "Decreasing frequency of evaluation." % self.node)
 
-        self.time_passed += self.dt
+        self.time_passed += self.dt + (stop - start)
         if self.time is None or self.time_passed < self.time:
             self.timer = threading.Timer(self.dt, self.tick)
             self.timer.name = "EvalThread(%s)" % self.node

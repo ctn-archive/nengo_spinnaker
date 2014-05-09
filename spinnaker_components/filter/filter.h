@@ -15,6 +15,7 @@
 
 #include "spin1_api.h"
 #include "filtered-input.h"
+#include "nengo-common.h"
 
 #include "common-impl.h"
 
@@ -33,8 +34,8 @@ typedef struct filter_parameters {
 } filter_parameters_t;
 extern filter_parameters_t g_filter; //!< Global parameters
 
-void data_system(address_t addr);
-void data_get_output_keys(address_t addr);
+bool data_system(address_t addr);
+bool data_get_output_keys(address_t addr);
 void data_get_filters(address_t addr);
 void data_get_filter_routing(address_t addr);
 
