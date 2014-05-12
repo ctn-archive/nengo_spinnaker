@@ -66,10 +66,6 @@ class TransmitVertex(graph.Vertex):
         )
 
         # Generate the spec
-        spec = data_spec_gen.DataSpec(processor, dao)
-        spec.initialise(0xABCE, dao)
-        spec.comment("# Nengo Tx Component")
-        # Generate the spec
         subvertex.spec = data_spec_gen.DataSpec(processor, dao)
         subvertex.spec.initialise(0xABCE, dao)
         subvertex.spec.comment("# Nengo Tx Component")

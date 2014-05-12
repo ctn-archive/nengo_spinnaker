@@ -89,12 +89,6 @@ class ReceiveVertex(graph.Vertex):
             x, y, p
         )
 
-        # Get the executable
-        x, y, p = processor.get_coordinates()
-        executable_target = lib_map.ExecutableTarget(
-            os.path.join(dao.get_common_binaries_directory(), 'nengo_rx.aplx'),
-            x, y, p
-        )
         # Generate the spec
         subvertex.spec = data_spec_gen.DataSpec(processor, dao)
         subvertex.spec.initialise(0xABCE, dao)
