@@ -16,8 +16,12 @@ uint lfsr = 1;              //!< LFSR for spike peturbation
 uint ticks_til_next_output = 0;  //!< Number of ticks until the next output
 uint output_index = 0;           //!< Index of current output dimension
 
-void ensemble_update( uint arg0, uint arg1 )
-{
+void ensemble_update(uint ticks, uint arg1) {
+  use(arg1);
+  if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
+    spin1_exit(0);
+  }
+
   // Values used below
   current_t i_membrane;
   voltage_t v_delta, v_voltage;

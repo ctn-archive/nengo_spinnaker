@@ -1,5 +1,6 @@
 from pacman103.lib import graph
-import nengo
+
+from . import utils
 
 
 class NengoEdge(graph.Edge):
@@ -14,12 +15,7 @@ class NengoEdge(graph.Edge):
 
     @property
     def width(self):
-        if isinstance(self.conn, int):
-            return self.conn
-        elif isinstance(self.conn.post, nengo.Ensemble):
-            return self.conn.post.dimensions
-        elif isinstance(self.conn.post, nengo.Node):
-            return self.conn.post.size_in
+        utils.get_connection_width(self.conn)
 
     def __getattr__(self, name):
         """Redirect missed attributes to the connection."""

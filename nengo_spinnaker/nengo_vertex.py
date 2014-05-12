@@ -2,7 +2,7 @@ import os
 
 from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
-from . import collections
+
 from . import vertices
 
 
@@ -32,10 +32,6 @@ class NengoVertex(graph.Vertex):
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
                                 machine_time_step_us, partition_data_object):
         return lib_map.Resources(1, 1, 1)
-
-    @property
-    def remaining_dimensions(self):
-        return self._assigned_nodes.remaining_space
 
     def generateDataSpec(self, processor, subvertex, dao):
         # Get the executable

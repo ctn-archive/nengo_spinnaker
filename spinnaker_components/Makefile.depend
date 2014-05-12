@@ -1,7 +1,7 @@
 # Get the SpiNNaker install directory, Neuron Modelling
 SPINN_NM_DIRS=${SPINN_DIRS}/../neural_modelling
 
-OBJECTS += ${SPINN_NM_DIRS}/common/bit_field.o ${SPINN_NM_DIRS}/common/spikes.o ${SPINN_NM_DIRS}/common/out_spikes.o ${SPINN_NM_DIRS}/common/configuration.o ${SPINN_NM_DIRS}/common/recording.o ${SPINN_NM_DIRS}/common/spin1-api-configuration.o
+OBJECTS += ${SPINN_NM_DIRS}/common/configuration.o ${SPINN_NM_DIRS}/common/spin1-api-configuration.o
 CFLAGS += -I ${SPINN_NM_DIRS}/common/ -I ../common/
 CFLAGS += -Wall -Wextra -Ofast
 
