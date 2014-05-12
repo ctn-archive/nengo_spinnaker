@@ -9,6 +9,6 @@
 # ----------------------------------------------------------------------------
 
 APP = nengo_tx
-SOURCES = tx-harness.c
+SOURCES = sdp-tx-main.c ../common/filtered-input.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

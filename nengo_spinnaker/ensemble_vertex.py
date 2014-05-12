@@ -9,7 +9,7 @@ from nengo.utils.compat import is_integer
 from pacman103.lib import graph, data_spec_gen, lib_map, parameters
 from pacman103.front.common import enums
 
-from . import collections
+from .utils import bins
 
 
 class EnsembleVertex(graph.Vertex):
@@ -114,8 +114,8 @@ class EnsembleVertex(graph.Vertex):
         self.direct_input = np.zeros(self._ens.dimensions)
 
         # Decoders and Filters
-        self.decoders = collections.DecoderBin(rng)
-        self.filters = collections.FilterCollection()
+        self.decoders = bins.DecoderBin(rng)
+        self.filters = bins.FilterCollection()
 
         # Create the vertex
         super(EnsembleVertex, self).__init__(
