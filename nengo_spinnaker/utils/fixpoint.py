@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 
 
@@ -30,16 +31,11 @@ def bitsk(value, n_bits=32, n_frac=15, signed=True):
         # Negate if necessary
         if signed and value < 0:
             value += (1 << n_bits)
+            value = int(value) & sum([1 << n for n in range(n_bits)])
 
-        return int(value) & sum([1 << n for n in range(n_bits)])
-
-    value = np.asarray(value)
-    value = np.clip(value, min_value, max_value) * 2**n_frac
-
-    if signed:
-        value[value < 0] += (1 << n_bits)
-
-    return np.int_(value)
+        return int(value)
+    elif isinstance(value, collections.Iterable):
+        return [bitsk(v) for v in value]
 
 
 def kbits(value, n_bits=32, n_frac=15, signed=True):
