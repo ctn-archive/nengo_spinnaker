@@ -265,7 +265,7 @@ class EthernetCommunicator(object):
                     self._output_fresh[rx_vertex] = False
 
                 data = struct.pack(
-                    "H14x%di" % rx_vertex.n_assigned_dimensions, 1,
+                    "H14x%dI" % rx_vertex.n_assigned_dimensions, 1,
                     *fp.bitsk(vals)
                 )
 
