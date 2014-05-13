@@ -12,42 +12,54 @@ def bitsk(value, n_bits=32, n_frac=15, signed=True):
     :returns: an int or array of ints representing the given value in fixed
               point.
     """
-    max_fracts = sum([2**-n for n in range(1, n_frac+1)])
-    max_value = (1 << (n_bits - n_frac - (1 if signed else 0))) - 1
-    min_value = -max_value - 1 if signed else 0
 
-    max_value += max_fracts
-    min_value -= max_fracts  # Check this!
+    if signed:
+        v = 1 << (n_bits-1)
+        max_value = kbits(v-1,
+                          n_bits=n_bits, n_frac=n_frac, signed=signed)
+        min_value = kbits(v,
+                          n_bits=n_bits, n_frac=n_frac, signed=signed)
+    else:
+        max_value = kbits((1 << n_bits)-1,
+                          n_bits=n_bits, n_frac=n_frac, signed=signed)
+        min_value = 0
 
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, long, float)):
         # Saturate
-        value = float(value)
         value = min(value, max_value)
         value = max(value, min_value)
 
         # Shift
         value *= 2**n_frac
 
+        # do the cast to int before the sign adjustment so that it rounds
+        # towards zero rather than always rounding down
+        value = int(value)
+
         # Negate if necessary
         if signed and value < 0:
             value += (1 << n_bits)
-            value = int(value) & sum([1 << n for n in range(n_bits)])
 
-        return int(value)
+        # Just to be on the safe side -- this should never happen
+        assert 0 <= value < (1 << n_bits)
+
+        return value
     elif isinstance(value, collections.Iterable):
-        return [bitsk(v) for v in value]
+        return [bitsk(v, n_bits=n_bits, n_frac=n_frac, signed=signed)
+                for v in value]
+    else:
+        raise TypeError('Values must be numbers or iterables')
 
 
 def kbits(value, n_bits=32, n_frac=15, signed=True):
     """Convert the given value(s) from a fixed point representation."""
-    if isinstance(value, int):
+    if isinstance(value, (int, long)):
         if signed and value & (1 << (n_bits - 1)):
             value -= (1 << n_bits)
 
         return value * 2**-n_frac
-
-    value = np.asarray(value)
-    if signed:
-        value[value >= (1 << (n_bits - 1))] -= (1 << n_bits)
-
-    return value * 2**-n_frac
+    elif isinstance(value, collections.Iterable):
+        return [kbits(v, n_bits=n_bits, n_frac=n_frac, signed=signed)
+                for v in value]
+    else:
+        raise TypeError('Values must be ints or iterables')
