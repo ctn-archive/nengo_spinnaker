@@ -5,6 +5,7 @@ from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
 
 from .. import utils
+from .. import vertices
 
 
 node_transform_entry_t = collections.namedtuple(
@@ -83,7 +84,8 @@ class ReceiveVertex(graph.Vertex):
         # Get the executable
         x, y, p = processor.get_coordinates()
         executable_target = lib_map.ExecutableTarget(
-            os.path.join(dao.get_common_binaries_directory(), 'nengo_rx.aplx'),
+            vertices.resource_filename("nengo_spinnaker",
+                                       "binaries/%s.aplx" % self.model_name),
             x, y, p
         )
 
