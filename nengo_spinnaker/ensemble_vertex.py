@@ -8,8 +8,8 @@ from nengo.utils.compat import is_integer
 from pacman103.lib import graph, data_spec_gen, lib_map
 from pacman103.front.common import enums
 
-from .utils import bins, fp
 from . import vertices
+from .utils import bins, fp
 
 
 class EnsembleVertex(graph.Vertex, vertices.VertexWithFilters):

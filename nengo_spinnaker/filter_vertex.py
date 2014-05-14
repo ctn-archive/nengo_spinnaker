@@ -1,8 +1,8 @@
 from pacman103.lib import graph, data_spec_gen, lib_map
 from pacman103.front.common import enums
 
-from .utils import bins
 from . import vertices
+from .utils import bins
 
 
 class FilterVertex(graph.Vertex, vertices.VertexWithFilters):

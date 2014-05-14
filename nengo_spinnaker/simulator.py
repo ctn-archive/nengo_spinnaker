@@ -9,7 +9,6 @@ from nengo.utils.compat import is_callable
 
 from pacman103.core import control
 from pacman103.lib import lib_map
-from pacman103 import conf
 
 from . import builder
 from . import nodes
@@ -19,10 +18,7 @@ logger = logging.getLogger(__name__)
 
 class Simulator(object):
     def __init__(self, model, machine_name=None, dt=0.001, seed=None, io=None):
-        # Build the model
-        self.builder = builder.Builder()
-
-        # Set up the IO
+        # Get the hostname
         if machine_name is None:
             import ConfigParser
             from pacman103 import conf
@@ -38,9 +34,13 @@ class Simulator(object):
 
         self.machine_name = machine_name
 
+        # Set up the IO
         if io is None:
             io = nodes.Ethernet(self.machine_name)
         self.io = io
+
+        # Build the model
+        self.builder = builder.Builder()
 
         (self.dao, self.nodes, self.node_node_connections) = self.builder(
             model, dt, seed, node_builder=io
