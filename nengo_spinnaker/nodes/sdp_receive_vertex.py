@@ -66,9 +66,8 @@ class SDPReceiveVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('OUTPUT_KEYS')
     def sizeof_region_output_keys(self, n_atoms):
-        """Get the size (in bytes) of the OUTPUT_KEYS region."""
-        # 1 word per edge
-        return 4 * len(self.out_edges)
+        """Get the size (in words) of the OUTPUT_KEYS region."""
+        return len(self.out_edges)
 
     @vertices.region_write('SYSTEM')
     def write_region_system(self, subvertex, spec):
