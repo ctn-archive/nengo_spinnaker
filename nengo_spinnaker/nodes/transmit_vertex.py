@@ -1,11 +1,10 @@
 from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
 
-from ..utils import bins
-from .. import vertices
+from ..utils import bins, filters, vertices
 
 
-class TransmitVertex(graph.Vertex, vertices.VertexWithFilters):
+class TransmitVertex(graph.Vertex, filters.VertexWithFilters):
     """PACMAN Vertex for an object which receives input for a Node and
     transmits it to the host.
     """

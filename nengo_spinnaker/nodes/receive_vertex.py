@@ -4,7 +4,7 @@ from pacman103.lib import data_spec_gen, graph, lib_map
 from pacman103.front.common import enums
 
 from .. import utils
-from .. import vertices
+from ..utils import vertices
 
 
 node_transform_entry_t = collections.namedtuple(

@@ -8,11 +8,10 @@ from nengo.utils.compat import is_integer
 from pacman103.lib import graph, data_spec_gen, lib_map
 from pacman103.front.common import enums
 
-from . import vertices
-from .utils import bins, fp
+from .utils import bins, fp, filters, vertices
 
 
-class EnsembleVertex(graph.Vertex, vertices.VertexWithFilters):
+class EnsembleVertex(graph.Vertex, filters.VertexWithFilters):
     """PACMAN Vertex for an Ensemble."""
 
     REGIONS = enums.enum1(

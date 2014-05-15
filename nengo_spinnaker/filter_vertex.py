@@ -1,11 +1,10 @@
 from pacman103.lib import graph, data_spec_gen, lib_map
 from pacman103.front.common import enums
 
-from . import vertices
-from .utils import bins
+from .utils import bins, filters, vertices
 
 
-class FilterVertex(graph.Vertex, vertices.VertexWithFilters):
+class FilterVertex(graph.Vertex, filters.VertexWithFilters):
     """PACMAN Vertex for a filtered external output node."""
 
     REGIONS = enums.enum1(
