@@ -7,7 +7,7 @@ import time
 
 from pacman103.core.spinnman.sdp import sdp_message as sdp
 
-from . import receive_vertex, transmit_vertex
+from . import sdp_receive_vertex, sdp_transmit_vertex
 from .. import utils
 from ..utils import fp
 
@@ -53,7 +53,7 @@ class Ethernet(object):
             return self._tx_assigns[node]
 
         # Otherwise create one
-        tx = transmit_vertex.TransmitVertex(
+        tx = sdp_transmit_vertex.SDPTransmitVertex(
             node=node,
             label="Tx for %s" % node
         )
@@ -66,7 +66,7 @@ class Ethernet(object):
         """Get the Vertex for output from the originating Node of the given
         Connection, given the transform applied by this Connection.
         """
-        nte = receive_vertex.NodeTransformEntry(c.pre, c.transform,
+        nte = sdp_receive_vertex.NodeTransformEntry(c.pre, c.transform,
                                                 utils.get_connection_width(c))
 
         # See if the combination of this Node and transform has already been
@@ -82,7 +82,7 @@ class Ethernet(object):
                 rx.add_node_transform(nte.node, nte.transform)
                 return rx
         else:
-            rx = receive_vertex.ReceiveVertex(
+            rx = sdp_receive_vertex.SDPReceiveVertex(
                 label="Rx%d" % len(self._rx_vertices)
             )
             rx.add_node_transform(nte.node, nte.transform, nte.width)

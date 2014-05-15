@@ -2,7 +2,7 @@ from ..utils import bins, filters, vertices
 
 
 @filters.with_filters(2, 3)
-class TransmitVertex(vertices.NengoVertex):
+class SDPTransmitVertex(vertices.NengoVertex):
     """PACMAN Vertex for an object which receives input for a Node and
     transmits it to the host.
     """
@@ -20,7 +20,7 @@ class TransmitVertex(vertices.NengoVertex):
         self.filters = bins.FilterCollection()
 
         # Create the vertex
-        super(TransmitVertex, self).__init__(
+        super(SDPTransmitVertex, self).__init__(
             1, constraints=constraints, label=label
         )
 

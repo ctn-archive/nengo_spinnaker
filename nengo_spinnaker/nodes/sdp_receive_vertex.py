@@ -14,7 +14,7 @@ def NodeTransformEntry(node, transform, width):
     return node_transform_entry_t(node, t, width)
 
 
-class ReceiveVertex(vertices.NengoVertex):
+class SDPReceiveVertex(vertices.NengoVertex):
     """PACMAN Vertex for an object which receives input from Nodes on the host
     and forwards it to connected Ensembles.
     """
@@ -23,8 +23,8 @@ class ReceiveVertex(vertices.NengoVertex):
     MODEL_NAME = "nengo_rx"
 
     def __init__(self, time_step=1000, constraints=None, label=None):
-        super(ReceiveVertex, self).__init__(1, constraints=constraints,
-                                            label=label)
+        super(SDPReceiveVertex, self).__init__(1, constraints=constraints,
+                                               label=label)
         self.assigned_nodes_transforms = list()
 
     @property

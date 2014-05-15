@@ -8,13 +8,12 @@
 # ----------------------------------------------------------------------------
 # Code derived from Andrew Rowley, University of Manchester
 
-APPS = ensemble tx rx filter
-APP_OUTPUT_DIR = $(PWD)/binaries
+APPS = ensemble sdp-tx sdp-rx filter
+APP_OUTPUT_DIR = $(PWD)/../nengo_spinnaker/binaries
 COMPLETE_SOURCE = ./*/*.c ./*/*.h
 
 all :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)"  ) || exit $$?; done
-	for a in $(APPS); do ( cp $(APP_OUTPUT_DIR)/nengo_$$a.aplx ../nengo_spinnaker/binaries/ ); done
 
 docs : ${COMPLETE_SOURCE}
 	doxygen
