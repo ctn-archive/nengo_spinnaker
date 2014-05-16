@@ -57,7 +57,7 @@ nosetests.xml
 *.elf
 
 # Documentation
-*/docs/*
+docs/_build/*
 
 # Spurious dot/txt files
 *.dot
