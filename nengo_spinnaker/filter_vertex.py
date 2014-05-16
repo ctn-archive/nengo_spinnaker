@@ -1,4 +1,4 @@
-from .utils import bins, filters, vertices
+from .utils import filters, vertices
 
 
 @filters.with_filters(3, 4)

@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 
 import nengo
@@ -6,7 +7,12 @@ import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 
-from .utils import bins, fp, filters, vertices
+from .utils import fp, filters, vertices
+
+
+DecoderEntry = collections.namedtuple('DecoderEntry', ['function',
+                                                       'transform',
+                                                       'decoder'])
 
 
 @filters.with_filters(6, 7)
@@ -103,18 +109,10 @@ class EnsembleVertex(vertices.NengoVertex):
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
-        # Decoders and Filters
-        self.decoders = bins.DecoderBin(rng)
-
         # Create the vertex
         super(EnsembleVertex, self).__init__(
             self._ens.n_neurons, constraints=constraints, label=ens.label
         )
-
-    @property
-    def n_output_dimensions(self):
-        """The sum of the decoders in the decoder bin."""
-        return self.decoders.width
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
@@ -127,6 +125,45 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_sizeof('ENCODERS')
     def sizeof_region_encoders(self, n_atoms):
         return n_atoms * self.n_input_dimensions
+
+    @vertices.region_pre_prepare('DECODERS')
+    def prepare_region_decoders(self):
+        """Generate decoders for the Ensemble."""
+        self._decoders = list()
+        self._func_decoders = dict()  # Map of prebuilt decoders for functions
+        self._edge_decoders = dict()  # Map of edges to decoder index
+
+        for edge in self.out_edges:
+            # If this function/transform combination is already in the list of
+            # decoders, then simply store a mapping from this edge to this
+            # decoder.
+            for (i, decoder) in enumerate(self._decoders):
+                if (decoder.function == edge.function and
+                        decoder.transform == edge.transform):
+                    self._edge_decoders[edge] = i
+                    break
+            else:
+                # Generate the decoder
+                if edge.function in self._func_decoders:
+                    decoder = self._func_decoders[edge.function]
+                else:
+                    decoder = _generate_edge_decoder(edge, self.rng)
+                    self._func_decoders[edge.function] = decoder
+
+                decoder = np.dot(decoder, np.array(edge.transform).T)
+                self._decoders.append(DecoderEntry(edge.function,
+                                                   edge.transform,
+                                                   decoder))
+                self._edge_decoders[edge] = len(self._decoders) - 1
+
+        # Generate the merged decoders, count the number of outgoing dimensions
+        if len(self._decoders) > 0:
+            self._merged_decoders = np.hstack([d.decoder for d in
+                                               self._decoders])
+        else:
+            self._merged_decoders = []
+        self._decoder_widths = [d.decoder.shape[1] for d in self._decoders]
+        self.n_output_dimensions = self._merged_decoders.shape[1]
 
     @vertices.region_pre_sizeof('DECODERS')
     def sizeof_region_decoders(self, n_atoms):
@@ -176,19 +213,19 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_write('DECODERS')
     def write_region_decoders(self, subvertex, spec):
         """Write the decoder region for the given subvertex."""
-        decoders = self.decoders.get_merged_decoders()
+        merged_decoders = self._merged_decoders / self.dt
 
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             # Write the decoders for all the atoms within this subvertex
             for d in range(self.n_output_dimensions):
-                spec.write(data=fp.bitsk(decoders[n][d] / self.dt))
+                spec.write(data=fp.bitsk(merged_decoders[n][d]))
 
     @vertices.region_write('OUTPUT_KEYS')
     def write_region_output_keys(self, subvertex, spec):
         """Write the output keys region for the given subvertex."""
         x, y, p = subvertex.placement.processor.get_coordinates()
 
-        for (i, w) in enumerate(self.decoders.decoder_widths):
+        for (i, w) in enumerate(self._decoder_widths):
             # Generate the routing keys for each dimension
             for d in range(w):
                 spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
@@ -197,7 +234,43 @@ class EnsembleVertex(vertices.NengoVertex):
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = self.decoders.edge_index(subedge.edge)
+        i = self._edge_decoders[subedge.edge]
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
         return key, 0xFFFFFFE0
+
+
+def _generate_edge_decoder(e, rng):
+    """Generate the decoder for the given edge and random number generator.
+
+    :param e: the edge for which to compute the decoder
+    :param rng: random number generator to use
+    """
+    eval_points = e.eval_points
+    if eval_points is None:
+        eval_points = e.prevertex.eval_points
+
+    x = np.dot(eval_points, e.prevertex.encoders.T / e.pre.radius)
+    activities = e.pre.neurons.rates(
+        x, e.prevertex.gain, e.prevertex.bias
+    )
+
+    if e.function is None:
+        targets = eval_points
+    else:
+        targets = np.array(
+            [e.function(ep) for ep in eval_points]
+        )
+        if targets.ndim < 2:
+            targets.shape = targets.shape[0], 1
+
+    solver = e.decoder_solver
+    if solver is None:
+        solver = nengo.decoders.lstsq_L2nz
+
+    decoder = solver(activities, targets, rng)
+
+    if isinstance(decoder, tuple):
+        decoder = decoder[0]
+
+    return decoder

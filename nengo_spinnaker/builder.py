@@ -168,7 +168,6 @@ def _ensemble_to_ensemble(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
     postvertex = builder.ensemble_vertices[c.post]
     edge = edges.DecoderEdge(c, prevertex, postvertex)
-    edge.index = prevertex.decoders.get_decoder_index(edge)
     return edge
 
 
@@ -180,7 +179,6 @@ def _ensemble_to_node(builder, c):
 
     # Create the edge
     edge = edges.DecoderEdge(c, prevertex, postvertex)
-    edge.index = prevertex.decoders.get_decoder_index(edge)
 
     return edge
 
