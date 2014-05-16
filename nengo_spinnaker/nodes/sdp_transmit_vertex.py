@@ -17,8 +17,6 @@ class SDPTransmitVertex(vertices.NengoVertex):
         self.time_step = time_step
         self.output_period = output_period
 
-        self.filters = bins.FilterCollection()
-
         # Create the vertex
         super(SDPTransmitVertex, self).__init__(
             1, constraints=constraints, label=label
@@ -48,7 +46,7 @@ class SDPTransmitVertex(vertices.NengoVertex):
         spec.write(data=self.output_period)
 
         if len(self.in_edges) > 0:
-            spec.write(data=len(self.filters))
-            spec.write(data=self.filters.num_keys(subvertex))
+            spec.write(data=self.n_filters)
+            spec.write(data=self.n_filter_routes(subvertex))
         else:
             spec.write(data=0, repeats=2)

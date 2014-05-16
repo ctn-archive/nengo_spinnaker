@@ -3,8 +3,6 @@ import inspect
 
 from pacman103.lib import graph, data_spec_gen, lib_map
 
-import fixpoint as fp
-
 try:
     from pkg_resources import resource_filename
 except ImportError:

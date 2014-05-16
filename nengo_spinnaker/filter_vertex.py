@@ -23,8 +23,6 @@ class FilterVertex(vertices.NengoVertex):
 
         self.dimensions = dimensions
 
-        self.filters = bins.FilterCollection()
-
         # Create the vertex
         super(FilterVertex, self).__init__(1,
                                            constraints=constraints,
@@ -61,8 +59,8 @@ class FilterVertex(vertices.NengoVertex):
         spec.write(data=self.output_period)
 
         if len(self.in_edges) > 0:
-            spec.write(data=len(self.filters))
-            spec.write(data=self.filters.num_keys(subvertex))
+            spec.write(data=self.n_filters)
+            spec.write(data=self.n_filter_routes(subvertex))
         else:
             spec.write(data=0, repeats=2)
 

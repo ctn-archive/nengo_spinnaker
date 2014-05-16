@@ -105,7 +105,6 @@ class EnsembleVertex(vertices.NengoVertex):
 
         # Decoders and Filters
         self.decoders = bins.DecoderBin(rng)
-        self.filters = bins.FilterCollection()
 
         # Create the vertex
         super(EnsembleVertex, self).__init__(
@@ -173,8 +172,8 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=fp.bitsk(self._dt_over_tau_rc))
 
         if len(self.in_edges) > 0:
-            spec.write(data=len(self.filters))
-            spec.write(data=self.filters.num_keys(subvertex))
+            spec.write(data=self.n_filters)
+            spec.write(data=self.n_filter_routes(subvertex))
         else:
             spec.write(data=0, repeats=2)
 
