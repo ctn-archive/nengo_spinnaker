@@ -112,14 +112,6 @@ class EnsembleVertex(vertices.NengoVertex):
         )
 
     @property
-    def _tau_ref_in_steps(self):
-        return self.tau_ref / (self.time_step * 10**-6)
-
-    @property
-    def _dt_over_tau_rc(self):
-        return self.dt / self.tau_rc
-
-    @property
     def n_output_dimensions(self):
         """The sum of the decoders in the decoder bin."""
         return self.decoders.width
@@ -160,8 +152,8 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=self.n_output_dimensions)
         spec.write(data=subvertex.n_atoms)
         spec.write(data=self.time_step)
-        spec.write(data=self._tau_ref_in_steps)
-        spec.write(data=fp.bitsk(self._dt_over_tau_rc))
+        spec.write(data=int(self.tau_ref / (self.time_step * 10**-6)))
+        spec.write(data=fp.bitsk(self.dt / self.tau_rc))
 
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):
