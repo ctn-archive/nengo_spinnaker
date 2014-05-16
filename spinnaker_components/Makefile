@@ -21,4 +21,3 @@ docs : ${COMPLETE_SOURCE}
 clean :
 	for a in $(APPS); do ( cd $$a; "$(MAKE)" clean  ) || exit $$?; done
 	rm -rf ./docs/
-	rm ../nengo_spinnaker/binaries/*.aplx
