@@ -126,7 +126,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
-        return 9
+        return 7
 
     @vertices.region_pre_sizeof('BIAS')
     def sizeof_region_bias(self, n_atoms):
@@ -156,26 +156,12 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_write('SYSTEM')
     def write_region_system(self, subvertex, spec):
         """Write the system region for the given subvertex."""
-        # 1. Number of input dimensions
-        # 2. Number of output dimensions
-        # 3. Number of neurons
-        # 4. Machine time step in us
-        # 5. tau_ref in number of steps
-        # 6. dt over tau_rc
-        # 7. Number of filters
-        # 8. Number of filter keys
         spec.write(data=self.n_input_dimensions)
         spec.write(data=self.n_output_dimensions)
         spec.write(data=subvertex.n_atoms)
         spec.write(data=self.time_step)
         spec.write(data=self._tau_ref_in_steps)
         spec.write(data=fp.bitsk(self._dt_over_tau_rc))
-
-        if len(self.in_edges) > 0:
-            spec.write(data=self.n_filters)
-            spec.write(data=self.n_filter_routes(subvertex))
-        else:
-            spec.write(data=0, repeats=2)
 
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):

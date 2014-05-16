@@ -34,7 +34,6 @@ def with_filters(filter_id=14, routing_id=15):
         cls._prep_region_filters = _pre_prepare_filters
         cls._prep_region_filter_routing = _post_prepare_routing
 
-        cls.n_filter_routes = _n_filter_routes
         return cls
     return cls_
 
@@ -69,7 +68,7 @@ def _pre_prepare_filters(self):
 
 @region_write("FILTERS")
 def _write_region_filters(self, subvertex, spec):
-    # spec.write(data=len(self.__filters))
+    spec.write(data=len(self.__filters))
     for filter_item in self.__filters:
         f = np.exp(-self.dt / filter_item.time_constant)
         spec.write(data=fp.bitsk(f))
@@ -92,7 +91,7 @@ def _post_prepare_routing(self):
         for subvertex in self.subvertices:
             subedges = itertools.chain(*[
                 filter(lambda se: se.postsubvertex == subvertex,
-                edge.subedges) for edge in edges]
+                       edge.subedges) for edge in edges]
             )
             kms = [subedge.edge.prevertex.generate_routing_info(subedge) for
                    subedge in subedges]
@@ -102,10 +101,6 @@ def _post_prepare_routing(self):
             self.__subvertex_filter_keys[subvertex].extend(
                 [FilterRoute(km[0], km[1], i) for km in kms]
             )
-
-
-def _n_filter_routes(self, subvertex):
-    return len(self.__subvertex_filter_keys[subvertex])
 
 
 @region_sizeof("FILTER_ROUTING")
@@ -118,7 +113,7 @@ def _sizeof_region_filter_routing(self, subvertex):
 def _write_region_filter_routing(self, subvertex, spec):
     routes = self.__subvertex_filter_keys[subvertex]
 
-    # spec.write(data=len(routes))
+    spec.write(data=len(routes))
     for route in routes:
         spec.write(data=route.key)
         spec.write(data=route.mask)

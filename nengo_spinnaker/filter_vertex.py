@@ -31,7 +31,7 @@ class FilterVertex(vertices.NengoVertex):
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
         """Get the size (in words) of the SYSTEM region."""
-        return 5
+        return 3
 
     @vertices.region_pre_sizeof('OUTPUT_KEYS')
     def sizeof_region_output_keys(self, n_atoms):
@@ -49,20 +49,9 @@ class FilterVertex(vertices.NengoVertex):
     @vertices.region_write('SYSTEM')
     def write_region_system(self, subvertex, spec):
         """Write the system region for the given subvertex."""
-        # 1. Number of dimensions
-        # 2. Machine time step in us
-        # 3. Output period in ticks
-        # 4. Number of filters
-        # 5. Number of filter keys
         spec.write(data=self.dimensions)
         spec.write(data=self.time_step)
         spec.write(data=self.output_period)
-
-        if len(self.in_edges) > 0:
-            spec.write(data=self.n_filters)
-            spec.write(data=self.n_filter_routes(subvertex))
-        else:
-            spec.write(data=0, repeats=2)
 
     @vertices.region_write('OUTPUT_KEYS')
     def write_region_output_keys(self, subvertex, spec):

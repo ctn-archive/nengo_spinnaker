@@ -31,22 +31,11 @@ class SDPTransmitVertex(vertices.NengoVertex):
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
         """Get the size (in words) of the SYSTEM region."""
-        return 5
+        return 3
 
     @vertices.region_write('SYSTEM')
     def write_region_system(self, subvertex, spec):
         """Write the system region for the given subvertex."""
-        # 1. Number of dimensions
-        # 2. Machine time step in us
-        # 3. Output period in ticks
-        # 4. Number of filters
-        # 5. Number of filter keys
         spec.write(data=self.node.size_in)
         spec.write(data=self.time_step)
         spec.write(data=self.output_period)
-
-        if len(self.in_edges) > 0:
-            spec.write(data=self.n_filters)
-            spec.write(data=self.n_filter_routes(subvertex))
-        else:
-            spec.write(data=0, repeats=2)
