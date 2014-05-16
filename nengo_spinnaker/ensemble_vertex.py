@@ -159,7 +159,7 @@ class EnsembleVertex(vertices.NengoVertex):
         # Generate the merged decoders, count the number of outgoing dimensions
         if len(self._decoders) > 0:
             self._merged_decoders = np.hstack([d.decoder for d in
-                                               self._decoders])
+                                               self._decoders]) / self.dt
         else:
             self._merged_decoders = []
         self._decoder_widths = [d.decoder.shape[1] for d in self._decoders]
@@ -213,12 +213,10 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_write('DECODERS')
     def write_region_decoders(self, subvertex, spec):
         """Write the decoder region for the given subvertex."""
-        merged_decoders = self._merged_decoders / self.dt
-
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             # Write the decoders for all the atoms within this subvertex
             for d in range(self.n_output_dimensions):
-                spec.write(data=fp.bitsk(merged_decoders[n][d]))
+                spec.write(data=fp.bitsk(self._merged_decoders[n][d]))
 
     @vertices.region_write('OUTPUT_KEYS')
     def write_region_output_keys(self, subvertex, spec):
