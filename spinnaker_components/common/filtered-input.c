@@ -18,48 +18,12 @@
 
 filtered_input_t g_input;
 
-value_t* initialise_input(
-    uint n_filters, uint n_input_dimensions, uint n_routes) {
-  // Value preparation
-  g_input.n_filters = n_filters;
+value_t* initialise_input(uint n_input_dimensions) {
   g_input.n_dimensions = n_input_dimensions;
-  g_input.n_routes = n_routes;
-
-  io_printf( IO_BUF, "[Filters] n_filters = %d, n_input_dimensions = %d\n",
-    g_input.n_filters, g_input.n_dimensions
-  );
-
-  // Buffer initialisation
-  if (g_input.n_filters > 0) {
-    MALLOC_FAIL_NULL(g_input.filters,
-                     g_input.n_filters * sizeof(filtered_input_buffer_t*),
-                     "[Common/Input]");
-
-    for( uint f = 0; f < g_input.n_filters; f++ ) {
-      g_input.filters[f] = input_buffer_initialise( g_input.n_dimensions );
-      g_input.filters[f]->filter = 0;   // Initialised later
-      g_input.filters[f]->n_filter = 0; // Initialised later
-      g_input.filters[f]->mask = 0;     // Initialised later
-      g_input.filters[f]->mask_ = 0xffffffff;  // Initialised later
-    };
-  }
 
   MALLOC_FAIL_NULL(g_input.input,
                    g_input.n_dimensions * sizeof(value_t),
                    "[Common/Input]");
-
-  // Routes initialisation
-  if (g_input.n_filters > 0 && g_input.n_routes > 0) {
-    MALLOC_FAIL_NULL(g_input.routes,
-                     g_input.n_routes * sizeof(input_filter_key_t),
-                     "[Common/Input]");
-
-    for( uint r = 0; r < g_input.n_routes; r++ ) {
-      g_input.routes[r].key    = 0x00000000;  // Initialised later
-      g_input.routes[r].mask   = 0x00000000;  // Initialised later
-      g_input.routes[r].filter = 0x00000000;  // Initialised later
-    }
-  }
 
   // Set up the multicast callback
   spin1_callback_on(
@@ -68,6 +32,59 @@ value_t* initialise_input(
 
   // Return the input (to the encoders) buffer
   return g_input.input;
+}
+
+// Filter initialisation
+bool get_filters(filtered_input_t* input, address_t filter_region) {
+  input->n_filters = filter_region[0];
+
+  io_printf(IO_BUF, "[Filters] n_filters = %d, n_input_dimensions = %d\n",
+            input->n_filters, input->n_dimensions);
+
+  if (input->n_filters > 0) {
+    MALLOC_FAIL_FALSE(input->filters,
+                      input->n_filters * sizeof(filtered_input_buffer_t*),
+                      "[Common/Input]");
+
+    input_filter_data_t* filters = (input_filter_data_t*) (filter_region + 1);
+
+    for(uint f = 0; f < input->n_filters; f++) {
+      input->filters[f] = input_buffer_initialise(input->n_dimensions);
+      input->filters[f]->filter = filters[f].filter;
+      input->filters[f]->n_filter = filters[f].filter_;
+      input->filters[f]->mask = filters[f].mask;
+      input->filters[f]->mask_ = ~filters[f].mask;
+
+      io_printf(IO_BUF, "Filter [%d] = %k/%k Masked: 0x%08x/0x%08x\n",
+                f, filters[f].filter, filters[f].filter_, filters[f].mask,
+                ~filters[f].mask);
+    };
+  }
+
+  return true;
+}
+
+// Filter routers initialisation
+bool get_filter_routes(filtered_input_t* input, address_t routing_region) {
+  input->n_routes = routing_region[0];
+
+  io_printf(IO_BUF, "[Common/Input] %d filter routes.\n", input->n_routes);
+
+  if (input->n_filters > 0 && input->n_routes > 0) {
+    MALLOC_FAIL_FALSE(input->routes,
+                      input->n_routes * sizeof(input_filter_key_t),
+                      "[Common/Input]");
+    spin1_memcpy(input->routes, routing_region + 1, 
+                 input->n_routes * sizeof(input_filter_key_t));
+
+    for (uint r = 0; r < input->n_routes; r++) {
+      io_printf(IO_BUF, "Filter route [%d] 0x%08x && 0x%08x => %d\n",
+                r, input->routes[r].key, input->routes[r].mask,
+                input->routes[r].filter);
+    }
+  }
+
+  return true;
 }
 
 // Incoming spike callback

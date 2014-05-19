@@ -29,26 +29,10 @@ typedef struct region_system {
   uint machine_timestep;
   uint t_ref;
   value_t dt_over_t_rc;
-  uint n_filters;
-  uint n_filter_keys;
 } region_system_t;
 
 /**
 * \brief Copy in data pertaining to the system region of the Ensemble.
-*
-* We expect there to be 7 ```uint``` size pieces of information within the
-* system region (region 1). These are:
-*
-* Description | Units | Type | Becomes
-* ----------- | ----- | ---- | -------
-* Number of input dimensions | | ```uint``` | ::n_input_dimensions
-* Number of output dimensions | | ```uint``` | ::n_output_dimensions
-* Number of neurons | | ```uint``` | ::n_neurons
-* Machine time step | Microseconds | ```uint``` | ::dt
-* Refactory time constant | Steps | ```uint``` | ::t_ref
-* dt over membrane time constant | | ```accum``` | ::dt_over_t_rc
-* Filter decay constant | | ```accum``` | ::filter
-* Input accumulator mask | | ```uint```
 */
 bool data_system( address_t addr );
 
@@ -72,16 +56,6 @@ bool data_get_decoders(
 bool data_get_keys(
   address_t addr,
   uint n_output_dimensions
-);
-
-bool data_get_filters(
-  address_t addr,
-  region_system_t *pars
-);
-
-bool data_get_filter_keys(
-  address_t addr,
-  region_system_t *pars
 );
 
 #endif

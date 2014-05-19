@@ -25,8 +25,6 @@ typedef struct sdp_tx_parameters {
   uint transmission_delay; //!< Number of ticks between output transmissions
 
   uint n_dimensions;       //!< Number of dimensions to represent
-  uint n_filters;          //!< Number of filters
-  uint n_filter_keys;      //!< Number of filter keys
 
   value_t *input;          //!< Input buffer
   uint *keys;              //!< Output keys
@@ -34,8 +32,6 @@ typedef struct sdp_tx_parameters {
 extern sdp_tx_parameters_t g_sdp_tx; //!< Global parameters
 
 bool data_system(address_t addr);
-void data_get_filters(address_t addr);
-void data_get_filter_routing(address_t addr);
 
 #endif
 

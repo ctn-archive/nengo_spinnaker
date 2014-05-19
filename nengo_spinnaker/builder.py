@@ -168,8 +168,6 @@ def _ensemble_to_ensemble(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
     postvertex = builder.ensemble_vertices[c.post]
     edge = edges.DecoderEdge(c, prevertex, postvertex)
-    edge.index = prevertex.decoders.get_decoder_index(edge)
-    postvertex.filters.add_edge(edge)
     return edge
 
 
@@ -181,11 +179,6 @@ def _ensemble_to_node(builder, c):
 
     # Create the edge
     edge = edges.DecoderEdge(c, prevertex, postvertex)
-    edge.index = prevertex.decoders.get_decoder_index(edge)
-
-    # Store the filter value if necessary
-    if hasattr(postvertex, "filters"):
-        postvertex.filters.add_edge(edge)
 
     return edge
 
@@ -202,7 +195,6 @@ def _node_to_ensemble(builder, c):
         prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)
-        postvertex.filters.add_edge(edge)
         return edge
 
 

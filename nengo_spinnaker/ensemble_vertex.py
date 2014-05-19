@@ -1,4 +1,4 @@
-import os
+import collections
 import numpy as np
 
 import nengo
@@ -6,27 +6,21 @@ import nengo.builder
 import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
-from pacman103.lib import graph, data_spec_gen, lib_map, parameters
-from pacman103.front.common import enums
 
-from . import vertices
-from .utils import bins
+from .utils import fp, filters, vertices
 
 
-class EnsembleVertex(graph.Vertex):
+DecoderEntry = collections.namedtuple('DecoderEntry', ['function',
+                                                       'transform',
+                                                       'decoder'])
+
+
+@filters.with_filters(6, 7)
+class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
-
-    REGIONS = enums.enum1(
-        'SYSTEM',
-        'BIAS',
-        'ENCODERS',
-        'DECODERS',
-        'OUTPUT_KEYS',
-        'FILTERS',
-        'FILTER_ROUTING',
-    )
-
-    model_name = "nengo_ensemble"
+    REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
+                                       'DECODERS', 'OUTPUT_KEYS')
+    MODEL_NAME = "nengo_ensemble"
 
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
         """Create a new EnsembleVertex using the given Ensemble to generate
@@ -41,7 +35,6 @@ class EnsembleVertex(graph.Vertex):
         self._ens = ens
         self.dt = dt
         self.time_step = time_step
-        self.finalised = False
 
         # Create random number generator
         if ens.seed is None:
@@ -51,7 +44,6 @@ class EnsembleVertex(graph.Vertex):
         self.rng = rng
 
         # Generate eval points
-
         if ens.eval_points is None:
             dims, neurons = ens.dimensions, ens.neurons.n_neurons
             n_points = max(np.clip(500 * dims, 750, 2500), 2 * neurons)
@@ -108,302 +100,176 @@ class EnsembleVertex(graph.Vertex):
 
             norm = np.sum(self.encoders ** 2, axis=1)[:, np.newaxis]
             self.encoders /= np.sqrt(norm)
-        ens.encoders = self.encoders  # TODO: remove this when it is no longer
-                                      # required be Ensemble.activities()
+
+        self.encoders_with_gain = self.encoders * self.gain[:, None]
+
+        # TODO: remove this when it is not required be Ensemble.activities()
+        ens.encoders = self.encoders
 
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
-
-        # Decoders and Filters
-        self.decoders = bins.DecoderBin(rng)
-        self.filters = bins.FilterCollection()
 
         # Create the vertex
         super(EnsembleVertex, self).__init__(
             self._ens.n_neurons, constraints=constraints, label=ens.label
         )
 
-    @property
-    def _tau_ref_in_steps(self):
-        return self.tau_ref / (self.time_step * 10**-6)
+    @vertices.region_pre_sizeof('SYSTEM')
+    def sizeof_region_system(self, n_atoms):
+        return 7
 
-    @property
-    def _dt_over_tau_rc(self):
-        return self.dt / self.tau_rc
+    @vertices.region_pre_prepare('BIAS')
+    def preprepare_region_bias(self):
+        # Add the direct input to the bias current
+        self.bias_with_di = (self.bias +
+                             np.dot(self.encoders_with_gain, self.direct_input))
 
-    @property
-    def n_output_dimensions(self):
-        """The sum of the decoders in the decoder bin."""
-        return self.decoders.width
-
-    def sizeof_region_system(self):
-        """Get the size (in bytes) of the SYSTEM region."""
-        # 9 words, 4 bytes per word
-        return 4 * 9
-
+    @vertices.region_pre_sizeof('BIAS')
     def sizeof_region_bias(self, n_atoms):
-        """Get the size (in bytes) of the BIAS region for the given number of
-        neurons/atoms.
-        """
-        # 1 word per atom
-        return 4 * n_atoms
+        return n_atoms
 
+    @vertices.region_pre_sizeof('ENCODERS')
     def sizeof_region_encoders(self, n_atoms):
-        """Get the size (in bytes) of the ENCODERS region for the given number
-        of neurons/atoms.
-        """
-        # 1 word per atom per input dimension
-        return 4 * n_atoms * self.n_input_dimensions
+        return n_atoms * self.n_input_dimensions
 
+    @vertices.region_pre_prepare('DECODERS')
+    def prepare_region_decoders(self):
+        """Generate decoders for the Ensemble."""
+        self._decoders = list()
+        self._func_decoders = dict()  # Map of prebuilt decoders for functions
+        self._edge_decoders = dict()  # Map of edges to decoder index
+
+        for edge in self.out_edges:
+            # If this function/transform combination is already in the list of
+            # decoders, then simply store a mapping from this edge to this
+            # decoder.
+            for (i, decoder) in enumerate(self._decoders):
+                if (decoder.function == edge.function and
+                        decoder.transform == edge.transform):
+                    self._edge_decoders[edge] = i
+                    break
+            else:
+                # Generate the decoder
+                if edge.function in self._func_decoders:
+                    decoder = self._func_decoders[edge.function]
+                else:
+                    decoder = _generate_edge_decoder(edge, self.rng)
+                    self._func_decoders[edge.function] = decoder
+
+                decoder = np.dot(decoder, np.array(edge.transform).T)
+                self._decoders.append(DecoderEntry(edge.function,
+                                                   edge.transform,
+                                                   decoder))
+                self._edge_decoders[edge] = len(self._decoders) - 1
+
+        # Generate the merged decoders, count the number of outgoing dimensions
+        if len(self._decoders) > 0:
+            self._merged_decoders = np.hstack([d.decoder for d in
+                                               self._decoders]) / self.dt
+        else:
+            self._merged_decoders = []
+        self._decoder_widths = [d.decoder.shape[1] for d in self._decoders]
+        self.n_output_dimensions = self._merged_decoders.shape[1]
+
+    @vertices.region_pre_sizeof('DECODERS')
     def sizeof_region_decoders(self, n_atoms):
-        """Get the size (in bytes) of the DECODERS region for the given number
-        of neurons/atoms.
-        """
-        # 1 word per atom per output dimension
-        return 4 * n_atoms * self.n_output_dimensions
+        return n_atoms * self.n_output_dimensions
 
-    def sizeof_region_output_keys(self):
-        """Get the size (in bytes) of the OUTPUT_KEYS region."""
-        # 1 word per output dimension
-        return 4 * self.n_output_dimensions
+    @vertices.region_pre_sizeof('OUTPUT_KEYS')
+    def sizeof_region_output_keys(self, n_atoms):
+        return self.n_output_dimensions
 
-    def sizeof_region_filters(self):
-        # 3 words per filter
-        return 4 * 3 * len(self.filters)
-
-    def sizeof_region_filter_keys(self, subvertex):
-        # 3 words per entry
-        # 1 entry per in_subedge
-        return 4 * 3 * self.filters.num_keys(subvertex)
-
-    def sdram_usage(self, lo_atom, hi_atom):
-        """Return the amount of SDRAM used for the specified atoms."""
-        # At the moment this is the same as the DTCM usage, though this may
-        # change.
-        return self.dtcm_usage(lo_atom, hi_atom)
-
-    def dtcm_usage(self, lo_atom, hi_atom):
-        """Return the amount of DTCM used for the specified atoms."""
-        n_atoms = hi_atom - lo_atom + 1
-        return sum([
-            self.sizeof_region_system(),
-            self.sizeof_region_bias(n_atoms),
-            self.sizeof_region_encoders(n_atoms),
-            self.sizeof_region_decoders(n_atoms),
-            self.sizeof_region_output_keys(),
-            self.sizeof_region_filters(),
-            5 * 3 * 4 * len(self.filters)  # Assume that we will have at most 5
-                                           # subvertices feeding into a given
-                                           # filter. TODO Improve when possible
-        ])
-
-    def cpu_usage(self, lo_atom, hi_atom):
+    def cpu_usage(self, n_atoms):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
-
-    def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
-                                machine_time_step_us, partition_data_object):
-        """Get the resources required for the specified atoms.
-
-        :param lo_atom: Index of the lowest atom to represent
-        :param hi_atom: Index of the highest atom to represent
-        :param n_machine_time_steps: Duration of the simulation
-        :param machine_time_step_us: Duration of a machine time step in us
-        :param partition_data_object: ?
-
-        :returns: A tuple of the partition data object, and the resources
-                  required.
-        """
-        return lib_map.Resources(
-            self.cpu_usage(lo_atom, hi_atom),
-            self.dtcm_usage(lo_atom, hi_atom),
-            self.sdram_usage(lo_atom, hi_atom)
-        )
 
     def get_maximum_atoms_per_core(self):
         # TODO: Calculate this
         return 128
 
-    def generateDataSpec(self, processor, subvertex, dao):
-        """Generate the data spec for the given subvertex."""
-        # Create a spec for the subvertex
-        subvertex.spec = data_spec_gen.DataSpec(processor, dao)
-        subvertex.spec.initialise(0xABCD, dao)
-        subvertex.spec.comment("# Nengo Ensemble")
-
-        # Finalise the values for this Ensemble
-        # Encode any constant inputs, and add to the biases
-        if not self.finalised:
-            self.encoders *= self.gain[:, None]
-            self.bias += np.dot(self.encoders, self.direct_input)
-            self.finalised = True
-
-        # Generate the list of decoders, and the list of ouput keys
-        subvertex.output_keys = list()
-        x, y, p = processor.get_coordinates()
-        for (i, w) in enumerate(self.decoders.decoder_widths):
-            # Generate the routing keys for each dimension
-            for d in range(w):
-                subvertex.output_keys.append(
-                    (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6) | d
-                )
-
-        # Fill in the spec
-        self.reserve_regions(subvertex)
-        self.write_region_system(subvertex)
-        self.write_region_bias(subvertex)
-        self.write_region_encoders(subvertex)
-        self.write_region_decoders(subvertex)
-        self.write_region_output_keys(subvertex)
-
-        if len(self.filters) > 0:
-            self.write_region_filters(subvertex)
-            self.write_region_filter_keys(subvertex)
-
-        # Close the spec
-        subvertex.spec.endSpec()
-        subvertex.spec.closeSpecFile()
-
-        # Get the executable
-        x, y, p = processor.get_coordinates()
-        executable_target = lib_map.ExecutableTarget(
-            vertices.resource_filename("nengo_spinnaker",
-                                       "binaries/%s.aplx" % self.model_name),
-            x, y, p
-        )
-
-        return (executable_target, list(), list())
-
-    def reserve_regions(self, subvertex):
-        """Reserve sufficient space for the regions in the spec."""
-        # TODO Modify the following functions to use write_array rather than
-        #  lots of writes.
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.SYSTEM,
-            self.sizeof_region_system()
-        )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.BIAS,
-            self.sizeof_region_bias(subvertex.n_atoms)
-        )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.ENCODERS,
-            self.sizeof_region_encoders(subvertex.n_atoms)
-        )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.DECODERS,
-            self.sizeof_region_decoders(subvertex.n_atoms)
-        )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.OUTPUT_KEYS,
-            self.sizeof_region_output_keys()
-        )
-        if len(self.filters) > 0:
-            subvertex.spec.reserveMemRegion(
-                self.REGIONS.FILTERS,
-                self.sizeof_region_filters()
-            )
-            subvertex.spec.reserveMemRegion(
-                self.REGIONS.FILTER_ROUTING,
-                self.sizeof_region_filter_keys(subvertex)
-            )
-
-    def write_region_system(self, subvertex):
+    @vertices.region_write('SYSTEM')
+    def write_region_system(self, subvertex, spec):
         """Write the system region for the given subvertex."""
-        subvertex.spec.switchWriteFocus(self.REGIONS.SYSTEM)
-        subvertex.spec.comment("""# System Region
-        # -------------
-        # 1. Number of input dimensions
-        # 2. Number of output dimensions
-        # 3. Number of neurons
-        # 4. Machine time step in us
-        # 5. tau_ref in number of steps
-        # 6. dt over tau_rc
-        # 7. Number of filters
-        # 8. Number of filter keys
-        """)
-        subvertex.spec.write(data=self.n_input_dimensions)
-        subvertex.spec.write(data=self.n_output_dimensions)
-        subvertex.spec.write(data=subvertex.n_atoms)
-        subvertex.spec.write(data=self.time_step)
-        subvertex.spec.write(data=self._tau_ref_in_steps)
-        subvertex.spec.write(data=parameters.s1615(self._dt_over_tau_rc))
+        spec.write(data=self.n_input_dimensions)
+        spec.write(data=self.n_output_dimensions)
+        spec.write(data=subvertex.n_atoms)
+        spec.write(data=self.time_step)
+        spec.write(data=int(self.tau_ref / (self.time_step * 10**-6)))
+        spec.write(data=fp.bitsk(self.dt / self.tau_rc))
 
-        if len(self.in_edges) > 0:
-            subvertex.spec.write(data=len(self.filters))
-            subvertex.spec.write(data=self.filters.num_keys(subvertex))
-        else:
-            subvertex.spec.write(data=0, repeats=2)
-
-    def write_region_bias(self, subvertex):
+    @vertices.region_write('BIAS')
+    def write_region_bias(self, subvertex, spec):
         """Write the bias region for the given subvertex."""
-        subvertex.spec.switchWriteFocus(self.REGIONS.BIAS)
-        subvertex.spec.write_array(parameters.s1615(
-            self.bias[subvertex.lo_atom:subvertex.hi_atom+1]))
+        spec.write_array(fp.bitsk(
+            self.bias_with_di[subvertex.lo_atom:subvertex.hi_atom+1]))
 
-    def write_region_encoders(self, subvertex):
+    @vertices.region_write('ENCODERS')
+    def write_region_encoders(self, subvertex, spec):
         """Write the encoder region for the given subvertex."""
-        subvertex.spec.switchWriteFocus(self.REGIONS.ENCODERS)
-        subvertex.spec.comment("# Encoders Region")
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             for d in range(self.n_input_dimensions):
-                subvertex.spec.write(
-                    data=parameters.s1615(
-                        self.encoders[n, d]
-                    )
-                )
+                spec.write(data=fp.bitsk(self.encoders_with_gain[n, d]))
 
-    def write_region_decoders(self, subvertex):
+    @vertices.region_write('DECODERS')
+    def write_region_decoders(self, subvertex, spec):
         """Write the decoder region for the given subvertex."""
-        subvertex.spec.comment("# Decoders Region")
-        subvertex.spec.switchWriteFocus(self.REGIONS.DECODERS)
-
-        decoders = self.decoders.get_merged_decoders()
-
         for n in range(subvertex.lo_atom, subvertex.hi_atom + 1):
             # Write the decoders for all the atoms within this subvertex
             for d in range(self.n_output_dimensions):
-                subvertex.spec.write(
-                    data=parameters.s1615(decoders[n][d] / self.dt)
-                )
+                spec.write(data=fp.bitsk(self._merged_decoders[n][d]))
 
-    def write_region_output_keys(self, subvertex):
+    @vertices.region_write('OUTPUT_KEYS')
+    def write_region_output_keys(self, subvertex, spec):
         """Write the output keys region for the given subvertex."""
-        subvertex.spec.comment("# Output Keys Region")
-        subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
-        for k in subvertex.output_keys:
-            subvertex.spec.write(data=k)
+        x, y, p = subvertex.placement.processor.get_coordinates()
 
-    def write_region_filters(self, subvertex):
-        """Write the filter parameters."""
-        subvertex.spec.switchWriteFocus(self.REGIONS.FILTERS)
-        subvertex.spec.comment("# Filter Parameters")
-        for f_ in self.filters:
-            f = f_.get_filter_tc(self.dt)
-            subvertex.spec.write(data=parameters.s1615(f[0]))
-            subvertex.spec.write(data=parameters.s1615(f[1]))
-            subvertex.spec.write(data=f_.accumulator_mask)
-
-    def write_region_filter_keys(self, subvertex):
-        # Write the filter routing entries
-        subvertex.spec.switchWriteFocus(self.REGIONS.FILTER_ROUTING)
-        subvertex.spec.comment("# Filter Routing Keys and Masks")
-        """
-        For each incoming subedge we write the key, mask and index of the
-        filter to which it is connected.  At some later point we can try
-        to combine keys and masks to minimise the number of comparisons
-        which are made in the SpiNNaker application.
-        """
-        for i, km in enumerate(self.filters.get_indexed_keys_masks(subvertex)):
-            subvertex.spec.write(data=km[0])
-            subvertex.spec.write(data=km[1])
-            subvertex.spec.write(data=i)
+        for (i, w) in enumerate(self._decoder_widths):
+            # Generate the routing keys for each dimension
+            for d in range(w):
+                spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
+                                 (i << 6) | d))
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = self.decoders.edge_index(subedge.edge)
+        i = self._edge_decoders[subedge.edge]
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
         return key, 0xFFFFFFE0
+
+
+def _generate_edge_decoder(e, rng):
+    """Generate the decoder for the given edge and random number generator.
+
+    :param e: the edge for which to compute the decoder
+    :param rng: random number generator to use
+    """
+    eval_points = e.eval_points
+    if eval_points is None:
+        eval_points = e.prevertex.eval_points
+
+    x = np.dot(eval_points, e.prevertex.encoders.T / e.pre.radius)
+    activities = e.pre.neurons.rates(
+        x, e.prevertex.gain, e.prevertex.bias
+    )
+
+    if e.function is None:
+        targets = eval_points
+    else:
+        targets = np.array(
+            [e.function(ep) for ep in eval_points]
+        )
+        if targets.ndim < 2:
+            targets.shape = targets.shape[0], 1
+
+    solver = e.decoder_solver
+    if solver is None:
+        solver = nengo.decoders.lstsq_L2nz
+
+    decoder = solver(activities, targets, rng)
+
+    if isinstance(decoder, tuple):
+        decoder = decoder[0]
+
+    return decoder

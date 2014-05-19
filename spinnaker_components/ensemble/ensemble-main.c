@@ -14,8 +14,11 @@ void c_main(void) {
   data_get_decoders(region_start(4, address), g_ensemble.n_neurons, g_n_output_dimensions);
   data_get_keys(region_start(5, address), g_n_output_dimensions);
 
-  data_get_filters(region_start(6, address), (region_system_t*) region_start(1, address));
-  data_get_filter_keys(region_start(7, address), (region_system_t*) region_start(1, address));
+  if (!get_filters(&g_input, region_start(6, address)) ||
+      !get_filter_routes(&g_input, region_start(7, address))) {
+    io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
+    return;
+  }
 
   // Set up recording
   if (!record_buffer_initialise(&g_ensemble.recd, region_start(15, address),

@@ -1,6 +1,6 @@
 import nengo
 
-from . import bins
+from . import fixpoint as fp
 
 
 def totuple(a):

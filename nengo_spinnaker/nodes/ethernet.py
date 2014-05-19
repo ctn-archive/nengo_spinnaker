@@ -5,11 +5,11 @@ import struct
 import threading
 import time
 
-from pacman103.lib import parameters
 from pacman103.core.spinnman.sdp import sdp_message as sdp
 
-from . import receive_vertex, transmit_vertex
+from . import sdp_receive_vertex, sdp_transmit_vertex
 from .. import utils
+from ..utils import fp
 
 
 NodeRx = collections.namedtuple('NodeRx', ['rx', 'transform', 'start', 'stop'])
@@ -53,7 +53,7 @@ class Ethernet(object):
             return self._tx_assigns[node]
 
         # Otherwise create one
-        tx = transmit_vertex.TransmitVertex(
+        tx = sdp_transmit_vertex.SDPTransmitVertex(
             node=node,
             label="Tx for %s" % node
         )
@@ -66,7 +66,7 @@ class Ethernet(object):
         """Get the Vertex for output from the originating Node of the given
         Connection, given the transform applied by this Connection.
         """
-        nte = receive_vertex.NodeTransformEntry(c.pre, c.transform,
+        nte = sdp_receive_vertex.NodeTransformEntry(c.pre, c.transform,
                                                 utils.get_connection_width(c))
 
         # See if the combination of this Node and transform has already been
@@ -82,7 +82,7 @@ class Ethernet(object):
                 rx.add_node_transform(nte.node, nte.transform)
                 return rx
         else:
-            rx = receive_vertex.ReceiveVertex(
+            rx = sdp_receive_vertex.SDPReceiveVertex(
                 label="Rx%d" % len(self._rx_vertices)
             )
             rx.add_node_transform(nte.node, nte.transform, nte.width)
@@ -236,8 +236,7 @@ class EthernetCommunicator(object):
             assert(not len(data) % 4)
             vals = [struct.unpack("I", data[n*4:n*4 + 4])[0] for
                     n in range(len(data) / 4)]
-            values = [(v - 0x100000000) * 2**-15 if v & 0x80000000 else
-                      v * 2**-15 for v in vals]
+            values = fp.kbits(vals)
 
             # Save the data
             assert(len(vals) == node.size_in)
@@ -266,8 +265,8 @@ class EthernetCommunicator(object):
                     self._output_fresh[rx_vertex] = False
 
                 data = struct.pack(
-                    "H14x%di" % rx_vertex.n_assigned_dimensions, 1,
-                    *parameters.s1615(vals)
+                    "H14x%dI" % rx_vertex.n_assigned_dimensions, 1,
+                    *fp.bitsk(vals)
                 )
 
                 packet = sdp.SDPMessage(dst_x=x, dst_y=y, dst_cpu=p, data=data)
