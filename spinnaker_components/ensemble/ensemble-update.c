@@ -12,7 +12,7 @@
 
 #include "ensemble.h"
 
-uint lfsr = 1;              //!< LFSR for spike peturbation
+uint lfsr = 1;                   //!< LFSR for spike perturbation
 uint ticks_til_next_output = 0;  //!< Number of ticks until the next output
 uint output_index = 0;           //!< Index of current output dimension
 
@@ -72,7 +72,7 @@ void ensemble_update(uint ticks, uint arg1) {
       set_neuron_refractory( n );
       set_neuron_voltage(n, 0.0k);
 
-      /* Randomly peturb the refractory period to account for inter-tick
+      /* Randomly perturb the refractory period to account for inter-tick
          spiking.*/
       if(kbits(lfsr & 0x00007fff) * v_delta < v_voltage - 1.0k) {
         decrement_neuron_refractory( n );
