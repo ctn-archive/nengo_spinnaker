@@ -9,6 +9,7 @@
 # ----------------------------------------------------------------------------
 
 APP = nengo_rx
+APP_OUTPUT_DIR = $(PWD)/../../nengo_spinnaker/binaries/
 SOURCES = sdp-rx-main.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

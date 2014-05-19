@@ -55,9 +55,10 @@ nosetests.xml
 *.app
 *.aplx
 *.elf
+*.bin
 
 # Documentation
-*/docs/*
+docs/_build/*
 
 # Spurious dot/txt files
 *.dot
