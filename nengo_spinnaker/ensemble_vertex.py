@@ -118,6 +118,12 @@ class EnsembleVertex(vertices.NengoVertex):
     def sizeof_region_system(self, n_atoms):
         return 7
 
+    @vertices.region_pre_prepare('BIAS')
+    def preprepare_region_bias(self):
+        # Add the direct input to the bias current
+        self.bias_with_di = (self.bias +
+                             np.dot(self.encoders_with_gain, self.direct_input))
+
     @vertices.region_pre_sizeof('BIAS')
     def sizeof_region_bias(self, n_atoms):
         return n_atoms
@@ -191,12 +197,6 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=self.time_step)
         spec.write(data=int(self.tau_ref / (self.time_step * 10**-6)))
         spec.write(data=fp.bitsk(self.dt / self.tau_rc))
-
-    @vertices.region_pre_prepare('BIAS')
-    def preprepare_region_bias(self):
-        # Add the direct input to the bias current
-        self.bias_with_di = (self.bias +
-                             np.dot(self.encoders_with_gain, self.direct_input))
 
     @vertices.region_write('BIAS')
     def write_region_bias(self, subvertex, spec):
