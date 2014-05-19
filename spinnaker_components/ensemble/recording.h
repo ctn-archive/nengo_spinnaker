@@ -21,12 +21,12 @@ typedef struct _recording_buffer_t {
   uint frame_length;    //!< Size of 1 frame of the buffer (in words)
   uint n_frames;        //!< Length of the buffer in frames (= n_ticks)
 
+  bool record;          //!< Whether or not to record the data in the buffer
+
   uint current_frame;   //!< Current frame number
 
-  uint *_sdram_buffer;  //!< Location of the buffer in SDRAM
-
-  uint *_buffer_1;      //!< Pointer to first buffer
-  uint *_buffer_2;      //!< Pointer to second buffer
+  uint *_sdram_start;   //!< Start of the buffer in SDRAM
+  uint *_sdram_current; //!< Current location in the SDRAM buffer
 } recording_buffer_t;
 
 /*!\brief Initialise a new recording buffer.
@@ -35,34 +35,35 @@ bool record_buffer_initialise(recording_buffer_t *buffer, address_t region,
                               uint n_frames, uint n_neurons);
 
 /*!\brief Prepare buffer for writing.
+ *
+ * If recording is in use the pointer to the current address in SDRAM will be
+ * advanced by one recording frame.
  */
 static inline void record_buffer_prepare(recording_buffer_t *buffer) {
-  // Point to next buffer and clear
-  buffer->buffer = (buffer->buffer == buffer->_buffer_1) ?
-                    buffer->_buffer_2 : buffer->_buffer_1;
-
-  for (uint i = 0; i < buffer->frame_length; i++) {
-    buffer->buffer[i] = 0x0;
+  if (buffer->record) {
+    buffer->_sdram_current += buffer->frame_length;
   }
-
-  buffer->current_frame++;
 }
 
 /*!\brief Flush the current buffer.
+ *
+ * The contents of the buffer will be appended to the recording region in
+ * SDRAM, but only if recording is in use.
  */
 static inline void record_buffer_flush(recording_buffer_t *buffer) {
   // Copy the current buffer into SDRAM
-  spin1_memcpy(
-    &buffer->_sdram_buffer[buffer->current_frame * buffer->frame_length],
-    buffer->buffer,
-    buffer->frame_length * sizeof(uint)
-  );
+  if (buffer->record) {
+    spin1_memcpy(&buffer->_sdram_current, buffer->buffer,
+                 buffer->frame_length * sizeof(uint));
+  }
 }
 
 /*!\brief Record a spike for the given neuron.
  */
 static inline void record_spike(recording_buffer_t *buffer, uint n_neuron) {
   // Get the offset within the current buffer, and the specific bit to set
+  // We write to the buffer regardless of whether recording is desired or not
+  // in order to reduce branching.
   buffer->buffer[n_neuron >> 5] |= 1 << (n_neuron & 0x1f);
 }
 
