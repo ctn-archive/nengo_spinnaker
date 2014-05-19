@@ -55,6 +55,7 @@ nosetests.xml
 *.app
 *.aplx
 *.elf
+*.bin
 
 # Documentation
 docs/_build/*
