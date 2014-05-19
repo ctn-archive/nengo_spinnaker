@@ -22,6 +22,9 @@ void ensemble_update(uint ticks, uint arg1) {
     spin1_exit(0);
   }
 
+  // Prepare the recorder
+  record_buffer_prepare(&g_ensemble.recd);
+
   // Values used below
   current_t i_membrane;
   voltage_t v_delta, v_voltage;
@@ -83,6 +86,9 @@ void ensemble_update(uint ticks, uint arg1) {
         g_ensemble.output[d] += neuron_decoder( n, d );
       }
       //io_printf( IO_STD, "\n" );
+
+      // Record that the spike occurred
+      record_spike(&g_ensemble.recd, n);
     }
 
     // Perform the output
@@ -107,4 +113,7 @@ void ensemble_update(uint ticks, uint arg1) {
     }
     ticks_til_next_output--;
   }
+
+  // Flush the recording buffer
+  record_buffer_flush(&g_ensemble.recd);
 }
