@@ -31,4 +31,4 @@ Nengo SpiNNaker Simulator
 =========================
 
 .. autoclass:: nengo_spinnaker.Simulator
-   :members:
+   :members: run

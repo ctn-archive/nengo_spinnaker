@@ -36,7 +36,26 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['pacman103', 'nengo', 'numpy', 'pyNN.random']
+MOCK_MODULES = ['pacman103', 'pacman103.conf',
+                'pacman103.front.pynn.connectors', 'pacman103.front.pynn',
+                'pacman103.front.pynn.synapse_dynamics', 'pacman103.front',
+                'pacman103.front.common', 'pacman103.core',
+                'pacman103.core.utilities',
+                'pacman103.core.mapper.routing_algorithms',
+                'pacman103.core.mapper.key_allocator_algorithms',
+                'pacman103.core.mapper',
+                'pacman103.core.mapper.partitioner_algorithms',
+                'pacman103.core.mapper.router',
+                'pacman103.core.mapper.placer_algorithms',
+                'pacman103.core.spinnman.scp', 'pacman103.core.spinnman',
+                'pacman103.core.spinnman.interfaces',
+                'pacman103.core.spinnman.interfaces.transceiver_tools',
+                'pacman103.core.spinnman.sdp', 'pacman103.store',
+                'pacman103.lib',
+                'pacman103.lib.machine', 'pacman103.lib.graph',
+                'visualiser', 'nengo', 'nengo.utils', 'nengo.networks',
+                'nengo.utils.compat', 'nengo.utils.builder', 'nengo.builder',
+                'nengo.decoders',]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
