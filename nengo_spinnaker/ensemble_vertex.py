@@ -195,13 +195,14 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):
         # Add the direct input to the bias current
-        self.bias += np.dot(self.encoders_with_gain, self.direct_input)
+        self.bias_with_di = (self.bias +
+                             np.dot(self.encoders_with_gain, self.direct_input))
 
     @vertices.region_write('BIAS')
     def write_region_bias(self, subvertex, spec):
         """Write the bias region for the given subvertex."""
         spec.write_array(fp.bitsk(
-            self.bias[subvertex.lo_atom:subvertex.hi_atom+1]))
+            self.bias_with_di[subvertex.lo_atom:subvertex.hi_atom+1]))
 
     @vertices.region_write('ENCODERS')
     def write_region_encoders(self, subvertex, spec):
