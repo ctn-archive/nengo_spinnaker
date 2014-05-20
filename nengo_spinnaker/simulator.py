@@ -104,8 +104,9 @@ class Simulator(object):
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
-        # Preparation functions
+        # Preparation functions, set the run time for each vertex
         for vertex in self.dao.vertices:
+            vertex.runtime = time_in_seconds
             if hasattr(vertex, 'pre_prepare'):
                 vertex.pre_prepare()
 
@@ -134,9 +135,8 @@ class Simulator(object):
 
         self.controller.map_model()
 
-        # Preparation functions, set the run time for each vertex
+        # Preparation functions
         for vertex in self.dao.vertices:
-            vertex.runtime = time_in_seconds
             if hasattr(vertex, 'post_prepare'):
                 vertex.post_prepare()
 
