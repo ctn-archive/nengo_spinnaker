@@ -97,8 +97,14 @@ class NengoVertex(graph.Vertex):
                                 *args):
         n_atoms = hi_atom - lo_atom + 1
 
-        dtcm_usage = self.__pre_sizeof_regions(n_atoms)
-        sdram_usage = dtcm_usage  # TODO Break this assumption when necessary
+        sdram_usage = self.__pre_sizeof_regions(n_atoms)
+        dtcm_usage = sdram_usage
+
+        if hasattr(self, 'dtcm_usage'):
+            if callable(self.dtcm_usage):
+                dtcm_usage = self.dtcm_usage(n_atoms)
+            else:
+                dtcm_usage = self.dtcm_usage
 
         return lib_map.Resources(self.cpu_usage(n_atoms), dtcm_usage,
                                  sdram_usage)
