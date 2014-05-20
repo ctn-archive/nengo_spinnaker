@@ -56,6 +56,11 @@ static inline void record_buffer_flush(recording_buffer_t *buffer) {
     spin1_memcpy(&buffer->_sdram_current, buffer->buffer,
                  buffer->frame_length * sizeof(uint));
   }
+
+  // Empty the buffer
+  for (uint i = 0; i < buffer->frame_length; i++) {
+    buffer->buffer[i] = 0;
+  }
 }
 
 /*!\brief Record a spike for the given neuron.
