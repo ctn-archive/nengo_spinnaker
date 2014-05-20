@@ -125,8 +125,8 @@ class Builder(object):
         # TODO Modify to fallback to `isinstance` where possible
         edge = None
 
-        pre_c = c.pre.__class__.__mro__
-        post_c = c.post.__class__.__mro__
+        pre_c = list(c.pre.__class__.__mro__) + [None]
+        post_c = list(c.post.__class__.__mro__) + [None]
 
         for key in itertools.chain(*[[(a, b) for b in post_c] for a in pre_c]):
             if key in edge_builders:
