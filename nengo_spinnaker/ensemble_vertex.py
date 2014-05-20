@@ -19,7 +19,8 @@ DecoderEntry = collections.namedtuple('DecoderEntry', ['function',
 class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
     REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
-                                       'DECODERS', 'OUTPUT_KEYS')
+                                       'DECODERS', 'OUTPUT_KEYS',
+                                       **{'RECORDING': 15})
     MODEL_NAME = "nengo_ensemble"
 
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
@@ -109,6 +110,9 @@ class EnsembleVertex(vertices.NengoVertex):
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
+        # Determine whether to record spikes or otherwise
+        self.record = False
+
         # Create the vertex
         super(EnsembleVertex, self).__init__(
             self._ens.n_neurons, constraints=constraints, label=ens.label
@@ -179,10 +183,25 @@ class EnsembleVertex(vertices.NengoVertex):
     def sizeof_region_output_keys(self, n_atoms):
         return self.n_output_dimensions
 
+    @vertices.region_pre_sizeof('RECORDING')
+    def sizeof_region_recording(self, n_atoms):
+        size = 0
+        if self.record and self.runtime is not None:
+            frame_length = (n_atoms >> 5) + (1 if n_atoms & 0x1f else 0)
+            n_frames = self.runtime * 1000  # TODO Deal with timestep scaling
+            size = n_frames * frame_length
+        return size + 1
+
     def cpu_usage(self, n_atoms):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
+
+    def dtcm_usage(self, n_atoms):
+        """The recording region is not copied into DTCM."""
+        size = sum([r.pre_sizeof(n_atoms) for r in self._regions])
+        size -= self.sizeof_region_recording(n_atoms)
+        return size*4
 
     def get_maximum_atoms_per_core(self):
         # TODO: Calculate this
