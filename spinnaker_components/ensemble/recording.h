@@ -53,7 +53,7 @@ static inline void record_buffer_prepare(recording_buffer_t *buffer) {
 static inline void record_buffer_flush(recording_buffer_t *buffer) {
   // Copy the current buffer into SDRAM
   if (buffer->record) {
-    spin1_memcpy(&buffer->_sdram_current, buffer->buffer,
+    spin1_memcpy(buffer->_sdram_current, buffer->buffer,
                  buffer->frame_length * sizeof(uint));
   }
 
