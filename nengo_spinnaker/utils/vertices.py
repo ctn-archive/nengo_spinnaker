@@ -41,8 +41,18 @@ def Region(index, write, pre_sizeof, sizeof=None, pre_prepare=None,
                     post_prepare)
 
 
-def ordered_regions(*args):
-    return dict([r for r in zip(args, range(1, len(args)+1))])
+def ordered_regions(*args, **kwargs):
+    # Assign ordered regions, then merge in manually specified regions
+    regions = dict([r for r in zip(args, range(1, len(args)+1))])
+    regions.update(**kwargs)
+
+    # Ensure there are no duplicate keys
+    seen = list()
+    for v in regions.values():
+        assert(v not in seen)
+        seen.append(v)
+
+    return regions
 
 
 class NengoVertex(graph.Vertex):
