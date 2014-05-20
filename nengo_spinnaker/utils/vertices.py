@@ -1,7 +1,12 @@
+from bitarray import bitarray
 import collections
 import inspect
+import numpy as np
+import struct
 
 from pacman103.lib import graph, data_spec_gen, lib_map
+from pacman103.core.utilities import memory_utils
+from pacman103.core.spinnman.scp import scamp
 
 try:
     from pkg_resources import resource_filename
@@ -177,3 +182,31 @@ def region_pre_prepare(region):
 
 def region_post_prepare(region):
     return _region_role_mark(region, "post_prepare")
+
+
+def retrieve_region_data(txrx, x, y, p, region_id, region_size):
+    """Get the data from the given processor and region.
+
+    :param txrx: transceiver to use when communicating with the board
+    :param region_id: id of the region to retrieve
+    :param region_size: size of the region (in words)
+    :returns: a string containing data from the region
+    """
+    # Get the application pointer table to get the address for the region
+    txrx.select(x, y)
+    app_data_base_offset = memory_utils.getAppDataBaseAddressOffset(p)
+    _app_data_table = txrx.memory_calls.read_mem(app_data_base_offset,
+                                                 scamp.TYPE_WORD, 4)
+    app_data_table = struct.unpack('<I', _app_data_table)[0]
+
+    # Get the position of the desired region
+    region_base_offset = memory_utils.getRegionBaseAddressOffset(
+        app_data_table, region_id)
+    _region_base = txrx.memory_calls.read_mem(region_base_offset,
+                                              scamp.TYPE_WORD, 4)
+    region_address = struct.unpack('<I', _region_base)[0] + app_data_table
+
+    # Read the region
+    data = txrx.memory_calls.read_mem(region_address, scamp.TYPE_WORD,
+                                      region_size * 4)
+    return data
