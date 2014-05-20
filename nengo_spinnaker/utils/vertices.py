@@ -72,6 +72,8 @@ class NengoVertex(graph.Vertex):
             assert("write" in mapped and "pre_sizeof" in mapped)
             inst._regions.append(Region(index, **mapped))
 
+        inst.runtime = None
+
         return inst
 
     @property
@@ -118,15 +120,22 @@ class NengoVertex(graph.Vertex):
         spec.endSpec()
         spec.closeSpecFile()
 
-        # Get the executable
+        # Write the runtime to the core
         x, y, p = processor.get_coordinates()
+        run_ticks = ((1 << 32) - 1 if self.runtime is None else
+                     self.runtime * 1000)  # TODO Deal with timestep scaling
+
+        addr = 0xe5007000 + 128 * p + 116  # Space reserved for _p_
+        mem_writes = [lib_map.MemWriteTarget(x, y, p, addr, run_ticks)]
+
+        # Get the executable
         executable_target = lib_map.ExecutableTarget(
             resource_filename("nengo_spinnaker",
                               "binaries/%s.aplx" % self.MODEL_NAME),
             x, y, p
         )
 
-        return (executable_target, list(), list())
+        return (executable_target, list(), mem_writes)
 
     def __reserve_regions(self, subvertex, spec):
         for region in self._regions:
