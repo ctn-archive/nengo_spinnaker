@@ -22,14 +22,14 @@ region_t = collections.namedtuple('Region', ['index',
                                              'post_prepare'])
 
 
-def Region(index, write, pre_sizeof, sizeof=None, pre_prepare=None,
+def Region(index, pre_sizeof, write=None, sizeof=None, pre_prepare=None,
            post_prepare=None):
     """Create a new Region instance.
 
     :param index: unique index of the region, will need to be mapped in C
-    :param write: a function which writes the data spec for the region
     :param pre_sizeof: an int, or function, which represents the size of the
                        region IN WORDS (used prior to partitioning)
+    :param write: a function which writes the data spec for the region
     :param sizeof: an int, or function, which represents the size of the
                    region IN WORDS (used prior to partitioning)
     :param pre_prepare: a function called prior to partitioning to prepare
@@ -69,7 +69,7 @@ class NengoVertex(graph.Vertex):
         for (region, index) in cls.REGIONS.items():
             r_fs = filter(lambda (_, m): m._region == region, fs)
             mapped = dict([(m._region_role, m) for (_, m) in r_fs])
-            assert("write" in mapped and "pre_sizeof" in mapped)
+            assert("pre_sizeof" in mapped)
             inst._regions.append(Region(index, **mapped))
 
         inst.runtime = None
@@ -141,12 +141,14 @@ class NengoVertex(graph.Vertex):
         for region in self._regions:
             size = (region.pre_sizeof(subvertex.n_atoms) if region.sizeof is
                     None else region.sizeof(subvertex))
-            spec.reserveMemRegion(region.index, size * 4)
+            unfilled = region.write is None
+            spec.reserveMemRegion(region.index, size*4, leaveUnfilled=unfilled)
 
     def __write_regions(self, subvertex, spec):
         for region in self._regions:
-            spec.switchWriteFocus(region.index)
-            region.write(subvertex, spec)
+            if region.write is not None:
+                spec.switchWriteFocus(region.index)
+                region.write(subvertex, spec)
 
 
 def _region_role_mark(region, role):
