@@ -11,6 +11,8 @@ class FilterVertex(vertices.NengoVertex):
                  output_period=100, constraints=None, label='filter'):
         """Create a new FilterVertex
 
+        We only allow ONE output from a Filter vertex at the moment.
+
         :param dimensions: number of values
         :param output_id: id key to place in packet routing
         :param time_step: Machine timestep (in microseconds)
@@ -58,7 +60,9 @@ class FilterVertex(vertices.NengoVertex):
         """Write the output keys region for the given subvertex."""
         x, y, p = subvertex.placement.processor.get_coordinates()
         i = self.output_id
-        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
+
+        assert(len(self.out_edges) == 1)
+        key = self.out_edges[0].generate_key(x, y, p, i)
 
         for d in range(self.dimensions):
             spec.write(data=key | d)
@@ -67,6 +71,5 @@ class FilterVertex(vertices.NengoVertex):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self.output_id
-        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
-        return key, 0xFFFFFFE0
+        return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
