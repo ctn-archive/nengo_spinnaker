@@ -167,7 +167,7 @@ class EnsembleVertex(vertices.NengoVertex):
             self._merged_decoders = np.hstack([d.decoder for d in
                                                self._decoders]) / self.dt
         else:
-            self._merged_decoders = []
+            self._merged_decoders = np.array([[],])
         self._decoder_widths = [d.decoder.shape[1] for d in self._decoders]
         self.n_output_dimensions = self._merged_decoders.shape[1]
 
