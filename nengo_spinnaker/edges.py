@@ -13,6 +13,8 @@ class NengoEdge(graph.Edge):
         self.conn = conn   # Handy reference
         self._filter_is_accumulatory = filter_is_accumulatory
 
+    dimension_mask = 0x3F  # Mask to extract the dimension from a key
+
     @property
     def width(self):
         utils.get_connection_width(self.conn)

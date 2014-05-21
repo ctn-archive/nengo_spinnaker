@@ -78,9 +78,10 @@ bool get_filter_routes(filtered_input_t* input, address_t routing_region) {
                  input->n_routes * sizeof(input_filter_key_t));
 
     for (uint r = 0; r < input->n_routes; r++) {
-      io_printf(IO_BUF, "Filter route [%d] 0x%08x && 0x%08x => %d\n",
+      io_printf(IO_BUF,
+                "Filter route [%d] 0x%08x && 0x%08x => %d with dmask 0x%08x\n",
                 r, input->routes[r].key, input->routes[r].mask,
-                input->routes[r].filter);
+                input->routes[r].filter, input->routes[r].dimension_mask);
     }
   }
 
@@ -89,14 +90,25 @@ bool get_filter_routes(filtered_input_t* input, address_t routing_region) {
 
 // Incoming spike callback
 void incoming_dimension_value_callback( uint key, uint payload ) {
-  uint dimension = key & 0x0000003f;
-
   /*
    * 1. Look up key in input routing table entry
    * 2. Select appropriate filter
    * 3. Add value (payload) to appropriate dimension of given filter.
    */
-  input_buffer_acc(input_filter(key), dimension, kbits(payload));
+  // Compare against each key, value pair held in the input
+  for(uint i = 0; i < g_input.n_routes; i++) {
+    if ((key & g_input.routes[i].mask ) == g_input.routes[i].key) {
+      input_buffer_acc(g_input.filters[g_input.routes[i].filter],
+                       key & g_input.routes[i].dimension_mask,
+                       kbits(payload));
+      return;
+    }
+  }
+
+  // No match
+  io_printf(IO_STD, "[Filtered Input] ERROR Could not match incoming packet "
+    "with key %d with filter.\n", key
+  );
 }
 
 // Input step

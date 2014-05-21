@@ -33,6 +33,7 @@ typedef struct input_filter_key {
   uint key;     //!< MC packet key
   uint mask;    //!< MC packet mask
   uint filter;  //!< ID of filter to use for packets matching this key, mask
+  uint dimension_mask;  //!< Mask to retrieve dimension from key
 } input_filter_key_t;
 
 
@@ -97,24 +98,6 @@ void incoming_dimension_value_callback( uint key, uint payload );
  * Filter the inputs and set the accumulators to zero.
  */
 void input_filter_step( void );
-
-/**
- * \brief Return a pointer to the appropriate input filter for a given key.
- */
-static inline filtered_input_buffer_t* input_filter( uint key ) {
-  // Compare against each key, value pair held in the input
-  for( uint i = 0; i < g_input.n_routes; i++ ) {
-    if( ( key & g_input.routes[i].mask ) == g_input.routes[i].key ) {
-      // Match the given key and mask
-      return g_input.filters[ g_input.routes[i].filter ];
-    }
-  }
-  // No match
-  io_printf(IO_STD, "[Filtered Input] ERROR Could not match incoming packet "
-    "with key %d with filter.\n", key
-  );
-  return NULL;
-};
 
 #endif
 
