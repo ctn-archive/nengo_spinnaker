@@ -1,7 +1,5 @@
-from bitarray import bitarray
 import collections
 import inspect
-import numpy as np
 import struct
 
 from pacman103.lib import graph, data_spec_gen, lib_map
