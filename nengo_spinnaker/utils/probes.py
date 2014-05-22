@@ -18,7 +18,7 @@ class SpiNNakerProbe(object):
 class SpikeProbe(SpiNNakerProbe):
     def get_data(self, txrx):
         # Calculate the number of frames
-        n_frames = int(self.target_vertex.runtime) * 1000  # TODO Neaten!
+        n_frames = int(self.target_vertex.runtime * 1000)  # TODO Neaten!
         data = [list() for n in range(n_frames)]
 
         for subvertex in self.target_vertex.subvertices:
