@@ -20,6 +20,13 @@ void c_main(void) {
     return;
   }
 
+  // Set up recording
+  if (!record_buffer_initialise(&g_ensemble.recd, region_start(15, address),
+                                simulation_ticks, g_ensemble.n_neurons)) {
+    io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
+    return;
+  }
+
   // Set up routing tables
   io_printf(IO_BUF, "[Ensemble] C_MAIN Configuring system.\n");
   if(leadAp){

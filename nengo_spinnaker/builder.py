@@ -18,6 +18,7 @@ from pacman103.lib import graph
 
 from . import edges
 from . import ensemble_vertex
+from .utils import probes
 
 edge_builders = {}
 
@@ -67,8 +68,8 @@ class Builder(object):
         :param node_builder: a builder for constructing the IO required by
                              Nodes
 
-        :returns: a 3-tuple of a DAO, list of Nodes, list of Node->Node
-                  connections
+        :returns: a 4-tuple of a DAO, list of Nodes, list of Node->Node
+                  connections, list of probes
         """
         self.rng = np.random.RandomState(seed)
 
@@ -77,6 +78,7 @@ class Builder(object):
         self.ensemble_vertices = dict()
         self.nodes = list()
         self.node_node_connections = list()
+        self.probes = list()
 
         # Store a Node Builder
         self.node_builder = node_builder
@@ -97,8 +99,8 @@ class Builder(object):
         for conn in connections:
             self._build(conn)
 
-        # Return the DAO, Nodes and Node->Node connections
-        return self.dao, self.nodes, self.node_node_connections
+        # Return the DAO, Nodes, Node->Node connections and Probes
+        return self.dao, self.nodes, self.node_node_connections, self.probes
 
     def add_vertex(self, vertex):
         self.dao.add_vertex(vertex)
@@ -111,6 +113,14 @@ class Builder(object):
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
         self.add_vertex(vertex)
         self.ensemble_vertices[ens] = vertex
+
+        # Probes
+        # TODO Add support for probing voltage and decoded output
+        if len(ens.probes['spikes']) > 0:
+            vertex.record_spikes = True
+
+            for p in ens.probes['spikes']:
+                self.probes.append(probes.SpikeProbe(vertex, p))
 
     def _build_node(self, node):
         if hasattr(node, "spinnaker_build"):
@@ -125,8 +135,8 @@ class Builder(object):
         # TODO Modify to fallback to `isinstance` where possible
         edge = None
 
-        pre_c = c.pre.__class__.__mro__
-        post_c = c.post.__class__.__mro__
+        pre_c = list(c.pre.__class__.__mro__) + [None]
+        post_c = list(c.post.__class__.__mro__) + [None]
 
         for key in itertools.chain(*[[(a, b) for b in post_c] for a in pre_c]):
             if key in edge_builders:
@@ -190,7 +200,8 @@ def _node_to_ensemble(builder, c):
     # edge from the appropriate Rx element to the Ensemble.
     postvertex = builder.ensemble_vertices[c.post]
     if c.pre.output is not None and not callable(c.pre.output):
-        postvertex.direct_input += np.asarray(c.pre.output)
+        postvertex.direct_input += np.dot(np.asarray(c.pre.output),
+                                          np.asarray(c.transform).T)
     else:
         prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
@@ -201,3 +212,9 @@ def _node_to_ensemble(builder, c):
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
     builder.node_node_connections.append(c)
+
+
+@register_build_edge(post=nengo.Probe)
+def _x_to_probe(builder, c):
+    # Do nothing as we handle Probes elsewhere for the moment
+    pass
