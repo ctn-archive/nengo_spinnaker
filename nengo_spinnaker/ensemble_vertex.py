@@ -103,9 +103,6 @@ class EnsembleVertex(vertices.NengoVertex):
 
         self.encoders_with_gain = self.encoders * self.gain[:, None]
 
-        # TODO: remove this when it is not required be Ensemble.activities()
-        ens.encoders = self.encoders
-
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
