@@ -35,6 +35,13 @@ typedef struct input_filter_key {
   uint filter;  //!< ID of filter to use for packets matching this key, mask
 } input_filter_key_t;
 
+
+typedef struct input_filter_data {
+  value_t filter;   //!< Filter value
+  value_t filter_;  //!< 1.0 - filter value
+  uint mask;        //!< Filter accumulator mask
+} input_filter_data_t;
+
 /**
  * \brief Struct containing all input components.
  */
@@ -55,10 +62,22 @@ extern filtered_input_t g_input; //!< Global input
 
 /**
  * \brief Initialise the input system
- * \param pars Formatted system region
  */
-value_t* initialise_input(
-  uint n_filters, uint n_input_dimensions, uint n_routes);
+value_t* initialise_input(uint n_input_dimensions);
+
+/**
+ * \brief Malloc sufficient space for filters and copy in filter parameters.
+ * \param input input struct to which to add these filters.
+ * \param filter_region address of filter region.
+ */
+bool get_filters(filtered_input_t* input, address_t filter_region);
+
+/**
+ * \brief Malloc sufficient space for the filter routers and copy in.
+ * \param input input struct to which to add these filter routes.
+ * \param routing_region address of filter routing region.
+ */
+bool get_filter_routes(filtered_input_t* input, address_t routing_region);
 
 /**
  * \brief Handle an incoming dimensional value.

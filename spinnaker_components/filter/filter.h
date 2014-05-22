@@ -26,8 +26,6 @@ typedef struct filter_parameters {
   uint transmission_delay; //!< Number of ticks between output transmissions
 
   uint n_dimensions;       //!< Number of dimensions to represent
-  uint n_filters;          //!< Number of filters
-  uint n_filter_keys;      //!< Number of filter keys
 
   value_t *input;          //!< Input buffer
   uint *keys;              //!< Output keys
@@ -36,8 +34,6 @@ extern filter_parameters_t g_filter; //!< Global parameters
 
 bool data_system(address_t addr);
 bool data_get_output_keys(address_t addr);
-void data_get_filters(address_t addr);
-void data_get_filter_routing(address_t addr);
 
 #endif
 

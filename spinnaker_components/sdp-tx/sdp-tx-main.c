@@ -41,50 +41,28 @@ bool data_system(address_t addr) {
   g_sdp_tx.n_dimensions = addr[0];
   g_sdp_tx.machine_timestep = addr[1];
   g_sdp_tx.transmission_delay = addr[2];
-  g_sdp_tx.n_filters = addr[3];
-  g_sdp_tx.n_filter_keys = addr[4];
 
   delay_remaining = g_sdp_tx.transmission_delay;
   io_printf(IO_BUF, "[SDP Tx] Tick period = %d microseconds\n",
             g_sdp_tx.machine_timestep);
   io_printf(IO_BUF, "[SDP Tx] transmission delay = %d\n", delay_remaining);
 
-  g_sdp_tx.input = initialise_input(
-    g_sdp_tx.n_filters, g_sdp_tx.n_dimensions, g_sdp_tx.n_filter_keys);
+  g_sdp_tx.input = initialise_input(g_sdp_tx.n_dimensions);
 
   if (g_sdp_tx.input == NULL)
     return false;
   return true;
 }
 
-void data_get_filters(address_t addr) {
-  // TODO: Be less hacky
-  for( uint f = 0; f < g_sdp_tx.n_filters; f++ ) {
-    g_input.filters[f]->filter = kbits(addr[3*f + 0]);
-    g_input.filters[f]->n_filter = kbits(addr[3*f + 1]);
-    g_input.filters[f]->mask = addr[3*f + 2];
-    g_input.filters[f]->mask_ = ~(addr[3*f + 2]);
-
-    io_printf(IO_BUF, "Filter[%d] = %k, %k\n", f,
-      g_input.filters[f]->filter,
-      g_input.filters[f]->n_filter
-    );
-  }
-}
-
-void data_get_filter_routing(address_t addr) {
-  spin1_memcpy(
-    g_input.routes, addr, g_input.n_routes * sizeof(input_filter_key_t));
-}
-
 void c_main(void) {
   address_t address = system_load_sram();
-  if (!data_system(region_start(1, address))) {
+  if (!data_system(region_start(1, address)) ||
+      !get_filters(&g_input, region_start(2, address)) ||
+      !get_filter_routes(&g_input, region_start(3, address))
+  ) {
     io_printf(IO_BUF, "[Tx] Failed to initialise.\n");
     return;
   }
-  data_get_filters(region_start(2, address));
-  data_get_filter_routing(region_start(3, address));
 
   // Set up routing tables
   if(leadAp) {

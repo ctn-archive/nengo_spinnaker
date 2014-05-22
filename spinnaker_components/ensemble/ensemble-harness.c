@@ -60,8 +60,7 @@ bool initialise_ensemble(region_system_t *pars) {
                     "[Ensemble]");
 
   // Setup subcomponents
-  g_ensemble.input = initialise_input(
-    pars->n_filters, pars->n_input_dimensions, pars->n_filter_keys);
+  g_ensemble.input = initialise_input(pars->n_input_dimensions);
   if (g_ensemble.input == NULL)
     return false;
 

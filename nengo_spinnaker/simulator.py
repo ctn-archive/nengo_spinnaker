@@ -103,10 +103,12 @@ class Simulator(object):
         """Run the model for the specified amount of time."""
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
-        # Preparation functions
+
+        # Preparation functions, set the run time for each vertex
         for vertex in self.dao.vertices:
-            if hasattr(vertex, 'prepare_vertex'):
-                vertex.prepare_vertex()
+            vertex.runtime = time_in_seconds
+            if hasattr(vertex, 'pre_prepare'):
+                vertex.pre_prepare()
 
         # Create some caches for Node->Node connections, and a map of Nodes to
         # other Nodes on host
@@ -131,22 +133,14 @@ class Simulator(object):
                                   # simulation time, not pause in the TxRx.
         self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
 
-        # TODO: All of the following will become more modular!
         self.controller.map_model()
-        self.controller.generate_output()
 
-        # Write the runtime to each used core, UINT32_MAX means "run forever"
-        run_ticks = ((1 << 32) - 1 if time_in_seconds is None else
-                     time_in_seconds * 1000)  # TODO Deal with timestep scaling
+        # Preparation functions
         for vertex in self.dao.vertices:
-            if not vertex.virtual:
-                for subvertex in vertex.subvertices:
-                    x, y, p = subvertex.placement.processor.get_coordinates()
-                    addr = 0xe5007000 + 128 * p + 116  # Space reserved for _p_
-                    self.dao.mem_write_targets.append(lib_map.MemWriteTarget(
-                        x, y, p, addr, run_ticks
-                    ))
+            if hasattr(vertex, 'post_prepare'):
+                vertex.post_prepare()
 
+        self.controller.generate_output()
         self.controller.load_targets()
         self.controller.load_write_mem()
         self.controller.run(self.dao.app_id)

@@ -1,11 +1,7 @@
 import collections
-import os
-
-from pacman103.lib import data_spec_gen, graph, lib_map
-from pacman103.front.common import enums
 
 from .. import utils
-from .. import vertices
+from ..utils import vertices
 
 
 node_transform_entry_t = collections.namedtuple(
@@ -18,22 +14,17 @@ def NodeTransformEntry(node, transform, width):
     return node_transform_entry_t(node, t, width)
 
 
-class ReceiveVertex(graph.Vertex):
+class SDPReceiveVertex(vertices.NengoVertex):
     """PACMAN Vertex for an object which receives input from Nodes on the host
     and forwards it to connected Ensembles.
     """
-
-    REGIONS = enums.enum1(
-        'SYSTEM',
-        'OUTPUT_KEYS'
-    )
+    REGIONS = vertices.ordered_regions('SYSTEM', 'OUTPUT_KEYS')
     MAX_DIMENSIONS = 64
-
-    model_name = "nengo_rx"
+    MODEL_NAME = "nengo_rx"
 
     def __init__(self, time_step=1000, constraints=None, label=None):
-        super(ReceiveVertex, self).__init__(1, constraints=constraints,
-                                            label=label)
+        super(SDPReceiveVertex, self).__init__(1, constraints=constraints,
+                                               label=label)
         self.assigned_nodes_transforms = list()
 
     @property
@@ -66,74 +57,31 @@ class ReceiveVertex(graph.Vertex):
     def get_maximum_atoms_per_core(self):
         return 1
 
-    def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
-                                machine_time_step_us, partition_data_object):
-        return lib_map.Resources(1, 1, 1)
+    def cpu_usage(self, n_atoms):
+        return 1
 
-    def sizeof_region_system(self):
-        """Get the size (in bytes) of the SYSTEM region."""
-        # 2 words
-        return 4 * 2
+    @vertices.region_pre_sizeof('SYSTEM')
+    def sizeof_region_system(self, n_atoms):
+        return 2
 
-    def sizeof_region_output_keys(self):
-        """Get the size (in bytes) of the OUTPUT_KEYS region."""
-        # 1 word per edge
-        return 4 * len(self.out_edges)
+    @vertices.region_pre_sizeof('OUTPUT_KEYS')
+    def sizeof_region_output_keys(self, n_atoms):
+        """Get the size (in words) of the OUTPUT_KEYS region."""
+        return len(self.out_edges)
 
-    def generateDataSpec(self, processor, subvertex, dao):
-        # Get the executable
-        x, y, p = processor.get_coordinates()
-        executable_target = lib_map.ExecutableTarget(
-            vertices.resource_filename("nengo_spinnaker",
-                                       "binaries/%s.aplx" % self.model_name),
-            x, y, p
-        )
+    @vertices.region_write('SYSTEM')
+    def write_region_system(self, subvertex, spec):
+        spec.write(data=1000/self.n_assigned_dimensions)
+        spec.write(data=self.n_assigned_dimensions)
 
-        # Generate the spec
-        subvertex.spec = data_spec_gen.DataSpec(processor, dao)
-        subvertex.spec.initialise(0xABCE, dao)
-        subvertex.spec.comment("# Nengo Rx Component")
-
-        # Fill in the spec
-        self.reserve_regions(subvertex)
-        self.write_region_system(subvertex)
-        self.write_region_output_keys(subvertex)
-
-        subvertex.spec.endSpec()
-        subvertex.spec.closeSpecFile()
-
-        return (executable_target, list(), list())
-
-    def reserve_regions(self, subvertex):
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.SYSTEM,
-            self.sizeof_region_system()
-        )
-        subvertex.spec.reserveMemRegion(
-            self.REGIONS.OUTPUT_KEYS,
-            self.sizeof_region_output_keys()
-        )
-
-    def write_region_system(self, subvertex):
-        subvertex.spec.switchWriteFocus(self.REGIONS.SYSTEM)
-        subvertex.spec.comment("""# System Region
-        # -------------
-        # 1. Number of us between transmitting MC packets
-        # 2. Number of dimensions
-        """)
-        subvertex.spec.write(data=1000/self.n_assigned_dimensions)
-        subvertex.spec.write(data=self.n_assigned_dimensions)
-
-    def write_region_output_keys(self, subvertex):
-        subvertex.spec.switchWriteFocus(self.REGIONS.OUTPUT_KEYS)
-        subvertex.spec.comment("# Output Keys")
-
+    @vertices.region_write('OUTPUT_KEYS')
+    def write_region_output_keys(self, subvertex, spec):
         for nte in self.assigned_nodes_transforms:
             base = self.get_routing_key_for_node_transform(
                 subvertex, nte.node, nte.transform
             )
             for d in range(nte.width):
-                subvertex.spec.write(data=base | d)
+                spec.write(data=base | d)
 
     def get_routing_id_for_node_transform(self, node, transform):
         """Get the routing ID for the given Node and transform.
