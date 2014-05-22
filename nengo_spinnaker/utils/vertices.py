@@ -141,12 +141,19 @@ class NengoVertex(graph.Vertex):
         for region in self._regions:
             size = (region.pre_sizeof(subvertex.n_atoms) if region.sizeof is
                     None else region.sizeof(subvertex))
-            spec.reserveMemRegion(region.index, size * 4)
+            unfilled = region.write is None
+
+            if size > 0:
+                spec.reserveMemRegion(region.index, size*4,
+                                      leaveUnfilled=unfilled)
 
     def __write_regions(self, subvertex, spec):
         for region in self._regions:
-            spec.switchWriteFocus(region.index)
-            region.write(subvertex, spec)
+            size = (region.pre_sizeof(subvertex.n_atoms) if region.sizeof is
+                    None else region.sizeof(subvertex))
+            if region.write is not None and size > 0:
+                spec.switchWriteFocus(region.index)
+                region.write(subvertex, spec)
 
 
 def _region_role_mark(region, role):

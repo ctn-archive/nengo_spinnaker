@@ -65,7 +65,7 @@ bool initialise_ensemble(region_system_t *pars) {
     return false;
 
   g_ensemble.output = initialise_output(pars);
-  if (g_ensemble.output == NULL)
+  if (g_ensemble.output == NULL && g_n_output_dimensions > 0)
     return false;
 
   // Register the update function

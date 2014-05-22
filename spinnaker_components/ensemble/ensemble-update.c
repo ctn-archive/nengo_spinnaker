@@ -13,8 +13,6 @@
 #include "ensemble.h"
 
 uint lfsr = 1;              //!< LFSR for spike peturbation
-uint ticks_til_next_output = 0;  //!< Number of ticks until the next output
-uint output_index = 0;           //!< Index of current output dimension
 
 void ensemble_update(uint ticks, uint arg1) {
   use(arg1);
@@ -84,27 +82,18 @@ void ensemble_update(uint ticks, uint arg1) {
       }
       //io_printf( IO_STD, "\n" );
     }
+  }
 
-    // Perform the output
-    if(ticks_til_next_output == 0){
-      // Transmit the packet with the appropriate key
-      spin1_send_mc_packet(
-        gp_output_keys[output_index],
-        bitsk(gp_output_values[output_index]),
-        WITH_PAYLOAD
-      );
+  // Transmit decoded Ensemble representation
+  for (uint output_index = 0; output_index < g_n_output_dimensions;
+       output_index++) {
+    spin1_send_mc_packet(
+      gp_output_keys[output_index],
+      bitsk(gp_output_values[output_index]),
+      WITH_PAYLOAD
+    );
+    gp_output_values[output_index] = 0;
 
-      // Zero the output buffer and increment the output dimension counter
-      gp_output_values[output_index] = 0;
-      output_index++;
-
-      if(output_index >= g_n_output_dimensions) {
-        output_index = 0;
-      }
-
-      // Reset the output delay
-      ticks_til_next_output = g_output_period + 1;
-    }
-    ticks_til_next_output--;
+    spin1_delay_us(1);
   }
 }

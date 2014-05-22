@@ -17,7 +17,7 @@
 
 #include "ensemble-output.h"
 
-uint g_n_output_dimensions, *gp_output_keys, g_output_period;
+uint g_n_output_dimensions, *gp_output_keys;
 value_t * gp_output_values;
 
 // Initialise everything necessary for the output system
@@ -26,19 +26,18 @@ value_t* initialise_output( region_system_t *pars ){
   // Store globals, initialise arrays
   g_n_output_dimensions = pars->n_output_dimensions;
 
-  MALLOC_FAIL_NULL(gp_output_values,
-                   pars->n_output_dimensions * sizeof(value_t),
-                   "[Ensemble]");
-  MALLOC_FAIL_NULL(gp_output_keys,
-                   pars->n_output_dimensions * sizeof(uint),
-                   "[Ensemble]");
+  if (g_n_output_dimensions > 0) {
+    MALLOC_FAIL_NULL(gp_output_values,
+                     pars->n_output_dimensions * sizeof(value_t),
+                     "[Ensemble]");
+    MALLOC_FAIL_NULL(gp_output_keys,
+                     pars->n_output_dimensions * sizeof(uint),
+                     "[Ensemble]");
+  }
 
   io_printf( IO_BUF, "[Ensemble] n_output_dimensions = %d\n",
     g_n_output_dimensions
   );
-
-  // Calculate the number of microseconds between transmitting output packets
-  g_output_period = pars->n_neurons / g_n_output_dimensions;
 
   // Return the output buffer
   return gp_output_values;
