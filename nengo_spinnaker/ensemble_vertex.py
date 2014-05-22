@@ -241,6 +241,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
         for (i, w) in enumerate(self._decoder_widths):
             # Generate the routing keys for each dimension
+            # TODO Use edges to perform this calculation
             for d in range(w):
                 spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
                                  (i << 6) | d))
@@ -249,9 +250,8 @@ class EnsembleVertex(vertices.NengoVertex):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self._edge_decoders[subedge.edge]
-        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
-        return key, 0xFFFFFFE0
+        return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
 
 
 def _generate_edge_decoder(e, rng):

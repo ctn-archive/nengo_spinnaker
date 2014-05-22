@@ -97,6 +97,7 @@ class SDPReceiveVertex(vertices.NengoVertex):
 
     def get_routing_key_for_node_transform(self, subvertex, node, transform):
         """Get the routing key for the given subvertex, Node and transform."""
+        # TODO Use edges to perform this calculation
         x, y, p = subvertex.placement.processor.get_coordinates()
         i = self.get_routing_id_for_node_transform(node, transform)
         return (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
@@ -105,4 +106,4 @@ class SDPReceiveVertex(vertices.NengoVertex):
         key = self.get_routing_key_for_node_transform(subedge.presubvertex,
                                                       subedge.edge.pre,
                                                       subedge.edge.transform)
-        return key, 0xFFFFFFE0
+        return key, subedge.edge.mask

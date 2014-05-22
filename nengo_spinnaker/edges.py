@@ -13,6 +13,15 @@ class NengoEdge(graph.Edge):
         self.conn = conn   # Handy reference
         self._filter_is_accumulatory = filter_is_accumulatory
 
+    mask = 0xFFFFFFC0  # Routing mask for this type of edge
+    dimension_mask = 0x3F  # Mask to extract the dimension from a key
+
+    def generate_key(self, x, y, p, i):
+        """Return a key for the edge, this will be used in conjunction with
+        the mask from this class for routing.
+        """
+        return (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
+
     @property
     def width(self):
         utils.get_connection_width(self.conn)

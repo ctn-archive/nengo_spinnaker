@@ -11,7 +11,8 @@ FilterItem = collections.namedtuple('FilterItem', ['time_constant',
                                                    'accumulatory'])
 
 
-FilterRoute = collections.namedtuple('FilterRoute', ['key', 'mask', 'index'])
+FilterRoute = collections.namedtuple('FilterRoute', ['key', 'mask', 'index',
+                                                     'dimension_mask'])
 
 
 def with_filters(filter_id=14, routing_id=15):
@@ -46,7 +47,7 @@ def _sizeof_region_filters(self, n_atoms):
 
 @region_pre_sizeof("FILTER_ROUTING")
 def _pre_sizeof_region_filter_routing(self, n_atoms):
-    return 3 * len(self.in_edges) * 5
+    return 4 * len(self.in_edges) * 5
 
 
 @region_pre_prepare('FILTERS')
@@ -93,20 +94,21 @@ def _post_prepare_routing(self):
                 filter(lambda se: se.postsubvertex == subvertex,
                        edge.subedges) for edge in edges]
             )
-            kms = [subedge.edge.prevertex.generate_routing_info(subedge) for
-                   subedge in subedges]
+            kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
+                    subedge.edge.dimension_mask) for subedge in subedges]
 
             # Add the key and mask entries to the filter keys list for this
             # subvertex.
             self.__subvertex_filter_keys[subvertex].extend(
-                [FilterRoute(km[0], km[1], i) for km in kms]
+                [FilterRoute(km[0], km[1], i, dm) for (km, dm) in kms]
             )
 
 
 @region_sizeof("FILTER_ROUTING")
 def _sizeof_region_filter_routing(self, subvertex):
-    # 3 words per entry, 1 entry per in_subedge + 1 for length
-    return 3 * len(self.__subvertex_filter_keys[subvertex]) + 1
+    # 4 words per entry, 1 entry per in_subedge + 1 for length
+    print self.__subvertex_filter_keys
+    return 4 * len(self.__subvertex_filter_keys[subvertex]) + 1
 
 
 @region_write("FILTER_ROUTING")
@@ -118,3 +120,4 @@ def _write_region_filter_routing(self, subvertex, spec):
         spec.write(data=route.key)
         spec.write(data=route.mask)
         spec.write(data=route.index)
+        spec.write(data=route.dimension_mask)
