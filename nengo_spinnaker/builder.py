@@ -197,7 +197,8 @@ def _node_to_ensemble(builder, c):
     # edge from the appropriate Rx element to the Ensemble.
     postvertex = builder.ensemble_vertices[c.post]
     if c.pre.output is not None and not callable(c.pre.output):
-        postvertex.direct_input += np.asarray(c.pre.output)
+        postvertex.direct_input += np.dot(np.asarray(c.pre.output),
+                                          np.asarray(c.transform).T)
     else:
         prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
