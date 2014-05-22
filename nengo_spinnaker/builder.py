@@ -18,6 +18,7 @@ from pacman103.lib import graph
 
 from . import edges
 from . import ensemble_vertex
+from .nodes import value_source_vertex
 
 edge_builders = {}
 
@@ -57,7 +58,7 @@ class Builder(object):
         else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
 
-    def __call__(self, model, dt, seed=None, node_builder=None):
+    def __call__(self, model, dt, seed=None, node_builder=None, config=None):
         """Return a PACMAN103 DAO containing a representation of the given
         model, and a list of Nodes and list of Node->Node connections.
 
@@ -66,20 +67,30 @@ class Builder(object):
         :param seed: seed for random number generators
         :param node_builder: a builder for constructing the IO required by
                              Nodes
+        :param config: a Config option for SpiNNaker specific object
+                       configuration
 
         :returns: a 3-tuple of a DAO, list of Nodes, list of Node->Node
                   connections
         """
         self.rng = np.random.RandomState(seed)
+        self.dt = dt
 
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.ensemble_vertices = dict()
         self.nodes = list()
         self.node_node_connections = list()
+        self.f_of_t_nodes = dict()
 
         # Store a Node Builder
         self.node_builder = node_builder
+
+        # Store the Config (create an empty one if None)
+        if config is None:
+            from .config import Config
+            config = Config()
+        self.config = config
 
         # Get a new network structure with passthrough nodes removed
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
@@ -117,7 +128,12 @@ class Builder(object):
             node.spinnaker_build(self)
         else:
             self.nodes.append(node)
-            self.node_builder.build_node(self, node)
+            if self.config[node].f_of_t:
+                # Node is a function of time to be evaluated in advance
+                pass
+            else:
+                # Nodes to be executed on the host
+                self.node_builder.build_node(self, node)
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
@@ -192,7 +208,20 @@ def _node_to_ensemble(builder, c):
     if c.pre.output is not None and not callable(c.pre.output):
         postvertex.direct_input += np.dot(np.asarray(c.pre.output),
                                           np.asarray(c.transform).T)
+    elif builder.config[c.pre].f_of_t:
+        # Node is a function of time to be evaluated in advance
+        if c.pre in builder.f_of_t_nodes:
+            prevertex = builder.f_of_t_nodes[c.pre]
+        else:
+            prevertex = value_source_vertex.ValueSourceVertex(
+                c.pre, builder.config[c.pre].f_period, builder.dt)
+            builder.add_vertex(prevertex)
+            builder.f_of_t_nodes[c.pre] = prevertex
+
+        edge = edges.NengoEdge(c, prevertex, postvertex)
+        return edge
     else:
+        # Node is executed on host
         prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)

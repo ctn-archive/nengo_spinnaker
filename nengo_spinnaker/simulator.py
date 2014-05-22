@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class Simulator(object):
-    def __init__(self, model, machine_name=None, dt=0.001, seed=None, io=None):
+    def __init__(self, model, machine_name=None, dt=0.001, seed=None, io=None,
+                 config=None):
         # Get the hostname
         if machine_name is None:
             import ConfigParser
@@ -43,7 +44,7 @@ class Simulator(object):
         self.builder = builder.Builder()
 
         (self.dao, self.nodes, self.node_node_connections) = self.builder(
-            model, dt, seed, node_builder=io
+            model, dt, seed, node_builder=io, config=config
         )
         self.dao.writeTextSpecs = True
 
