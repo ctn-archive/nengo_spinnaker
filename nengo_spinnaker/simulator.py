@@ -89,7 +89,7 @@ class Simulator(object):
         :raises KeyError: if the Node is not a valid Node
         """
         # Output to board
-        if is_callable(node.output):
+        if self.node_io.has_node(node):
             self.node_io.set_node_output(node, output)
 
         # Output to other Nodes on host

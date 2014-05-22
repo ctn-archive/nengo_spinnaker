@@ -191,6 +191,10 @@ class EthernetCommunicator(object):
         self._out_sock.close()
         self._in_sock.close()
 
+    def has_node(self, node):
+        """Return whether the given Node has IO"""
+        return node in self._vals
+
     def get_node_input(self, node):
         """Return the latest input for the given Node
 
