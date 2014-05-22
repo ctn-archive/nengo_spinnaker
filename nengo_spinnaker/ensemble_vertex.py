@@ -19,7 +19,8 @@ DecoderEntry = collections.namedtuple('DecoderEntry', ['function',
 class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
     REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
-                                       'DECODERS', 'OUTPUT_KEYS')
+                                       'DECODERS', 'OUTPUT_KEYS',
+                                       **{'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
 
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
@@ -35,6 +36,7 @@ class EnsembleVertex(vertices.NengoVertex):
         self._ens = ens
         self.dt = dt
         self.time_step = time_step
+        self.record_spikes = False
 
         # Create random number generator
         if ens.seed is None:
@@ -102,9 +104,6 @@ class EnsembleVertex(vertices.NengoVertex):
             self.encoders /= np.sqrt(norm)
 
         self.encoders_with_gain = self.encoders * self.gain[:, None]
-
-        # TODO: remove this when it is not required be Ensemble.activities()
-        ens.encoders = self.encoders
 
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
@@ -179,10 +178,25 @@ class EnsembleVertex(vertices.NengoVertex):
     def sizeof_region_output_keys(self, n_atoms):
         return self.n_output_dimensions
 
+    @vertices.region_pre_sizeof('SPIKES')
+    def sizeof_region_recording(self, n_atoms):
+        size = 0
+        if self.record_spikes and self.runtime is not None:
+            frame_length = (n_atoms >> 5) + (1 if n_atoms & 0x1f else 0)
+            n_frames = int(self.runtime * 1000)  # TODO timestep scaling
+            size = n_frames * frame_length
+        return size + 1
+
     def cpu_usage(self, n_atoms):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
+
+    def dtcm_usage(self, n_atoms):
+        """The recording region is not copied into DTCM."""
+        size = sum([r.pre_sizeof(n_atoms) for r in self._regions])
+        size -= self.sizeof_region_recording(n_atoms)
+        return size*4
 
     def get_maximum_atoms_per_core(self):
         # TODO: Calculate this
@@ -197,6 +211,7 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=self.time_step)
         spec.write(data=int(self.tau_ref / (self.time_step * 10**-6)))
         spec.write(data=fp.bitsk(self.dt / self.tau_rc))
+        spec.write(data=0x1 if self.record_spikes else 0x0)  # Recording flag
 
     @vertices.region_write('BIAS')
     def write_region_bias(self, subvertex, spec):
@@ -226,6 +241,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
         for (i, w) in enumerate(self._decoder_widths):
             # Generate the routing keys for each dimension
+            # TODO Use edges to perform this calculation
             for d in range(w):
                 spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
                                  (i << 6) | d))
@@ -234,9 +250,8 @@ class EnsembleVertex(vertices.NengoVertex):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self._edge_decoders[subedge.edge]
-        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
-        return key, 0xFFFFFFE0
+        return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
 
 
 def _generate_edge_decoder(e, rng):
