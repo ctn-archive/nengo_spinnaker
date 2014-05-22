@@ -42,9 +42,8 @@ class Simulator(object):
         # Build the model
         self.builder = builder.Builder()
 
-        (self.dao, self.nodes, self.node_node_connections) = self.builder(
-            model, dt, seed, node_builder=io
-        )
+        (self.dao, self.nodes, self.node_node_connections, self.probes) = \
+            self.builder(model, dt, seed, node_builder=io)
         self.dao.writeTextSpecs = True
 
         self.dt = dt
@@ -172,9 +171,14 @@ class Simulator(object):
                 for sim in node_sims:
                     sim.stop()
 
-            # Stop the application from executing
-            if clean:
-                self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
+        # Retrieve any probed values
+        self.data = dict()
+        for p in self.probes:
+            self.data[p.probe] = p.get_data(self.controller.txrx)
+
+        # Stop the application from executing
+        if clean:
+            self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
 
 
 class NodeSimulator(object):

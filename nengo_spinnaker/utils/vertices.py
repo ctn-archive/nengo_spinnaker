@@ -1,7 +1,10 @@
 import collections
 import inspect
+import struct
 
 from pacman103.lib import graph, data_spec_gen, lib_map
+from pacman103.core.utilities import memory_utils
+from pacman103.core.spinnman.scp import scamp
 
 try:
     from pkg_resources import resource_filename
@@ -22,14 +25,14 @@ region_t = collections.namedtuple('Region', ['index',
                                              'post_prepare'])
 
 
-def Region(index, write, pre_sizeof, sizeof=None, pre_prepare=None,
+def Region(index, pre_sizeof, write=None, sizeof=None, pre_prepare=None,
            post_prepare=None):
     """Create a new Region instance.
 
     :param index: unique index of the region, will need to be mapped in C
-    :param write: a function which writes the data spec for the region
     :param pre_sizeof: an int, or function, which represents the size of the
                        region IN WORDS (used prior to partitioning)
+    :param write: a function which writes the data spec for the region
     :param sizeof: an int, or function, which represents the size of the
                    region IN WORDS (used prior to partitioning)
     :param pre_prepare: a function called prior to partitioning to prepare
@@ -69,7 +72,7 @@ class NengoVertex(graph.Vertex):
         for (region, index) in cls.REGIONS.items():
             r_fs = filter(lambda (_, m): m._region == region, fs)
             mapped = dict([(m._region_role, m) for (_, m) in r_fs])
-            assert("write" in mapped and "pre_sizeof" in mapped)
+            assert("pre_sizeof" in mapped)
             inst._regions.append(Region(index, **mapped))
 
         inst.runtime = None
@@ -141,12 +144,14 @@ class NengoVertex(graph.Vertex):
         for region in self._regions:
             size = (region.pre_sizeof(subvertex.n_atoms) if region.sizeof is
                     None else region.sizeof(subvertex))
-            spec.reserveMemRegion(region.index, size * 4)
+            unfilled = region.write is None
+            spec.reserveMemRegion(region.index, size*4, leaveUnfilled=unfilled)
 
     def __write_regions(self, subvertex, spec):
         for region in self._regions:
-            spec.switchWriteFocus(region.index)
-            region.write(subvertex, spec)
+            if region.write is not None:
+                spec.switchWriteFocus(region.index)
+                region.write(subvertex, spec)
 
 
 def _region_role_mark(region, role):
@@ -175,3 +180,31 @@ def region_pre_prepare(region):
 
 def region_post_prepare(region):
     return _region_role_mark(region, "post_prepare")
+
+
+def retrieve_region_data(txrx, x, y, p, region_id, region_size):
+    """Get the data from the given processor and region.
+
+    :param txrx: transceiver to use when communicating with the board
+    :param region_id: id of the region to retrieve
+    :param region_size: size of the region (in words)
+    :returns: a string containing data from the region
+    """
+    # Get the application pointer table to get the address for the region
+    txrx.select(x, y)
+    app_data_base_offset = memory_utils.getAppDataBaseAddressOffset(p)
+    _app_data_table = txrx.memory_calls.read_mem(app_data_base_offset,
+                                                 scamp.TYPE_WORD, 4)
+    app_data_table = struct.unpack('<I', _app_data_table)[0]
+
+    # Get the position of the desired region
+    region_base_offset = memory_utils.getRegionBaseAddressOffset(
+        app_data_table, region_id)
+    _region_base = txrx.memory_calls.read_mem(region_base_offset,
+                                              scamp.TYPE_WORD, 4)
+    region_address = struct.unpack('<I', _region_base)[0] + app_data_table
+
+    # Read the region
+    data = txrx.memory_calls.read_mem(region_address, scamp.TYPE_WORD,
+                                      region_size * 4)
+    return data

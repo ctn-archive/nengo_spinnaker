@@ -41,6 +41,8 @@
 #include "nengo-common.h"
 #include "dimensional-io.h"
 
+#include "recording.h"
+
 #include "ensemble-data.h"
 #include "ensemble-output.h"
 
@@ -71,6 +73,8 @@ typedef struct ensemble_parameters {
 
   value_t *input;           //!< Input buffer
   value_t *output;          //!< Output buffer
+
+  recording_buffer_t recd;  //!< Spike recording
 } ensemble_parameters_t;
 
 /* Parameters and Buffers ***************************************************/

@@ -29,6 +29,7 @@ typedef struct region_system {
   uint machine_timestep;
   uint t_ref;
   value_t dt_over_t_rc;
+  bool record_spikes;
 } region_system_t;
 
 /**
