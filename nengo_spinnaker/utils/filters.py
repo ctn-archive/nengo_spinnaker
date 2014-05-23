@@ -107,7 +107,6 @@ def _post_prepare_routing(self):
 @region_sizeof("FILTER_ROUTING")
 def _sizeof_region_filter_routing(self, subvertex):
     # 4 words per entry, 1 entry per in_subedge + 1 for length
-    print self.__subvertex_filter_keys
     return 4 * len(self.__subvertex_filter_keys[subvertex]) + 1
 
 
