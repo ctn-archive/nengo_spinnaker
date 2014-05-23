@@ -210,8 +210,10 @@ class EthernetCommunicator(object):
             t_output = np.dot(nrx.transform, output)
 
             with self._out_lock:
-                if self._output_cache[nrx.rx][nrx.start:nrx.stop] != t_output:
-                    self._output_cache[nrx.rx][nrx.start:nrx.stop] = t_output
+                if np.any(self._output_cache[nrx.rx][nrx.start:nrx.stop] !=
+                          t_output):
+                    self._output_cache[nrx.rx][nrx.start:nrx.stop] = \
+                        t_output.reshape((t_output.size))
                     self._output_fresh[nrx.rx] = True
 
     def rx_tick(self):
