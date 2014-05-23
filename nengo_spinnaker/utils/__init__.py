@@ -9,7 +9,7 @@ def totuple(a):
     http://stackoverflow.com/questions/10016352/convert-numpy-array-to-tuple
     """
     try:
-        return totuple(totuple(i) for i in a)
+        return tuple(totuple(i) for i in a)
     except TypeError:
         return a
 
