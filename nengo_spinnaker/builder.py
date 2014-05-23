@@ -19,6 +19,7 @@ from pacman103.lib import graph
 from . import edges
 from . import ensemble_vertex
 from .utils import probes
+from . import value_sink_vertex
 
 edge_builders = {}
 
@@ -115,7 +116,7 @@ class Builder(object):
         self.ensemble_vertices[ens] = vertex
 
         # Probes
-        # TODO Add support for probing voltage and decoded output
+        # TODO Add support for probing voltage
         if len(ens.probes['spikes']) > 0:
             vertex.record_spikes = True
 
@@ -214,7 +215,21 @@ def _node_to_node(builder, c):
     builder.node_node_connections.append(c)
 
 
+@register_build_edge(pre=nengo.Ensemble, post=nengo.Probe)
+def _ensemble_to_probe(builder, c):
+    prevertex = builder.ensemble_vertices[c.pre]
+
+    if c.post.attr == 'decoded_output':
+        # If this is a connection to a 'decoded_output' probe then we add a new
+        # ValueSinkVertex.
+        postvertex = value_sink_vertex.ValueSinkVertex()
+        builder.add_vertex(postvertex)
+        builder.probes.append(probes.DecodedValueProbe(prevertex, postvertex,
+                                                       c.post))
+
+        return edges.DecoderEdge(c, prevertex, postvertex)
+
+
 @register_build_edge(post=nengo.Probe)
 def _x_to_probe(builder, c):
-    # Do nothing as we handle Probes elsewhere for the moment
     pass
