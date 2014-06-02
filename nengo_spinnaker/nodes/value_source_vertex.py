@@ -59,8 +59,9 @@ class ValueSourceVertex(vertices.NengoVertex):
 
         # Data is split into blocks of 20KB, though a block may be less than
         # this.  Each block is pulled into DTCM sequentially.
-        self.data_size = self._n_ticks * sum([t.size for t in self.transforms])
-        self.frames_per_block = 5*1024 / len(self.transforms)  # 20KB / 4*t
+        self.width = sum([t.size for t in self.transforms])
+        self.data_size = self._n_ticks * self.width
+        self.frames_per_block = 5*1024 / self.width  # 20KB / 4*t
         self.full_blocks = self._n_ticks / self.frames_per_block
         self.r_blocks = self._n_ticks % self.frames_per_block
 
@@ -91,7 +92,7 @@ class ValueSourceVertex(vertices.NengoVertex):
     @vertices.region_write('SYSTEM')
     def write_system(self, subvertex, spec):
         spec.write(data=self.time_step)
-        spec.write(data=sum([t.size for t in self.transforms]))
+        spec.write(data=self.width)
         spec.write(data=0x1 if self._periodic else 0x0)
         spec.write(data=self.full_blocks)
         spec.write(data=self.frames_per_block)
