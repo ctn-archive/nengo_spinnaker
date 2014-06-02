@@ -227,6 +227,9 @@ def _ensemble_to_probe(builder, c):
         builder.probes.append(probes.DecodedValueProbe(prevertex, postvertex,
                                                        c.post))
 
+        if c.synapse is None:
+            c.synapse = 0.05
+
         return edges.DecoderEdge(c, prevertex, postvertex)
 
 
