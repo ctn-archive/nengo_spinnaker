@@ -36,8 +36,8 @@ class DecodedValueProbe(SpiNNakerProbe):
         # Cast as a Numpy array, shape and return
         data = np.array(fp.kbits([int(i) for i in
                                   np.fromstring(sdata, dtype=np.uint32)]))
-        return data.reshape((self.recording_vertex.width,
-                             self.recording_vertex.run_ticks))
+        return data.reshape((self.recording_vertex.run_ticks,
+                             self.recording_vertex.width)).T
 
 
 class SpikeProbe(SpiNNakerProbe):
