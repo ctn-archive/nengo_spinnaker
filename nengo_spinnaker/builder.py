@@ -10,6 +10,7 @@ import numpy as np
 import itertools
 
 import nengo
+import nengo.objects
 import nengo.utils.builder
 
 from pacman103.core import dao
@@ -179,6 +180,18 @@ def _ensemble_to_ensemble(builder, c):
     postvertex = builder.ensemble_vertices[c.post]
     edge = edges.DecoderEdge(c, prevertex, postvertex)
     return edge
+
+
+@register_build_edge(pre=nengo.Ensemble, post=nengo.objects.Neurons)
+def _ensemble_to_neurons(builder, c):
+    # Currently only support inhibitory connections from Ensembles to Neurons,
+    # these are notable by having transforms which are [[k]*d]*n: so we check
+    # for this also!
+    ts = c.transform.reshape(c.transform.size)
+    if not np.all([ts[0] == t for t in ts[1:]]):
+        raise Exception("Cannot currently connect to Neurons with anything but"
+                        " a uniform transform.")
+    raise NotImplementedError
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
