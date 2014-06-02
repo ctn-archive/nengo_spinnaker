@@ -57,14 +57,12 @@ typedef struct filtered_input {
   value_t *input;     //!< Resultant input value
 } filtered_input_t;
 
-extern filtered_input_t g_input; //!< Global input
-
 /* Functions *****************************************************************/
 
 /**
  * \brief Initialise the input system
  */
-value_t* initialise_input(uint n_input_dimensions);
+value_t* initialise_input(filtered_input_t* input, uint n_input_dimensions);
 
 /**
  * \brief Malloc sufficient space for filters and copy in filter parameters.
@@ -90,14 +88,14 @@ bool get_filter_routes(filtered_input_t* input, address_t routing_region);
  * dimension referred to is taken from the bottom nibble of the key and the
  * value of the payload is added to the accumulator for this dimension.
  */
-void incoming_dimension_value_callback( uint key, uint payload );
+void input_mcpl_rx(filtered_input_t* input, uint key, uint payload);
 
 /**
  * \brief Handle the buffering and filtering of input
  *
  * Filter the inputs and set the accumulators to zero.
  */
-void input_filter_step( void );
+void input_filter_step(filtered_input_t* input);
 
 #endif
 

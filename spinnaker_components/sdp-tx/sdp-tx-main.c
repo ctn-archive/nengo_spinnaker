@@ -2,6 +2,7 @@
 
 sdp_tx_parameters_t g_sdp_tx;
 uint delay_remaining;
+filtered_input_t g_input;
 
 void sdp_tx_update(uint ticks, uint arg1) {
   use(arg1);
@@ -10,7 +11,7 @@ void sdp_tx_update(uint ticks, uint arg1) {
   }
 
   // Update the filters
-  input_filter_step();
+  input_filter_step(&g_input);
 
   // Increment the counter and transmit if necessary
   delay_remaining--;
@@ -47,11 +48,15 @@ bool data_system(address_t addr) {
             g_sdp_tx.machine_timestep);
   io_printf(IO_BUF, "[SDP Tx] transmission delay = %d\n", delay_remaining);
 
-  g_sdp_tx.input = initialise_input(g_sdp_tx.n_dimensions);
+  g_sdp_tx.input = initialise_input(&g_input, g_sdp_tx.n_dimensions);
 
   if (g_sdp_tx.input == NULL)
     return false;
   return true;
+}
+
+void mcpl_callback(uint key, uint payload) {
+  input_mcpl_rx(&g_input, key, payload);
 }
 
 void c_main(void) {
@@ -71,6 +76,7 @@ void c_main(void) {
 
   // Setup timer tick, start
   spin1_set_timer_tick(g_sdp_tx.machine_timestep);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
   spin1_callback_on(TIMER_TICK, sdp_tx_update, 2);
   spin1_start(SYNC_WAIT);
 }

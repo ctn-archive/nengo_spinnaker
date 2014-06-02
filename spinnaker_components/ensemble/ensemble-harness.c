@@ -16,6 +16,12 @@
 
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;
+filtered_input_t g_input;
+
+/* Multicast Wrapper ********************************************************/
+void mcpl_rx(uint key, uint payload) {
+  input_mcpl_rx(&g_input, key, payload);
+}
 
 /* Initialisation ***********************************************************/
 bool initialise_ensemble(region_system_t *pars) {
@@ -61,7 +67,7 @@ bool initialise_ensemble(region_system_t *pars) {
                     "[Ensemble]");
 
   // Setup subcomponents
-  g_ensemble.input = initialise_input(pars->n_input_dimensions);
+  g_ensemble.input = initialise_input(&g_input, pars->n_input_dimensions);
   if (g_ensemble.input == NULL)
     return false;
 
@@ -71,5 +77,6 @@ bool initialise_ensemble(region_system_t *pars) {
 
   // Register the update function
   spin1_callback_on(TIMER_TICK, ensemble_update, 2);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_rx, -1);
   return true;
 }
