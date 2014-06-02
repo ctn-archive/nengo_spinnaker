@@ -12,11 +12,8 @@ void sink_update(uint ticks, uint arg1) {
 
   // Filter inputs, write the latest value to SRAM
   input_filter_step();
-  for (uint d = 0; d < n_dimensions; d++) {
-    io_printf(IO_BUF, "t = %d ticks, V[%d] = %k\n", ticks, d, input[d]);
-  }
   spin1_memcpy(rec_curr, input, n_dimensions * sizeof(value_t));
-  rec_curr += n_dimensions;
+  rec_curr = &rec_curr[n_dimensions];
 }
 
 void c_main(void)
