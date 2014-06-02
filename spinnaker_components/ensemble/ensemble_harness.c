@@ -16,11 +16,11 @@
 
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;
-filtered_input_t g_input;
+input_filter_t g_input;
 
 /* Multicast Wrapper ********************************************************/
 void mcpl_rx(uint key, uint payload) {
-  input_mcpl_rx(&g_input, key, payload);
+  input_filter_mcpl_rx(&g_input, key, payload);
 }
 
 /* Initialisation ***********************************************************/
@@ -67,7 +67,7 @@ bool initialise_ensemble(region_system_t *pars) {
                     "[Ensemble]");
 
   // Setup subcomponents
-  g_ensemble.input = initialise_input(&g_input, pars->n_input_dimensions);
+  g_ensemble.input = input_filter_initialise(&g_input, pars->n_input_dimensions);
   if (g_ensemble.input == NULL)
     return false;
 

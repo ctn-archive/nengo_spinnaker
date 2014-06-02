@@ -39,14 +39,13 @@
 
 #include "nengo_typedefs.h"
 #include "nengo-common.h"
-#include "dimensional-io.h"
 
 #include "recording.h"
 
-#include "ensemble-data.h"
-#include "ensemble-output.h"
+#include "ensemble_data.h"
+#include "ensemble_output.h"
 
-#include "filtered-input.h"
+#include "input_filter.h"
 
 /* Structs ******************************************************************/
 /** \brief Persistent neuron variables.
@@ -80,7 +79,7 @@ typedef struct ensemble_parameters {
 /* Parameters and Buffers ***************************************************/
 extern ensemble_parameters_t g_ensemble;  //!< Global parameters
 extern uint g_output_period;       //!< Delay in transmitting decoded output
-extern filtered_input_t g_input;   //!< Input filters and buffers
+extern input_filter_t g_input;     //!< Input filters and buffers
 
 /* Functions ****************************************************************/
 /**
