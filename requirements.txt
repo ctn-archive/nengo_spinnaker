@@ -1,1 +1,2 @@
 -e git+https://github.com/ctn-waterloo/nengo#egg=nengo
+bitarray
