@@ -115,7 +115,7 @@ class Builder(object):
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
         self.add_vertex(vertex)
         self.ensemble_vertices[ens] = vertex
-        self.neurons_ensebles[ens.neurons] = ens
+        self.neurons_ensembles[ens.neurons] = vertex
 
         # Probes
         # TODO Add support for probing voltage and decoded output
