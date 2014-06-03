@@ -120,8 +120,8 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):
         # Add the direct input to the bias current
-        self.bias_with_di = (self.bias +
-                             np.dot(self.encoders_with_gain, self.direct_input))
+        self.bias_with_di = (
+            self.bias + np.dot(self.encoders_with_gain, self.direct_input))
 
     @vertices.region_pre_sizeof('BIAS')
     def sizeof_region_bias(self, n_atoms):
@@ -166,7 +166,7 @@ class EnsembleVertex(vertices.NengoVertex):
             self._merged_decoders = np.hstack([d.decoder for d in
                                                self._decoders]) / self.dt
         else:
-            self._merged_decoders = np.array([[],])
+            self._merged_decoders = np.array([[], ])
         self._decoder_widths = [d.decoder.shape[1] for d in self._decoders]
         self.n_output_dimensions = self._merged_decoders.shape[1]
 
