@@ -20,7 +20,9 @@ class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
     REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
                                        'DECODERS', 'OUTPUT_KEYS',
-                                       **{'SPIKES': 15})
+                                       **{'INHIB_FILTER': 8,
+                                          'INHIB_ROUTING': 9,
+                                          'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
 
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
@@ -105,6 +107,9 @@ class EnsembleVertex(vertices.NengoVertex):
 
         self.encoders_with_gain = self.encoders * self.gain[:, None]
 
+        # Inhibition
+        self.inhibitory_edge = None
+
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
@@ -178,6 +183,33 @@ class EnsembleVertex(vertices.NengoVertex):
     def sizeof_region_output_keys(self, n_atoms):
         return self.n_output_dimensions
 
+    @vertices.region_pre_sizeof('INHIB_FILTERS')
+    def sizeof_region_inhib_filters(self, n_atoms):
+        return 1 + 3
+
+    @vertices.region_pre_sizeof('INHIB_ROUTING')
+    def pre_sizeof_region_inhib_routing(self, n_atoms):
+        return 4 * 5
+
+    @vertices.region_post_prepare('INHIB_ROUTING')
+    def post_prepare_inhib_routing(self):
+        self.inhib_filter_keys = collections.defaultdict()
+
+        for subvertex in self.subvertices:
+            subedges = [se for se in self.inhibitory_edge.subedges if
+                        se.presubvertex == subvertex]
+
+            kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
+                    subedge.edge.dimension_mask) for subedge in subedges]
+
+            self.inhib_filter_keys[subvertex].extend(
+                [filters.FilterRoute(km[0], km[1], 0, dm) for (km, dm) in kms]
+            )
+
+    @vertices.region_sizeof('INHIB_ROUTING')
+    def sizeof_region_inhib_routing(self, subvertex):
+        return 4 * len(self.inhib_filter_keys[subvertex]) + 1
+
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
         size = 0
@@ -245,6 +277,27 @@ class EnsembleVertex(vertices.NengoVertex):
             for d in range(w):
                 spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
                                  (i << 6) | d))
+
+    @vertices.region_write('INHIB_FILTER')
+    def write_region_inhib_filter(self, subvertex, spec):
+        spec.write(data=1)
+        f = (np.exp(-self.dt / self.inhibitory_edge.synapse) if
+             self.inhibitory_edge is not None else 0.)
+        spec.write(data=fp.bitsk(f))
+        spec.write(data=fp.bitsk(1 - f))
+        spec.write(data=(0x0 if self.inhibitory_edge.accumulatory else
+                         0xffffffff))
+
+    @vertices.region_write('INHIB_ROUTING')
+    def write_region_inhib_routing(self, subvertex, spec):
+        routes = self.inhib_filter_keys[subvertex]
+
+        spec.write(data=len(routes))
+        for route in routes:
+            spec.write(data=route.key)
+            spec.write(data=route.mask)
+            spec.write(data=route.index)
+            spec.write(data=route.dimension_mask)
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""

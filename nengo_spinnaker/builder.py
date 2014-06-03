@@ -77,6 +77,7 @@ class Builder(object):
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.ensemble_vertices = dict()
+        self.neurons_ensembles = dict()
         self.nodes = list()
         self.node_node_connections = list()
         self.probes = list()
@@ -114,6 +115,7 @@ class Builder(object):
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
         self.add_vertex(vertex)
         self.ensemble_vertices[ens] = vertex
+        self.neurons_ensebles[ens.neurons] = ens
 
         # Probes
         # TODO Add support for probing voltage and decoded output
@@ -189,9 +191,22 @@ def _ensemble_to_neurons(builder, c):
     # for this also!
     ts = c.transform.reshape(c.transform.size)
     if not np.all([ts[0] == t for t in ts[1:]]):
-        raise Exception("Cannot currently connect to Neurons with anything but"
-                        " a uniform transform.")
-    raise NotImplementedError
+        raise NotImplementedError("Cannot currently connect to Neurons with "
+                                  "anything but a uniform transform.")
+
+    try:
+        postvertex = builder.neurons_ensembles[c.post]
+    except KeyError:
+        raise KeyError("Attempt to connect to unknown set of Neurons.")
+
+    if ens.inhibitory_edge is not None:
+        raise NotImplementedError("Only one inhibitory connection may be made "
+                                  "to an ensemble.")
+
+    prevertex = builder.ensemble_vertices[c.pre]
+    edge = edges.DecoderEdge(c, prevertex, postvertex)
+
+    postvertex.inhibitory_edge = edge
 
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)

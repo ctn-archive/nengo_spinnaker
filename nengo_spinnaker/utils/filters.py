@@ -2,6 +2,8 @@ import collections
 import itertools
 import numpy as np
 
+import nengo.objects
+
 from . import fixpoint as fp
 from vertices import (region_pre_sizeof, region_sizeof, region_write,
                       region_pre_prepare, region_post_prepare)
@@ -57,6 +59,10 @@ def _pre_prepare_filters(self):
     self.__filters_in = collections.defaultdict(list)
 
     for edge in self.in_edges:
+        if isinstance(edge.post, nengo.objects.Neurons):
+            # We don't filter the connections to Neurons with other filters
+            continue
+
         filter_item = FilterItem(edge.synapse, edge._filter_is_accumulatory)
 
         if filter_item not in self.__filters:
