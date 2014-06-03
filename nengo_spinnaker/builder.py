@@ -117,6 +117,9 @@ class Builder(object):
         # Probes
         # TODO Add support for probing voltage and decoded output
         if len(ens.probes['spikes']) > 0:
+            if probes.SpikeProbe is None:
+                raise ImportError("Can't probe spikes without module bitarray")
+
             vertex.record_spikes = True
 
             for p in ens.probes['spikes']:
