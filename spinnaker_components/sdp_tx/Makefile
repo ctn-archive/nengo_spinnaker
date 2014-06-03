@@ -10,6 +10,6 @@
 
 APP = nengo_tx
 APP_OUTPUT_DIR = $(PWD)/../../nengo_spinnaker/binaries/
-SOURCES = sdp-tx-main.c ../common/filtered-input.c
+SOURCES = sdp_tx_main.c ../common/input_filter.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend
