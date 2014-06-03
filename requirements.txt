@@ -1,1 +1,1 @@
-[-e] git+git://github.com/ctn-waterloo/nengo#egg=nengo
+[-e] git+git://github.com/ctn-waterloo/nengo
