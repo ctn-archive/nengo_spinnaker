@@ -8,7 +8,6 @@ import time
 from nengo.utils.compat import is_callable
 
 from pacman103.core import control
-from pacman103.lib import lib_map
 
 from . import builder
 from . import nodes
@@ -17,7 +16,24 @@ logger = logging.getLogger(__name__)
 
 
 class Simulator(object):
-    def __init__(self, model, machine_name=None, dt=0.001, seed=None, io=None):
+    """SpiNNaker simulator for Nengo models."""
+    def __init__(self, model, machine_name=None, seed=None, io=None):
+        """Initialise the simulator with a model, machine and IO preferences.
+
+        :param nengo.Network model: The model to simulate
+        :param machine_name: Address of the SpiNNaker machine on which to
+            simulate.  If `None` then the setting is taken out of the
+            PACMAN configuration files.
+        :type machine_name: string or None
+        :param int seed: A seed for all random number generators used in
+            building the model
+        :param io: An IO interface builder from :py:mod:`nengo_spinnaker.io`
+            or None.  The IO is used to allow host-based computation of Nodes
+            to communicate with the SpiNNaker board. If None then an Ethernet
+            connection is used by default.
+        """
+        dt = 0.001
+
         # Get the hostname
         if machine_name is None:
             import ConfigParser
@@ -99,7 +115,13 @@ class Simulator(object):
                                                                output)
 
     def run(self, time_in_seconds=None, clean=True):
-        """Run the model for the specified amount of time."""
+        """Run the model for the specified amount of time.
+
+        :param float time_in_seconds: The duration for which to simulate.
+        :param bool clean: Remove all traces of the simulation from the board
+            on completion of the simulation.  If False then you will need to
+            execute an `app_stop` manually before running any later simulation.
+        """
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
@@ -126,10 +148,12 @@ class Simulator(object):
         # PACMANify!
         self.controller.dao = self.dao
         self.dao.set_hostname(self.machine_name)
-        self.dao.run_time = None  # TODO: Modify Transceiver so that we can
-                                  # manually check for application termination
-                                  # i.e., we want to do something during the
-                                  # simulation time, not pause in the TxRx.
+
+        # TODO: Modify Transceiver so that we can manually check for
+        # application termination  i.e., we want to do something during the
+        # simulation time, not pause in the TxRx.
+        self.dao.run_time = None
+
         self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
 
         self.controller.map_model()
@@ -199,7 +223,7 @@ class NodeSimulator(object):
         self.time_passed = 0.
         self.infilters = infilters
 
-        self.filtered_inputs = collections.defaultdict(lambda : 0.)
+        self.filtered_inputs = collections.defaultdict(lambda: 0.)
 
         self.timer = threading.Timer(self.dt, self.tick)
         self.timer.name = "%sEvalThread" % self.node
