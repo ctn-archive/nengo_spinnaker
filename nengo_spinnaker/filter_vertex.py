@@ -40,7 +40,7 @@ class FilterVertex(vertices.NengoVertex):
         """Get the size (in words) of the OUTPUT_KEYS region."""
         return self.dimensions
 
-    def cpu_usage(self, lo_atom, hi_atom):
+    def cpu_usage(self, n_atoms):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
