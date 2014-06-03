@@ -144,7 +144,7 @@ class EnsembleVertex(vertices.NengoVertex):
             # decoder.
             for (i, decoder) in enumerate(self._decoders):
                 if (decoder.function == edge.function and
-                        decoder.transform == edge.transform):
+                        np.all(decoder.transform == edge.transform)):
                     self._edge_decoders[edge] = i
                     break
             else:
