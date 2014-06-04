@@ -204,9 +204,3 @@ def _node_to_ensemble(builder, c):
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
     builder.node_node_connections.append(c)
-
-
-@register_build_edge(post=nengo.Probe)
-def _x_to_probe(builder, c):
-    # Do nothing as we handle Probes elsewhere for the moment
-    pass
