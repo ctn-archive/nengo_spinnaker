@@ -26,9 +26,17 @@ void ensemble_update(uint ticks, uint arg1) {
   // Values used below
   current_t i_membrane;
   voltage_t v_delta, v_voltage;
+  value_t inhibitory_input = 0;
 
   // Filter inputs
   input_filter_step(&g_input);
+  input_filter_step(&g_input_inhibitory);
+
+  // Compute the inhibition
+  for (uint d = 0; d < g_ensemble.n_inhib_dims; d++) {
+    inhibitory_input += g_input_inhibitory.input[d];
+  }
+  inhibitory_input *= g_ensemble.inhib_gain;
 
   // Perform neuron updates
   for( uint n = 0; n < g_ensemble.n_neurons; n++ ) {
@@ -39,7 +47,7 @@ void ensemble_update(uint ticks, uint arg1) {
     }
 
     // Include neuron bias
-    i_membrane = g_ensemble.i_bias[n];
+    i_membrane = g_ensemble.i_bias[n] - inhibitory_input;
 
     // Encode the input and add to the membrane current
     for( uchar d = 0; d < g_input.n_dimensions; d++ ) {

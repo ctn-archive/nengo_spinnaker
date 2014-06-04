@@ -15,7 +15,11 @@ void c_main(void) {
   data_get_keys(region_start(5, address), g_n_output_dimensions);
 
   if (!input_filter_get_filters(&g_input, region_start(6, address)) ||
-      !input_filter_get_filter_routes(&g_input, region_start(7, address))) {
+      !input_filter_get_filter_routes(&g_input, region_start(7, address)) ||
+      !input_filter_get_filters(&g_input_inhibitory,
+                                region_start(8, address)) ||
+      !input_filter_get_filter_routes(&g_input_inhibitory,
+                                      region_start(9, address))) {
     io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
     return;
   }

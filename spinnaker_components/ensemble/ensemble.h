@@ -67,6 +67,9 @@ typedef struct ensemble_parameters {
   current_t *i_bias;        //!< Population biases \f$1 \times N\f$
   neuron_status_t *status;  //!< Neuron status
 
+  uint n_inhib_dims;        //!< Number of dimensions in inhibitory connection
+  value_t inhib_gain;       //!< Gain of inhibitory connection (value of transform)
+
   value_t *encoders;        //!< Encoder values \f$N \times D_{in}\f$ (including gains)
   value_t *decoders;        //!< Decoder values \f$N \times\sum D_{outs}\f$
 
@@ -80,6 +83,7 @@ typedef struct ensemble_parameters {
 extern ensemble_parameters_t g_ensemble;  //!< Global parameters
 extern uint g_output_period;       //!< Delay in transmitting decoded output
 extern input_filter_t g_input;     //!< Input filters and buffers
+extern input_filter_t g_input_inhibitory;     //!< Input filters and buffers
 
 /* Functions ****************************************************************/
 /**

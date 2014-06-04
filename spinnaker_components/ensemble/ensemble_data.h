@@ -30,6 +30,8 @@ typedef struct region_system {
   uint t_ref;
   value_t dt_over_t_rc;
   bool record_spikes;
+  value_t inhibitory_gain;
+  uint n_inhibitory_dimensions;
 } region_system_t;
 
 /**
