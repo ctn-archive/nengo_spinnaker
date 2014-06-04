@@ -120,7 +120,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
-        return 7
+        return 9
 
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):
@@ -183,6 +183,13 @@ class EnsembleVertex(vertices.NengoVertex):
     def sizeof_region_output_keys(self, n_atoms):
         return self.n_output_dimensions
 
+    @vertices.region_pre_prepare('INHIB_FILTERS')
+    def prepare_region_inhib_filters(self):
+        self.inhib_dims = (0 if self.inhibitory_edge is None else
+                           self.inhibitory_edge.transform.shape[1])
+        self.inhib_gain = (0 if self.inhibitory_edge is None else
+                           self.inhibitory_edge.transform[0][0])
+
     @vertices.region_pre_sizeof('INHIB_FILTERS')
     def sizeof_region_inhib_filters(self, n_atoms):
         return 1 + 3
@@ -244,6 +251,8 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=int(self.tau_ref / (self.time_step * 10**-6)))
         spec.write(data=fp.bitsk(self.dt / self.tau_rc))
         spec.write(data=0x1 if self.record_spikes else 0x0)  # Recording flag
+        spec.write(data=fp.bitsk(self.inhib_gain))
+        spec.write(data=self.inhib_dims)
 
     @vertices.region_write('BIAS')
     def write_region_bias(self, subvertex, spec):
