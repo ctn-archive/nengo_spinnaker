@@ -71,7 +71,7 @@ class SDPReceiveVertex(vertices.NengoVertex):
 
     @vertices.region_write('SYSTEM')
     def write_region_system(self, subvertex, spec):
-        spec.write(data=1000/self.n_assigned_dimensions)
+        spec.write(data=1000)
         spec.write(data=self.n_assigned_dimensions)
 
     @vertices.region_write('OUTPUT_KEYS')
