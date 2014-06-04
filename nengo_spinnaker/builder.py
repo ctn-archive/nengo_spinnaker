@@ -114,14 +114,6 @@ class Builder(object):
         self.add_vertex(vertex)
         self.ensemble_vertices[ens] = vertex
 
-        # Probes
-        # TODO Add support for probing voltage and decoded output
-        if len(ens.probes['spikes']) > 0:
-            vertex.record_spikes = True
-
-            for p in ens.probes['spikes']:
-                self.probes.append(probes.SpikeProbe(vertex, p))
-
     def _build_node(self, node):
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
