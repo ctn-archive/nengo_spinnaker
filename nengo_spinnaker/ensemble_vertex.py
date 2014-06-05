@@ -50,7 +50,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
         # Generate eval points
         if ens.eval_points is None:
-            dims, neurons = ens.dimensions, ens.neurons.n_neurons
+            dims, neurons = ens.dimensions, ens.n_neurons
             n_points = max(np.clip(500 * dims, 750, 2500), 2 * neurons)
             self.eval_points = dists.UniformHypersphere(ens.dimensions).sample(
                 n_points, rng=rng) * ens.radius
@@ -63,25 +63,26 @@ class EnsembleVertex(vertices.NengoVertex):
                 self.eval_points.shape = (-1, 1)
 
         # Set up neurons
-        gain = ens.neurons.gain
-        bias = ens.neurons.bias
+        gain = ens.gain
+        bias = ens.bias
         if gain is None or bias is None:
             # if max_rates and intercepts are distributions,
             # turn them into fixed samples.
             if hasattr(ens.max_rates, 'sample'):
                 ens.max_rates = ens.max_rates.sample(
-                    ens.neurons.n_neurons, rng=rng
+                    ens.n_neurons, rng=rng
                 )
             if hasattr(ens.intercepts, 'sample'):
                 ens.intercepts = ens.intercepts.sample(
-                    ens.neurons.n_neurons, rng=rng
+                    ens.n_neurons, rng=rng
                 )
-            (gain, bias) = ens.neurons.gain_bias(ens.max_rates, ens.intercepts)
+            (gain, bias) = ens.neuron_type.gain_bias(
+                ens.max_rates, ens.intercepts)
 
         self.bias = bias
         self.gain = gain
-        self.tau_rc = ens.neurons.tau_rc
-        self.tau_ref = ens.neurons.tau_ref
+        self.tau_rc = ens.neuron_type.tau_rc
+        self.tau_ref = ens.neuron_type.tau_ref
 
         self.n_input_dimensions = ens.dimensions
 
@@ -93,10 +94,10 @@ class EnsembleVertex(vertices.NengoVertex):
                 sphere = dists.UniformHypersphere(
                     ens.dimensions, surface=True)
                 self.encoders = sphere.sample(
-                    ens.neurons.n_neurons, rng=self.rng)
+                    ens.n_neurons, rng=self.rng)
         else:
             self.encoders = np.array(ens.encoders, dtype=np.float64)
-            enc_shape = (ens.neurons.n_neurons, ens.dimensions)
+            enc_shape = (ens.n_neurons, ens.dimensions)
             if self.encoders.shape != enc_shape:
                 raise nengo.builder.ShapeMismatch(
                     "Encoder shape is %s. Should be (n_neurons, dimensions);"
@@ -127,7 +128,8 @@ class EnsembleVertex(vertices.NengoVertex):
     def preprepare_region_bias(self):
         # Add the direct input to the bias current
         self.bias_with_di = (
-            self.bias + np.dot(self.encoders_with_gain, self.direct_input))
+            self.bias + np.dot(self.encoders_with_gain, self.direct_input)
+        )
 
     @vertices.region_pre_sizeof('BIAS')
     def sizeof_region_bias(self, n_atoms):
@@ -337,7 +339,7 @@ def _generate_edge_decoder(e, rng):
         eval_points = e.prevertex.eval_points
 
     x = np.dot(eval_points, e.prevertex.encoders.T / e.pre.radius)
-    activities = e.pre.neurons.rates(
+    activities = e.pre.neuron_type.rates(
         x, e.prevertex.gain, e.prevertex.bias
     )
 
@@ -350,9 +352,9 @@ def _generate_edge_decoder(e, rng):
         if targets.ndim < 2:
             targets.shape = targets.shape[0], 1
 
-    solver = e.decoder_solver
+    solver = e.solver
     if solver is None:
-        solver = nengo.decoders.lstsq_L2nz
+        solver = nengo.decoders.Lstsq_L2
 
     decoder = solver(activities, targets, rng)
 
