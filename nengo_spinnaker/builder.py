@@ -200,6 +200,8 @@ def _ensemble_to_neurons(builder, c):
 
     postvertex.inhibitory_edge = edge
 
+    return edge
+
 
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
 def _ensemble_to_node(builder, c):
