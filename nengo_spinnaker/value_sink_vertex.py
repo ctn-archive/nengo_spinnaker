@@ -12,9 +12,10 @@ class ValueSinkVertex(vertices.NengoVertex):
     REGIONS = vertices.ordered_regions('SYSTEM', **{'VALUES': 15})
     MODEL_NAME = "nengo_value_sink"
 
-    def __init__(self, dt=0.001, timestep=1000):
+    def __init__(self, width, dt=0.001, timestep=1000):
         super(ValueSinkVertex, self).__init__(1, constraints=None,
                                               label="Nengo Value Sink")
+        self.width = width
         self.timestep = timestep
         self.dt = dt
 
@@ -29,15 +30,6 @@ class ValueSinkVertex(vertices.NengoVertex):
 
     @vertices.region_pre_prepare('SYSTEM')
     def prepare_system(self):
-        # Check that all incoming edges are of the same width
-        assert(len(self.in_edges) > 0)
-        self.width = utils.get_connection_width(self.in_edges[0].conn)
-
-        for e in self.in_edges[1:]:
-            if self.width != utils.get_connection_width(e.conn):
-                raise Exception("Edges with different widths converge on %s."
-                                % self.__class__)
-
         # Calculate the number of ticks of execution
         self.run_ticks = ((1 << 32) - 1 if self.runtime is None else
                           self.runtime * 1000)

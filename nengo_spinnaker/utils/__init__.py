@@ -22,8 +22,5 @@ def get_connection_width(connection):
         return connection.post.dimensions
     elif isinstance(connection.post, nengo.Node):
         return connection.post.size_in
-    elif (isinstance(connection.pre, nengo.Ensemble) and
-            isinstance(connection.post, nengo.Probe)):
-        # TODO Determine width by combined use of input, transform and function
-        # Output width is flexible in this case
-        return connection.pre.dimensions
+    else:
+        raise NotImplementedError
