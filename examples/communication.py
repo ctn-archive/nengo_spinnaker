@@ -6,8 +6,8 @@ D = 2
 model = nengo.Network('Communication Channel')
 with model:
     input = nengo.Node(0.5, label='input')
-    a = nengo.Ensemble(nengo.LIF(100), D, label='a')
-    b = nengo.Ensemble(nengo.LIF(9), D, label='b')
+    a = nengo.Ensemble(100, D, label='a')
+    b = nengo.Ensemble(9, D, label='b')
     def printout(t, x):
         print t, x
         return []
