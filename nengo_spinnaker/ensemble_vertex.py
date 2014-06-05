@@ -22,6 +22,7 @@ class EnsembleVertex(vertices.NengoVertex):
                                        'DECODERS', 'OUTPUT_KEYS',
                                        **{'INHIB_FILTER': 8,
                                           'INHIB_ROUTING': 9,
+                                          'INHIB_GAIN': 10,
                                           'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
 
@@ -120,7 +121,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
-        return 9
+        return 8
 
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):
@@ -198,6 +199,10 @@ class EnsembleVertex(vertices.NengoVertex):
     def pre_sizeof_region_inhib_routing(self, n_atoms):
         return 4 * 5
 
+    @vertices.region_pre_sizeof('INHIB_GAIN')
+    def pre_sizeof_region_inhib_gain(self, n_atoms):
+        return n_atoms
+
     @vertices.region_post_prepare('INHIB_ROUTING')
     def post_prepare_inhib_routing(self):
         self.inhib_filter_keys = collections.defaultdict()
@@ -251,7 +256,6 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=int(self.tau_ref / (self.time_step * 10**-6)))
         spec.write(data=fp.bitsk(self.dt / self.tau_rc))
         spec.write(data=0x1 if self.record_spikes else 0x0)  # Recording flag
-        spec.write(data=fp.bitsk(self.inhib_gain))
         spec.write(data=self.inhib_dims)
 
     @vertices.region_write('BIAS')
@@ -307,6 +311,12 @@ class EnsembleVertex(vertices.NengoVertex):
             spec.write(data=route.mask)
             spec.write(data=route.index)
             spec.write(data=route.dimension_mask)
+
+    @vertices.region_write('INHIB_GAIN')
+    def write_region_inhib_gain(self, subvertex, spec):
+        gains = fp.bitsk(self.gain[subvertex.lo_atom:subvertex.hi_atom+1]
+                         * self.inhib_gain)
+        spec.write_array(gains)
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
