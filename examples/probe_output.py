@@ -18,7 +18,7 @@ sim.run(10.)
 from matplotlib import pyplot as plt
 
 ts = np.arange(0, 10., 0.001)
-plt.plot(ts, sim.data[p].T)
+plt.plot(ts, sim.data[p])
 plt.xlabel("Time / s")
 plt.ylabel("Decoded Output")
 plt.show(block=True)
