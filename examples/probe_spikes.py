@@ -17,12 +17,7 @@ sim.run(10.)
 # Plot the results
 from matplotlib import pyplot as plt
 
-es = [[0.] for n in range(25)]
-for (i, f) in enumerate(sim.data[p]):
-    for n in f:
-        es[n].append(i*0.001)
-
-plt.eventplot(es, colors=[[0, 0, 1]])
+plt.eventplot(sim.data[p], colors=[[0, 0, 1]])
 plt.xlabel("Time / s")
 plt.ylabel("Neurons")
 plt.show(block=True)

@@ -8,9 +8,10 @@ class SpiNNakerProbe(object):
     """A NengoProbe encapsulates the logic required to retrieve data from a
     SpiNNaker machine.
     """
-    def __init__(self, target_vertex, probe):
+    def __init__(self, target_vertex, probe, dt=0.001):
         self.target_vertex = target_vertex
         self.probe = probe
+        self.dt = dt
 
     def get_data(self, txrx):
         raise NotImplementedError
@@ -72,7 +73,14 @@ try:
                     data[f].extend([n + subvertex.lo_atom for n in
                                     range(subvertex.n_atoms) if frame[n]])
 
-            return data
+            # Convert into list of spike times
+            spikes = [[0.] for n in range(self.probe.target.n_neurons)]
+            for (i, f) in enumerate(data):
+                for n in f:
+                    spikes[n].append(i*self.dt)
+
+            return spikes
+
 except ImportError:
     # No bitarray, so no spike probing!
     SpikeProbe = None
