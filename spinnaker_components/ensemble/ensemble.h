@@ -12,14 +12,6 @@
  * using *decoders* (again provided by the host). Decoded values are output
  * in an interleaved fashion during the neuron update loop.
  *
- * Number | Region | Description | Handling Function
- * ------ | ------ | ----------- | -----------------
- * 1 | System | Global parameters | ::copy_in_system_region
- * 2 | Bias   | Bias currents | ::copy_in_bias
- * 3 | Encoders | Neuron encoder matrix | ::copy_in_encoders
- * 4 | Decoders | Decoder matrix | ::copy_in_decoders
- * 5 | Decoder Keys | Routing keys for decoded values | ::copy_in_decoder_keys
- *
  * \author Andrew Mundy <mundya@cs.man.ac.uk>
  * \author Terry Stewart
  * 
