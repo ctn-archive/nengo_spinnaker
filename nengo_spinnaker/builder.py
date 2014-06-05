@@ -19,6 +19,7 @@ from pacman103.lib import graph
 from . import edges
 from . import ensemble_vertex
 from .utils import probes
+from . import value_sink_vertex
 
 edge_builders = {}
 
