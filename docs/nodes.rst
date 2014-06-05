@@ -24,6 +24,8 @@ For example::
 
 Results in:
 
+.. image:: http://amundy.co.uk/assets/img/nengo_spinnaker/host-node.png
+    :width: 500px
 
 For Nodes which are solely functions of time it is possible to precompute the
 output of the Node and play this back.  Nodes with a constant output value and
@@ -50,6 +52,9 @@ marked with an appropriate directive::
     sim = nengo_spinnaker.Simulator(model, config=config)
 
 Results in:
+
+.. image:: http://amundy.co.uk/assets/img/nengo_spinnaker/spinn-node.png
+    :width: 500px
 
 
 The two directives are:

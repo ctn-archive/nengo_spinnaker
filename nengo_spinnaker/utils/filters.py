@@ -71,7 +71,8 @@ def _pre_prepare_filters(self):
 def _write_region_filters(self, subvertex, spec):
     spec.write(data=len(self.__filters))
     for filter_item in self.__filters:
-        f = np.exp(-self.dt / filter_item.time_constant)
+        f = (np.exp(-self.dt / filter_item.time_constant) if
+             filter_item.time_constant is not None else 0.)
         spec.write(data=fp.bitsk(f))
         spec.write(data=fp.bitsk(1 - f))
         spec.write(data=(0x0 if filter_item.accumulatory else 0xffffffff))

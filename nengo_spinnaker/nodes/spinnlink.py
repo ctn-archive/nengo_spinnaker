@@ -63,7 +63,7 @@ class SpiNNlinkUSB(object):
             for subedge in edge.subedges:
                 key = edge.prevertex.generate_routing_info(subedge)[0]
                 node = edge.pre
-                if node not in self.serial_rx:
+                if node not in serial_rx:
                     serial_rx[node] = [key]
                 else:
                     serial_rx[node].append(key)
