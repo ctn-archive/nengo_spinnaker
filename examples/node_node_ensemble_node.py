@@ -14,7 +14,7 @@ with model:
 
     a = nengo.Node(in_f, size_in=0, size_out=1, label="Input")
     b = nengo.Node(lambda t, val : val * -1., size_in=1, size_out=1)
-    c = nengo.Ensemble(nengo.LIF(100), 1)
+    c = nengo.Ensemble(100, 1)
     d = nengo.Node(out_f, size_in=1, size_out=0, label="Output")
 
     nengo.Connection(a, b)
