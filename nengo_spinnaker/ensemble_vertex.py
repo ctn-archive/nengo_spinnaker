@@ -282,7 +282,7 @@ def _generate_edge_decoder(e, rng):
 
     solver = e.solver
     if solver is None:
-        solver = nengo.decoders.lstsq_L2nz
+        solver = nengo.decoders.Lstsq_L2
 
     decoder = solver(activities, targets, rng)
 
