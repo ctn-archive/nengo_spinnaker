@@ -207,7 +207,7 @@ class Simulator(object):
 
     def trange(self, dt=None):
         dt = self.dt if dt is None else dt
-        return np.arange(0., self.time_in_seconds, dt)
+        return dt * np.arange(int(self.time_in_seconds/dt))
 
 
 class NodeSimulator(object):
