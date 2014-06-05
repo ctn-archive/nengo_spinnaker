@@ -122,6 +122,7 @@ class Simulator(object):
             on completion of the simulation.  If False then you will need to
             execute an `app_stop` manually before running any later simulation.
         """
+        self.time_in_seconds = time_in_seconds
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
@@ -203,6 +204,10 @@ class Simulator(object):
         # Stop the application from executing
         if clean:
             self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
+
+    def trange(self, dt=None):
+        dt = self.dt if dt is None else dt
+        return np.arange(0., self.time_in_seconds, dt)
 
 
 class NodeSimulator(object):
