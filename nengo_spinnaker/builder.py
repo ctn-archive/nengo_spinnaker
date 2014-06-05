@@ -100,6 +100,21 @@ class Builder(object):
         for conn in connections:
             self._build(conn)
 
+        # Probes
+        for probe in model.probes:
+            if isinstance(probe.target, nengo.Ensemble):
+                vertex = self.ensemble_vertices[probe.target]
+
+                if probe.attr == 'spikes':
+                    vertex.record_spikes = True
+                    self.probes.append(probes.SpikeProbe(vertex, probe))
+                else:
+                    raise NotImplementedError(
+                        "Cannot probe '%s' on Ensembles" % probe.attr)
+            else:
+                raise NotImplementedError(
+                    "Cannot probe '%s' objects" % type(probe.target))
+
         # Return the DAO, Nodes, Node->Node connections and Probes
         return self.dao, self.nodes, self.node_node_connections, self.probes
 
