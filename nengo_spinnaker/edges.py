@@ -3,16 +3,7 @@ from pacman103.lib import graph
 from . import utils
 
 
-class NengoEdge(graph.Edge):
-    def __init__(self, conn, pre, post, constraints=None, label=None,
-                 filter_is_accumulatory=True):
-        super(NengoEdge, self).__init__(
-            pre, post, constraints=constraints, label=label
-        )
-        self.index = None  # Used in generating routing keys
-        self.conn = conn   # Handy reference
-        self._filter_is_accumulatory = filter_is_accumulatory
-
+class Edge(object):
     mask = 0xFFFFFFC0  # Routing mask for this type of edge
     dimension_mask = 0x3F  # Mask to extract the dimension from a key
 
@@ -21,6 +12,17 @@ class NengoEdge(graph.Edge):
         the mask from this class for routing.
         """
         return (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
+
+
+class NengoEdge(graph.Edge, Edge):
+    def __init__(self, conn, pre, post, constraints=None, label=None,
+                 filter_is_accumulatory=True):
+        super(NengoEdge, self).__init__(
+            pre, post, constraints=constraints, label=label
+        )
+        self.index = None  # Used in generating routing keys
+        self.conn = conn   # Handy reference
+        self._filter_is_accumulatory = filter_is_accumulatory
 
     @property
     def width(self):
@@ -39,3 +41,26 @@ class DecoderEdge(NengoEdge):
 class InputEdge(NengoEdge):
     """Edge representing a connection from a Node via an ReceiveVertex."""
     pass
+
+
+class ValueProbeEdge(graph.Edge, Edge):
+    transform = 1.0
+    function = None
+    eval_points = None
+    solver = None
+
+    def __init__(self, probe, pre, post, constraints=None, label=None,
+                 filter_is_accumulatory=True):
+        super(ValueProbeEdge, self).__init__(
+            pre, post, constraints=constraints, label=label
+        )
+        self.index = None  # Used in generating routing keys
+        self.probe = probe
+        self._filter_is_accumulatory = filter_is_accumulatory
+
+        self.pre = pre._ens
+        self.synapse = probe.conn_args.get('synapse', None)
+
+    @property
+    def width(self):
+        return self.probe.size_in
