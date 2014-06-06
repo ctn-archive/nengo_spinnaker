@@ -124,6 +124,7 @@ class Simulator(object):
             on completion of the simulation.  If False then you will need to
             execute an `app_stop` manually before running any later simulation.
         """
+        self.time_in_seconds = time_in_seconds
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
@@ -206,6 +207,10 @@ class Simulator(object):
         if clean:
             self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
 
+    def trange(self, dt=None):
+        dt = self.dt if dt is None else dt
+        return dt * np.arange(int(self.time_in_seconds/dt))
+
 
 class NodeSimulator(object):
     """A "thread" to periodically evaluate a Node."""
@@ -226,6 +231,8 @@ class NodeSimulator(object):
         self.infilters = infilters
 
         self.filtered_inputs = collections.defaultdict(lambda: 0.)
+
+        self.start = time.clock()
 
         self.timer = threading.Timer(self.dt, self.tick)
         self.timer.name = "%sEvalThread" % self.node
@@ -270,7 +277,7 @@ class NodeSimulator(object):
             logger.warning("%s took longer than one timestep to simulate. "
                            "Decreasing frequency of evaluation." % self.node)
 
-        self.time_passed += self.dt + (stop - start)
+        self.time_passed = time.clock() - self.start
         if self.time is None or self.time_passed < self.time:
             self.timer = threading.Timer(self.dt, self.tick)
             self.timer.name = "EvalThread(%s)" % self.node

@@ -10,17 +10,15 @@ void sdp_rx_tick(uint ticks, uint arg1) {
     spin1_exit(0);
   }
 
-  uint d = g_sdp_rx.current_dimension;
-  if (g_sdp_rx.fresh[d]) {
-    spin1_send_mc_packet(g_sdp_rx.keys[d],
-                         bitsk(g_sdp_rx.output[d]),
-                         WITH_PAYLOAD);
-    g_sdp_rx.fresh[d] = false;
-  }
+  for (uint d = 0; d < g_sdp_rx.n_dimensions; d++) {
+    if (g_sdp_rx.fresh[d]) {
+      spin1_send_mc_packet(g_sdp_rx.keys[d],
+                           bitsk(g_sdp_rx.output[d]),
+                           WITH_PAYLOAD);
+      g_sdp_rx.fresh[d] = false;
 
-  g_sdp_rx.current_dimension++;
-  if (g_sdp_rx.current_dimension >= g_sdp_rx.n_dimensions) {
-    g_sdp_rx.current_dimension = 0;
+      spin1_delay_us(1);
+    }
   }
 }
 
@@ -94,11 +92,6 @@ void c_main(void) {
   // Set up routing tables
   if(leadAp) {
     system_lead_app_configured();
-  }
-
-  // Account for difference in tick period
-  if (simulation_ticks != UINT32_MAX) {
-    simulation_ticks /= g_sdp_rx.n_dimensions;
   }
 
   // Setup timer tick, start
