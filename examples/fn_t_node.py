@@ -4,19 +4,15 @@ import numpy as np
 
 model = nengo.Network()
 
-def printout(t, v):
-    print t, v
-
 def feedin(t):
     return np.array([np.sin(t), np.cos(t)])
 
 with model:
     a = nengo.Node(feedin, label='input')
     e = nengo.Ensemble(100, 2)
-    b = nengo.Node(printout, size_in=2, size_out=0, label='output')
+    p = nengo.Probe(e)
 
     nengo.Connection(a, e)
-    nengo.Connection(e, b, synapse=0.05, transform=[[0.5, -0.5]])
 
 # Configure `a` as being a function of time
 config = nengo_spinnaker.Config()
@@ -26,3 +22,8 @@ config[a].f_period = 8*np.pi  # A lie!
 # Create the simulation
 sim = nengo_spinnaker.Simulator(model, config=config)
 sim.run(20.)
+
+from matplotlib import pyplot as plt
+plt.plot(sim.trange(), sim.data[p])
+plt.ylabel('Time / s')
+plt.show()
