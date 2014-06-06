@@ -20,6 +20,7 @@ from pacman103.lib import graph
 from . import edges
 from . import ensemble_vertex
 from .utils import probes
+from . import value_sink_vertex
 
 edge_builders = {}
 
@@ -100,6 +101,29 @@ class Builder(object):
         # Build each of the connections
         for conn in connections:
             self._build(conn)
+
+        # Probes
+        for probe in model.probes:
+            if isinstance(probe.target, nengo.Ensemble):
+                vertex = self.ensemble_vertices[probe.target]
+
+                if probe.attr == 'spikes':
+                    vertex.record_spikes = True
+                    self.probes.append(probes.SpikeProbe(vertex, probe))
+                elif probe.attr == 'decoded_output':
+                    postvertex = value_sink_vertex.ValueSinkVertex(
+                        probe.size_in)
+                    self.add_vertex(postvertex)
+                    self.add_edge(
+                        edges.ValueProbeEdge(probe, vertex, postvertex))
+                    self.probes.append(
+                        probes.DecodedValueProbe(vertex, postvertex, probe))
+                else:
+                    raise NotImplementedError(
+                        "Cannot probe '%s' on Ensembles" % probe.attr)
+            else:
+                raise NotImplementedError(
+                    "Cannot probe '%s' objects" % type(probe.target))
 
         # Return the DAO, Nodes, Node->Node connections and Probes
         return self.dao, self.nodes, self.node_node_connections, self.probes
