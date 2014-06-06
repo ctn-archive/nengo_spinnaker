@@ -23,6 +23,9 @@ void c_main(void) {
   }
   spin1_memcpy(g_ensemble.inhib_gain, region_start(10, address),
                g_ensemble.n_neurons * sizeof(value_t));
+  for (uint n = 0; n < g_ensemble.n_neurons; n++) {
+    io_printf(IO_BUF, "Inhib gain[%d] = %k\n", n, g_ensemble.inhib_gain[n]);
+  }
 
   // Load subcomponents
   if (!input_filter_get_filters(&g_input, region_start(6, address)) ||

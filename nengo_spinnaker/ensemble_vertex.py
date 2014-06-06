@@ -321,8 +321,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_write('INHIB_GAIN')
     def write_region_inhib_gain(self, subvertex, spec):
-        gains = fp.bitsk(self.gain[subvertex.lo_atom:subvertex.hi_atom+1]
-                         * self.inhib_gain)
+        gains = fp.bitsk(self.gain[subvertex.lo_atom:subvertex.hi_atom+1])
         spec.write_array(gains)
 
     def generate_routing_info(self, subedge):
