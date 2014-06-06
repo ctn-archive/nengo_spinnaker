@@ -52,13 +52,8 @@ class ValueSourceVertex(vertices.NengoVertex):
         for edge in self.out_edges:
             t = np.array(edge.transform)
 
-            # If the output dimension > 1 and the transform is [[scale]] then
-            # the transform should be the identity matrix * scale.
-            if self.node.size_out > 1:
-                if t.shape == (1, 1):
-                    t = np.eye(self.node.size_out)*t[0][0]
-                elif t.shape == ():
-                    t = np.eye(self.node.size_out)*t
+            if t.shape == ():
+                t = np.eye(self.node.size_out)*t
 
             if t not in self.transforms:
                 self.transforms.append(t)
