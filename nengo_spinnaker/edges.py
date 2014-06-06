@@ -43,6 +43,16 @@ class InputEdge(NengoEdge):
     pass
 
 
+class InhibitionEdge(NengoEdge):
+    @property
+    def width(self):
+        return 1
+
+    @property
+    def transform(self):
+        return self.conn.transform[0][0]
+
+
 class ValueProbeEdge(graph.Edge, Edge):
     transform = 1.0
     function = None
@@ -59,6 +69,7 @@ class ValueProbeEdge(graph.Edge, Edge):
         self._filter_is_accumulatory = filter_is_accumulatory
 
         self.pre = pre._ens
+        self.post = post
         self.synapse = probe.conn_args.get('synapse', None)
 
     @property

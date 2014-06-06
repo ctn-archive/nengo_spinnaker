@@ -77,9 +77,13 @@ bool initialise_ensemble(region_system_t *pars) {
   if (g_ensemble.input == NULL)
     return false;
 
-  if (NULL == input_filter_initialise(
-        &g_input_inhibitory, pars->n_inhibitory_dimensions))
-    return false;
+  io_printf(IO_BUF, "@\n");
+  if (pars->n_inhibitory_dimensions > 0) {
+    if (NULL == input_filter_initialise(
+          &g_input_inhibitory, pars->n_inhibitory_dimensions))
+      return false;
+  }
+  io_printf(IO_BUF, "@\n");
 
   g_ensemble.output = initialise_output(pars);
   if (g_ensemble.output == NULL && g_n_output_dimensions > 0)

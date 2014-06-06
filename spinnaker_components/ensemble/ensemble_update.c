@@ -46,7 +46,7 @@ void ensemble_update(uint ticks, uint arg1) {
     }
 
     // Include neuron bias
-    i_membrane = (g_ensemble.i_bias[n] -
+    i_membrane = (g_ensemble.i_bias[n] +
                   inhibitory_input * g_ensemble.inhib_gain[n]);
 
     // Encode the input and add to the membrane current
