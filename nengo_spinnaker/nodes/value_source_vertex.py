@@ -68,7 +68,8 @@ class ValueSourceVertex(vertices.NengoVertex):
 
         # Data is split into blocks of 20KB, though a block may be less than
         # this.  Each block is pulled into DTCM sequentially.
-        self.width = sum([t.shape[0] for t in self.transforms])
+        self.width = sum([t.shape[0] if self.node.size_out > 1 else t.size for
+                          t in self.transforms])
         self.data_size = self._n_ticks * self.width
         self.frames_per_block = 5*1024 / self.width  # 20KB / 4*t
         self.full_blocks = self._n_ticks / self.frames_per_block
