@@ -22,3 +22,5 @@ def get_connection_width(connection):
         return connection.post.dimensions
     elif isinstance(connection.post, nengo.Node):
         return connection.post.size_in
+    else:
+        raise NotImplementedError

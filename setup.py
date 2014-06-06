@@ -34,9 +34,11 @@ setup(
     description=description,
     long_description=long_description,
     requires=[
-        "bitarray",
         "nengo",
         "numpy",
     ],
+    extras_require={
+        'Spike probing': ['bitarray'],
+    },
     test_suite='nengo_spinnaker.test',
 )
