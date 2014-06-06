@@ -51,6 +51,15 @@ class ValueSourceVertex(vertices.NengoVertex):
         # otherwise add the new transform.
         for edge in self.out_edges:
             t = np.array(edge.transform)
+
+            # If the output dimension > 1 and the transform is [[scale]] then
+            # the transform should be the identity matrix * scale.
+            if self.node.size_out > 1:
+                if t.shape == (1, 1):
+                    t = np.eye(self.node.size_out)*t[0][0]
+                elif t.shape == ():
+                    t = np.eye(self.node.size_out)*t
+
             if t not in self.transforms:
                 self.transforms.append(t)
 
@@ -59,7 +68,7 @@ class ValueSourceVertex(vertices.NengoVertex):
 
         # Data is split into blocks of 20KB, though a block may be less than
         # this.  Each block is pulled into DTCM sequentially.
-        self.width = sum([t.size for t in self.transforms])
+        self.width = sum([t.shape[0] for t in self.transforms])
         self.data_size = self._n_ticks * self.width
         self.frames_per_block = 5*1024 / self.width  # 20KB / 4*t
         self.full_blocks = self._n_ticks / self.frames_per_block
@@ -67,9 +76,13 @@ class ValueSourceVertex(vertices.NengoVertex):
 
         transform = np.vstack(self.transforms)    # Combine the transforms
         ts = np.arange(0, self._n_ticks * self.dt, self.dt)  # Eval points
-        vs = np.vectorize(self.node.output)(ts)   # Evaluate at each point
-        vs = vs.reshape((1, vs.size))
-        self.data = np.dot(transform, vs).T
+
+        data = []
+        for t in ts:
+            v = np.array(self.node.output(t))
+            data.append(np.dot(transform, v))
+        data = np.array(data)
+        self.data = data.reshape((1, data.size))
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_system(self, n_atoms):
