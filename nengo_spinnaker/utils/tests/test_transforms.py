@@ -1,10 +1,27 @@
 """Tests for transform expansion utility module.
+
+TODO Tests for slice notation connections.
 """
 
 import numpy as np
+import pytest
 
 import nengo
 from nengo_spinnaker.utils import transforms
+
+
+def test_equivalent_source():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        b = nengo.Ensemble(1, 1)
+        c = nengo.Ensemble(1, 1)
+
+        c1 = nengo.Connection(a, c)
+        c2 = nengo.Connection(b, c)
+
+    with pytest.raises(AssertionError):
+        transforms.get_transforms([c1, c2])
 
 
 def test_square_transforms():
@@ -180,5 +197,41 @@ def test_nonequivalent_solvers():
         a_c = nengo.Connection(a, c, solver=nengo.decoders.LstsqNoise)
 
     tc = transforms.get_transforms_with_solvers([a_b, a_c])
+    assert(tc.width == b_size_in + c_size_in)
+    assert(tc.connection_ids[a_b] != tc.connection_ids[a_c])
+
+
+def test_equivalent_eval_points():
+    """A->B and A->C should share a transform/function pair."""
+    a_size_in = b_size_in = c_size_in = 4
+
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, a_size_in)
+        b = nengo.Ensemble(1, b_size_in)
+        c = nengo.Ensemble(1, c_size_in)
+
+        a_b = nengo.Connection(a, b)
+        a_c = nengo.Connection(a, c)
+
+    tc = transforms.get_transforms_with_solvers_and_evals([a_b, a_c])
+    assert(tc.width == a_size_in)
+    assert(tc.connection_ids[a_b] == tc.connection_ids[a_c])
+
+
+def test_nonequivalent_eval_points():
+    """A->B and A->C should NOT share a transform/function pair."""
+    a_size_in = b_size_in = c_size_in = 4
+
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, a_size_in)
+        b = nengo.Ensemble(1, b_size_in)
+        c = nengo.Ensemble(1, c_size_in)
+
+        a_b = nengo.Connection(a, b, eval_points=np.zeros(100))
+        a_c = nengo.Connection(a, c, eval_points=np.array([1]*100))
+
+    tc = transforms.get_transforms_with_solvers_and_evals([a_b, a_c])
     assert(tc.width == b_size_in + c_size_in)
     assert(tc.connection_ids[a_b] != tc.connection_ids[a_c])
