@@ -7,7 +7,7 @@ import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 
-from .utils import fp, filters, vertices
+from .utils import fp, filters, transforms, vertices
 
 
 DecoderEntry = collections.namedtuple('DecoderEntry', ['function',
@@ -136,41 +136,50 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_prepare('DECODERS')
     def prepare_region_decoders(self):
         """Generate decoders for the Ensemble."""
-        self._decoders = list()
-        self._func_decoders = dict()  # Map of prebuilt decoders for functions
-        self._edge_decoders = dict()  # Map of edges to decoder index
+        # Get a list of unique transform/function/solver triples, the width and
+        # connection indices of this list.
+        tfses = transforms.get_transforms_with_solvers_and_evals(
+            [edge.conn for edge in self.out_edges]
+        )
+        self._edge_decoders = dict([(edge, tfses.connection_ids[edge.conn]) for
+                                     edge in self.out_edges])
+        self.n_output_dimensions = tfses.width
 
-        for edge in self.out_edges:
-            # If this function/transform combination is already in the list of
-            # decoders, then simply store a mapping from this edge to this
-            # decoder.
-            for (i, decoder) in enumerate(self._decoders):
-                if (decoder.function == edge.function and
-                        np.all(decoder.transform == edge.transform)):
-                    self._edge_decoders[edge] = i
-                    break
+        # Generate each decoder in turn
+        decoders = list()
+        for tfse in tfses.transforms_functions:
+            eval_points = tfse.eval_points
+            if eval_points is None:
+                eval_points = self.eval_points
+
+            x = np.dot(eval_points, self.encoders.T / self._ens.radius)
+            activities = self._ens.neuron_type.rates(x, self.gain, self.gain)
+
+            if tfse.function is None:
+                targets = eval_points
             else:
-                # Generate the decoder
-                if edge.function in self._func_decoders:
-                    decoder = self._func_decoders[edge.function]
-                else:
-                    decoder = _generate_edge_decoder(edge, self.rng)
-                    self._func_decoders[edge.function] = decoder
+                targets = np.array([tfse.function(ep) for ep in eval_points])
+                if targets.ndim < 2:
+                    targets.shape = targets.shape[0], 1
 
-                decoder = np.dot(decoder, np.array(edge.transform).T)
-                self._decoders.append(DecoderEntry(edge.function,
-                                                   edge.transform,
-                                                   decoder))
-                self._edge_decoders[edge] = len(self._decoders) - 1
+            solver = tfse.solver
+            if solver is None:
+                solver = nengo.decoders.LstsqL2()
 
-        # Generate the merged decoders, count the number of outgoing dimensions
-        if len(self._decoders) > 0:
-            self._merged_decoders = np.hstack([d.decoder for d in
-                                               self._decoders]) / self.dt
-        else:
-            self._merged_decoders = np.array([[], ])
-        self._decoder_widths = [d.decoder.shape[1] for d in self._decoders]
-        self.n_output_dimensions = self._merged_decoders.shape[1]
+            decoder = solver(activities, targets, self.rng)
+
+            if isinstance(decoder, tuple):
+                decoder = decoder[0]
+
+            decoders.append(np.dot(decoder, tfse.transform.T))
+
+        # Generate the decoder widths
+        self._decoder_widths = [d.shape[1] for d in decoders]
+
+        # Generate the merged decoders
+        self._merged_decoders = np.array([[], ])
+        if len(decoders) > 0:
+            self._merged_decoders = np.hstack(decoders) / self.dt
 
     @vertices.region_pre_sizeof('DECODERS')
     def sizeof_region_decoders(self, n_atoms):
@@ -254,39 +263,3 @@ class EnsembleVertex(vertices.NengoVertex):
         i = self._edge_decoders[subedge.edge]
 
         return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
-
-
-def _generate_edge_decoder(e, rng):
-    """Generate the decoder for the given edge and random number generator.
-
-    :param e: the edge for which to compute the decoder
-    :param rng: random number generator to use
-    """
-    eval_points = e.eval_points
-    if eval_points is None:
-        eval_points = e.prevertex.eval_points
-
-    x = np.dot(eval_points, e.prevertex.encoders.T / e.pre.radius)
-    activities = e.pre.neuron_type.rates(
-        x, e.prevertex.gain, e.prevertex.bias
-    )
-
-    if e.function is None:
-        targets = eval_points
-    else:
-        targets = np.array(
-            [e.function(ep) for ep in eval_points]
-        )
-        if targets.ndim < 2:
-            targets.shape = targets.shape[0], 1
-
-    solver = e.solver
-    if solver is None:
-        solver = nengo.decoders.LstsqL2()
-
-    decoder = solver(activities, targets, rng)
-
-    if isinstance(decoder, tuple):
-        decoder = decoder[0]
-
-    return decoder

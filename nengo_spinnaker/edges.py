@@ -1,6 +1,28 @@
+import collections
+import numpy as np
+
 from pacman103.lib import graph
 
 from . import utils
+
+
+class DummyConnection(object):
+    """Dummy Connection object used in Edges which do not represent a Nengo
+    connection"""
+    _preslice = None
+    _postslice = None
+
+    def __init__(self, transform=1.0, function=None, solver=None,
+                 eval_points=None, size_in=1, size_out=1):
+        self.transform = np.array(transform)
+        self.function = function
+        self.solver = solver
+        self.eval_points = eval_points
+        self._size_in = size_in
+        self._size_out = size_out
+
+    def _required_transform_shape(self):
+        return self._size_out, self._size_in
 
 
 class Edge(object):
@@ -44,19 +66,16 @@ class InputEdge(NengoEdge):
 
 
 class ValueProbeEdge(graph.Edge, Edge):
-    transform = 1.0
-    function = None
-    eval_points = None
-    solver = None
-
-    def __init__(self, probe, pre, post, constraints=None, label=None,
-                 filter_is_accumulatory=True):
+    def __init__(self, probe, pre, post, size_in, size_out, constraints=None,
+                 label=None, filter_is_accumulatory=True):
         super(ValueProbeEdge, self).__init__(
             pre, post, constraints=constraints, label=label
         )
         self.index = None  # Used in generating routing keys
         self.probe = probe
         self._filter_is_accumulatory = filter_is_accumulatory
+
+        self.conn = DummyConnection(size_in=size_in, size_out=size_out)
 
         self.pre = pre._ens
         self.synapse = probe.conn_args.get('synapse', None)
