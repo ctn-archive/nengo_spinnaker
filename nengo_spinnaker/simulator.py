@@ -5,8 +5,6 @@ import sys
 import threading
 import time
 
-from nengo.utils.compat import is_callable
-
 from pacman103.core import control
 
 from . import builder
@@ -104,7 +102,7 @@ class Simulator(object):
         :raises KeyError: if the Node is not a valid Node
         """
         # Output to board
-        if is_callable(node.output):
+        if callable(node.output):
             self.node_io.set_node_output(node, output)
 
         # Output to other Nodes on host
@@ -175,12 +173,12 @@ class Simulator(object):
 
             # Create the Node threads
             for node in self.nodes:
-                if not is_callable(node.output):
+                if not callable(node.output):
                     self.set_node_output(node, node.output)
 
             node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds,
                                        self._internode_filters[node])
-                         for node in self.nodes if is_callable(node.output)]
+                         for node in self.nodes if callable(node.output)]
 
             # Sleep for simulation time/forever
             try:
