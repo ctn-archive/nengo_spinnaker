@@ -34,18 +34,30 @@ class Connections(object):
 
         # Get the index of the connection if the same transform and function
         # have already been added, otherwise add the transform/function pair
-        transform = full_transform(connection, allow_scalars=False)
+        connection_entry = self._make_connection_entry(connection)
         for (i, tf) in enumerate(self.transforms_functions):
-            if (np.all(tf.transform == transform) and
-                    tf.function == connection.function):
+            if self._are_compatible_connections(tf, connection_entry):
                 index = i
                 break
         else:
-            self.transforms_functions.append(
-                TransformFunctionPair(transform, connection.function))
+            self.transforms_functions.append(connection_entry)
             index = len(self.transforms_functions) - 1
 
         self._connection_indices[connection] = index
+
+    def contains_compatible_connection(self, connection):
+        for tf in self.transforms_functions:
+            if self._are_compatible_connections(tf, connection):
+                return True
+        return False
+
+    def _are_compatible_connections(self, c1, c2):
+        return (np.all(c1.transform == c2.transform) and
+                c1.function == c2.function)
+
+    def _make_connection_entry(self, connection):
+        transform = full_transform(connection, allow_scalars=False)
+        return TransformFunctionPair(transform, connection.function)
 
     @property
     def width(self):
@@ -67,32 +79,17 @@ class Connections(object):
 
 
 class ConnectionsWithSolvers(Connections):
-    def add_connection(self, connection):
-        # Ensure that this Connection collection is only for connections from
-        # the same source object
-        if self._source is None:
-            self._source = connection.pre
-        assert(self._source == connection.pre)
+    def _are_compatible_connections(self, c1, c2):
+        return (np.all(c1.transform == c2.transform) and
+                np.all(c1.eval_points == c2.eval_points) and
+                c1.solver == c2.solver and
+                c1.function == c2.function)
 
-        # Get the index of the connection if the same transform and function
-        # have already been added, otherwise add the transform/function pair
+    def _make_connection_entry(self, connection):
         transform = full_transform(connection, allow_scalars=False)
-        for (i, tf) in enumerate(self.transforms_functions):
-            if (np.all(tf.transform == transform) and
-                    tf.function == connection.function and
-                    tf.solver == connection.solver and
-                    np.all(tf.eval_points == connection.eval_points)):
-                index = i
-                break
-        else:
-            self.transforms_functions.append(
-                TransformFunctionWithSolverEvalPoints(transform,
-                                                      connection.function,
-                                                      connection.solver,
-                                                      connection.eval_points))
-            index = len(self.transforms_functions) - 1
-
-        self._connection_indices[connection] = index
+        return TransformFunctionWithSolverEvalPoints(
+            transform, connection.function, connection.solver,
+            connection.eval_points)
 
 
 class ConnectionBank(object):
@@ -117,6 +114,10 @@ class ConnectionBank(object):
             offset += connections.width
         raise KeyError
 
+    def contains_compatible_connection(self, connection):
+        return self._connections[connection.pre].\
+            contains_compatible_connection(connection)
+
     @property
     def width(self):
         return sum([c.width for c in self._connections.values()])
@@ -129,3 +130,8 @@ class ConnectionBank(object):
             index += len(connections)
         raise KeyError(connection)
 
+    def __iter__(self):
+        """Iterate through the list of connections."""
+        for connections in self._connections.values():
+            for c in connections:
+                yield c
