@@ -1,13 +1,11 @@
-"""Tests for transform expansion utility module.
-
-TODO Tests for slice notation connections.
+"""Tests for Connection management utilities.
 """
 
 import numpy as np
 import pytest
 
 import nengo
-from nengo_spinnaker.utils import transforms
+from nengo_spinnaker.utils import connections
 
 
 def test_equivalent_source():
@@ -21,7 +19,7 @@ def test_equivalent_source():
         c2 = nengo.Connection(b, c)
 
     with pytest.raises(AssertionError):
-        transforms.get_transforms([c1, c2])
+        connections.Connections([c1, c2])
 
 
 def test_square_transforms():
@@ -34,7 +32,7 @@ def test_square_transforms():
             b = nengo.Ensemble(1, size_out)
             c = nengo.Connection(a, b)
 
-        tc = transforms.get_transforms([c])
+        tc = connections.Connections([c])
 
         assert(tc.width == size_out)  # Size should be same as size_out
 
@@ -44,7 +42,7 @@ def test_square_transforms():
         else:
             raise Exception("Transform not in transforms list")
 
-        assert(c in tc.connection_ids)  # ID is given for connection
+        assert(c in tc)  # ID is given for connection
 
 
 def test_scaled_square_transforms():
@@ -56,7 +54,7 @@ def test_scaled_square_transforms():
             b = nengo.Ensemble(1, size_out)
             c = nengo.Connection(a, b, transform=scale)
 
-        tc = transforms.get_transforms([c])
+        tc = connections.Connections([c])
 
         assert(tc.width == size_out)  # Size should be same as size_out
 
@@ -66,7 +64,7 @@ def test_scaled_square_transforms():
         else:
             raise Exception("Transform not in transforms list")
 
-        assert(c in tc.connection_ids)  # ID is given for connection
+        assert(c in tc)  # ID is given for connection
 
 
 def test_rectangular_transforms():
@@ -83,7 +81,7 @@ def test_rectangular_transforms():
                 b = nengo.Ensemble(1, size_out)
                 c = nengo.Connection(a, b, transform=transform)
 
-            tc = transforms.get_transforms([c])
+            tc = connections.Connections([c])
 
             assert(tc.width == size_out)
 
@@ -108,7 +106,7 @@ def test_multiple_transforms():
         a_d = nengo.Connection(
             a, d, transform=np.zeros((d_size_in, a_size_in)))
 
-    tc = transforms.get_transforms([a_b, a_c, a_d])
+    tc = connections.Connections([a_b, a_c, a_d])
     assert(tc.width == b_size_in + c_size_in + d_size_in)
 
 
@@ -133,9 +131,9 @@ def test_equivalent_transforms():
         a_d = nengo.Connection(
             a, d, transform=np.zeros((d_size_in, a_size_in)))
 
-    tc = transforms.get_transforms([a_b, a_c, a_d])
+    tc = connections.Connections([a_b, a_c, a_d])
     assert(tc.width == b_size_in + c_size_in)
-    assert(tc.connection_ids[a_c] == tc.connection_ids[a_d])
+    assert(tc[a_c] == tc[a_d])
 
 
 def test_nonequivalent_functions():
@@ -160,9 +158,9 @@ def test_nonequivalent_functions():
         a_d = nengo.Connection(
             a, d, transform=np.zeros((d_size_in, a_size_in)))
 
-    tc = transforms.get_transforms([a_b, a_c, a_d])
+    tc = connections.Connections([a_b, a_c, a_d])
     assert(tc.width == b_size_in + c_size_in + d_size_in)
-    assert(tc.connection_ids[a_c] != tc.connection_ids[a_d])
+    assert(tc[a_c] != tc[a_d])
 
 
 def test_equivalent_solvers():
@@ -178,9 +176,9 @@ def test_equivalent_solvers():
         a_b = nengo.Connection(a, b)
         a_c = nengo.Connection(a, c)
 
-    tc = transforms.get_transforms_with_solvers([a_b, a_c])
+    tc = connections.ConnectionsWithSolvers([a_b, a_c])
     assert(tc.width == a_size_in)
-    assert(tc.connection_ids[a_b] == tc.connection_ids[a_c])
+    assert(tc[a_b] == tc[a_c])
 
 
 def test_nonequivalent_solvers():
@@ -196,9 +194,9 @@ def test_nonequivalent_solvers():
         a_b = nengo.Connection(a, b, solver=nengo.decoders.Solver)
         a_c = nengo.Connection(a, c, solver=nengo.decoders.LstsqNoise)
 
-    tc = transforms.get_transforms_with_solvers([a_b, a_c])
+    tc = connections.ConnectionsWithSolvers([a_b, a_c])
     assert(tc.width == b_size_in + c_size_in)
-    assert(tc.connection_ids[a_b] != tc.connection_ids[a_c])
+    assert(tc[a_b] != tc[a_c])
 
 
 def test_equivalent_eval_points():
@@ -214,9 +212,9 @@ def test_equivalent_eval_points():
         a_b = nengo.Connection(a, b)
         a_c = nengo.Connection(a, c)
 
-    tc = transforms.get_transforms_with_solvers_and_evals([a_b, a_c])
+    tc = connections.ConnectionsWithSolvers([a_b, a_c])
     assert(tc.width == a_size_in)
-    assert(tc.connection_ids[a_b] == tc.connection_ids[a_c])
+    assert(tc[a_b] == tc[a_c])
 
 
 def test_nonequivalent_eval_points():
@@ -232,6 +230,119 @@ def test_nonequivalent_eval_points():
         a_b = nengo.Connection(a, b, eval_points=np.zeros(100))
         a_c = nengo.Connection(a, c, eval_points=np.array([1]*100))
 
-    tc = transforms.get_transforms_with_solvers_and_evals([a_b, a_c])
+    tc = connections.ConnectionsWithSolvers([a_b, a_c])
     assert(tc.width == b_size_in + c_size_in)
-    assert(tc.connection_ids[a_b] != tc.connection_ids[a_c])
+    assert(tc[a_b] != tc[a_c])
+
+
+def test_connection_offset():
+    a_size_in = 4
+    b_size_in = 5
+    c_size_in = 6
+
+    model = nengo.Network()
+    with model:
+        e = nengo.Ensemble(1, 1, label="Source")
+        a = nengo.Ensemble(1, a_size_in, label="A")
+        b = nengo.Ensemble(1, b_size_in, label="B")
+        c = nengo.Ensemble(1, c_size_in, label="C")
+
+        c1 = nengo.Connection(
+            e, a, transform=np.random.uniform(-1, 1, (a_size_in, 1)))
+        c2 = nengo.Connection(
+            e, b, transform=np.random.uniform(-1, 1, (b_size_in, 1)))
+        c3 = nengo.Connection(
+            e, c, transform=np.random.uniform(-1, 1, (c_size_in, 1)))
+
+    tc = connections.ConnectionsWithSolvers()
+    tc.add_connection(c1)
+    tc.add_connection(c2)
+    tc.add_connection(c3)
+
+    assert(tc.width == a_size_in + b_size_in + c_size_in)
+    assert(tc.get_connection_offset(c1) == 0)
+    assert(tc.get_connection_offset(c2) == a_size_in)
+    assert(tc.get_connection_offset(c3) == a_size_in + b_size_in)
+
+
+def test_connection_offset_with_sharing():
+    a_size_in = 4
+    b_size_in = 5
+    c_size_in = 5
+    d_size_in = 6
+
+    model = nengo.Network()
+    with model:
+        e = nengo.Ensemble(1, 1, label="Source")
+        a = nengo.Ensemble(1, a_size_in, label="A")
+        b = nengo.Ensemble(1, b_size_in, label="B")
+        c = nengo.Ensemble(1, c_size_in, label="C")
+        d = nengo.Ensemble(1, d_size_in, label="C")
+
+        c1 = nengo.Connection(
+            e, a, transform=np.random.uniform(-1, 1, (a_size_in, 1)))
+        c2 = nengo.Connection(
+            e, b, transform=np.zeros((b_size_in, 1)))
+        c3 = nengo.Connection(
+            e, c, transform=np.zeros((c_size_in, 1)))
+        c4 = nengo.Connection(
+            e, d, transform=np.random.uniform(-1, 1, (d_size_in, 1)))
+
+    tc = connections.ConnectionsWithSolvers()
+    tc.add_connection(c1)
+    tc.add_connection(c2)
+    tc.add_connection(c3)
+    tc.add_connection(c4)
+
+    assert(tc.width == a_size_in + b_size_in + d_size_in)
+    assert(tc[c2] == tc[c3])
+    assert(tc.get_connection_offset(c1) == 0)
+    assert(tc.get_connection_offset(c2) == a_size_in)
+    assert(tc.get_connection_offset(c3) == a_size_in)
+    assert(tc.get_connection_offset(c4) == a_size_in + b_size_in)
+
+
+def test_connection_banks():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 5)
+        b = nengo.Ensemble(1, 5)
+        c = nengo.Ensemble(1, 5)
+
+        c1 = nengo.Connection(a, c)
+        c2 = nengo.Connection(b, c)
+        c3 = nengo.Connection(a, b)
+
+    tc = connections.ConnectionBank([c1, c2])
+
+    assert(tc[c1] != tc[c2])
+
+    with pytest.raises(KeyError):
+        tc[c3]
+
+
+def test_connection_banks_offset():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 5)
+        b = nengo.Ensemble(1, 4)
+        c = nengo.Ensemble(1, 5)
+        d = nengo.Ensemble(1, 6)
+        e = nengo.Ensemble(1, 5)
+
+        c1 = nengo.Connection(a, c)
+        c2 = nengo.Connection(a, d, transform=np.zeros((6, 5)))
+        c3 = nengo.Connection(b, c, transform=np.zeros((5, 4)))
+        c4 = nengo.Connection(b, d, transform=np.zeros((6, 4)))
+        c5 = nengo.Connection(a, e)
+        c6 = nengo.Connection(a, b, transform=np.zeros((4, 5)))
+
+    tc = connections.ConnectionBank([c1, c2, c3, c4, c5])
+    assert(tc.width == 5 + 6 + 5 + 6)
+    assert(tc.get_connection_offset(c1) != tc.get_connection_offset(c2))
+    assert(tc.get_connection_offset(c2) != tc.get_connection_offset(c3))
+    assert(tc.get_connection_offset(c3) != tc.get_connection_offset(c4))
+    assert(tc.get_connection_offset(c1) == tc.get_connection_offset(c5))
+    
+    with pytest.raises(KeyError):
+        tc.get_connection_offset(c6)

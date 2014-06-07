@@ -12,14 +12,21 @@ class DummyConnection(object):
     _preslice = None
     _postslice = None
 
-    def __init__(self, transform=1.0, function=None, solver=None,
+    def __init__(self, pre=None, transform=1., function=None, solver=None,
                  eval_points=None, size_in=1, size_out=1):
-        self.transform = np.array(transform)
+        self.pre = pre
         self.function = function
         self.solver = solver
         self.eval_points = eval_points
         self._size_in = size_in
         self._size_out = size_out
+
+        if np.array(transform).ndim == 0:
+            if size_in != size_out:
+                raise NotImplementedError
+            self.transform = np.eye(size_out) * transform
+        else:
+            self.transform = transform
 
     def _required_transform_shape(self):
         return self._size_out, self._size_in
@@ -65,19 +72,20 @@ class InputEdge(NengoEdge):
     pass
 
 
-class ValueProbeEdge(graph.Edge, Edge):
+class ValueProbeEdge(NengoEdge):
     def __init__(self, probe, pre, post, size_in, size_out, constraints=None,
                  label=None, filter_is_accumulatory=True):
+        # Construct a dummy connection, pass to Nengo edge
+        conn = DummyConnection(pre=pre._ens, size_in=size_in,
+                               size_out=size_out)
+
         super(ValueProbeEdge, self).__init__(
-            pre, post, constraints=constraints, label=label
+            conn, pre, post, constraints=constraints, label=label
         )
         self.index = None  # Used in generating routing keys
         self.probe = probe
         self._filter_is_accumulatory = filter_is_accumulatory
 
-        self.conn = DummyConnection(size_in=size_in, size_out=size_out)
-
-        self.pre = pre._ens
         self.synapse = probe.conn_args.get('synapse', None)
 
     @property

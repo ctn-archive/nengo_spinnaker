@@ -1,4 +1,3 @@
-import collections
 import numpy as np
 
 import nengo
@@ -7,12 +6,7 @@ import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 
-from .utils import fp, filters, transforms, vertices
-
-
-DecoderEntry = collections.namedtuple('DecoderEntry', ['function',
-                                                       'transform',
-                                                       'decoder'])
+from .utils import connections, fp, filters, vertices
 
 
 @filters.with_filters(6, 7)
@@ -138,11 +132,11 @@ class EnsembleVertex(vertices.NengoVertex):
         """Generate decoders for the Ensemble."""
         # Get a list of unique transform/function/solver triples, the width and
         # connection indices of this list.
-        tfses = transforms.get_transforms_with_solvers_and_evals(
+        tfses = connections.ConnectionsWithSolvers(
             [edge.conn for edge in self.out_edges]
         )
-        self._edge_decoders = dict([(edge, tfses.connection_ids[edge.conn]) for
-                                     edge in self.out_edges])
+        self._edge_decoders = dict([(edge, tfses[edge.conn]) for edge in
+                                    self.out_edges])
         self.n_output_dimensions = tfses.width
 
         # Generate each decoder in turn
@@ -153,7 +147,7 @@ class EnsembleVertex(vertices.NengoVertex):
                 eval_points = self.eval_points
 
             x = np.dot(eval_points, self.encoders.T / self._ens.radius)
-            activities = self._ens.neuron_type.rates(x, self.gain, self.gain)
+            activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
 
             if tfse.function is None:
                 targets = eval_points
