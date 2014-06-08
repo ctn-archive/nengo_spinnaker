@@ -226,7 +226,7 @@ class EthernetCommunicator(object):
             # Transform the output, store in the buffer and mark the Rx as
             # being fresh.
             if callable(crxb.connection.function):
-                output = crxb.connection.function
+                output = crxb.connection.function(output)
             output = np.dot(crxb.transform, output)
 
             if np.any(output != crxb.buffered_output):
