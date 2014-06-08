@@ -381,14 +381,17 @@ def test_contains_equivalent_connection():
         b = nengo.Ensemble(1, 3)
         c = nengo.Ensemble(1, 3)
         d = nengo.Ensemble(1, 3)
+        e = nengo.Ensemble(1, 2)
 
         c1 = nengo.Connection(a, b, transform=[[1, 0], [0, 0], [0, 1]])
         c2 = nengo.Connection(a, c, transform=[[1, 0], [0, 0], [0, 1]])
         c3 = nengo.Connection(a, d, transform=[[0, 0], [0, 0], [0, 0]])
+        c4 = nengo.Connection(e, b, transform=[[1, 0], [0, 0], [0, 1]])
 
     cs = connections.Connections([c1])
     assert(cs.contains_compatible_connection(c2))
     assert(not cs.contains_compatible_connection(c3))
+    assert(not cs.contains_compatible_connection(c4))
 
 
 def test_bank_contains_equivalent_connection():

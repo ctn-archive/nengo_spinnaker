@@ -34,7 +34,8 @@ class Connections(object):
 
         # Get the index of the connection if the same transform and function
         # have already been added, otherwise add the transform/function pair
-        connection_entry = self._make_connection_entry(connection)
+        transform = full_transform(connection, allow_scalars=False)
+        connection_entry = self._make_connection_entry(connection, transform)
         for (i, tf) in enumerate(self.transforms_functions):
             if self._are_compatible_connections(tf, connection_entry):
                 index = i
@@ -46,6 +47,9 @@ class Connections(object):
         self._connection_indices[connection] = index
 
     def contains_compatible_connection(self, connection):
+        if self._source is None or self._source != connection.pre:
+            return False
+
         for tf in self.transforms_functions:
             if self._are_compatible_connections(tf, connection):
                 return True
@@ -55,8 +59,7 @@ class Connections(object):
         return (np.all(c1.transform == c2.transform) and
                 c1.function == c2.function)
 
-    def _make_connection_entry(self, connection):
-        transform = full_transform(connection, allow_scalars=False)
+    def _make_connection_entry(self, connection, transform):
         return TransformFunctionPair(transform, connection.function)
 
     @property
@@ -85,8 +88,7 @@ class ConnectionsWithSolvers(Connections):
                 c1.solver == c2.solver and
                 c1.function == c2.function)
 
-    def _make_connection_entry(self, connection):
-        transform = full_transform(connection, allow_scalars=False)
+    def _make_connection_entry(self, connection, transform):
         return TransformFunctionWithSolverEvalPoints(
             transform, connection.function, connection.solver,
             connection.eval_points)
