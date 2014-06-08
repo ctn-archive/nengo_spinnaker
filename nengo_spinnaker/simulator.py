@@ -165,11 +165,12 @@ class Simulator(object):
         self.controller.generate_output()
         self.controller.load_targets()
         self.controller.load_write_mem()
-        self.controller.run(self.dao.app_id)
 
         # Start the IO and perform host computation
         with self.io as node_io:
             self.node_io = node_io
+            self.controller.run(self.dao.app_id)
+            node_io.start()
 
             # Create the Node threads
             for node in self.nodes:
