@@ -137,3 +137,46 @@ class ConnectionBank(object):
         for connections in self._connections.values():
             for c in connections:
                 yield c
+
+
+ConnectionWithFilter = collections.namedtuple(
+    'ConnectionWithFilter', ['connection', 'accumulatory'])
+FilteredConnection = collections.namedtuple(
+    'FilteredConnection', ['time_constant', 'accumulatory'])
+
+
+class Filters(object):
+    def __init__(self, connections_with_filters):
+        self._connection_indices = dict()
+        self._termination = None
+        self.filters = list()
+
+        for connection in connections_with_filters:
+            self.add_connection(connection)
+
+    def add_connection(self, connection_with_filter):
+        if self._termination is None:
+            self._termination = connection_with_filter.connection.post
+        assert(self._termination == connection_with_filter.connection.post)
+
+        index = None
+        for (i, f) in enumerate(self.filters):
+            if (connection_with_filter.accumulatory == f.accumulatory and
+                connection_with_filter.connection.synapse == f.time_constant):
+                index = i
+                break
+        else:
+            new_f = FilteredConnection(
+                connection_with_filter.connection.synapse,
+                connection_with_filter.accumulatory
+            )
+            self.filters.append(new_f)
+            index = len(self.filters) - 1
+
+        self._connection_indices[connection_with_filter.connection] = index
+
+    def __getitem__(self, connection):
+        return self._connection_indices[connection]
+
+    def __len__(self):
+        return len(self.filters)

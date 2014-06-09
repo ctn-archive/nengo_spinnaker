@@ -414,3 +414,58 @@ def test_bank_contains_equivalent_connection():
     assert(cs.contains_compatible_connection(c3))
     assert(not cs.contains_compatible_connection(c4))
     assert(not cs.contains_compatible_connection(c5))
+
+
+def test_filter_nonequivalent_terminations():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        b = nengo.Ensemble(1, 1)
+        c = nengo.Ensemble(1, 1)
+
+        c1 = nengo.Connection(a, b)
+        c2 = nengo.Connection(a, c)
+
+    with pytest.raises(AssertionError):
+        fs = connections.Filters(
+            [connections.ConnectionWithFilter(c, True) for c in [c1, c2]]
+        )
+
+def test_equivalent_filters():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        b = nengo.Ensemble(1, 1)
+        c = nengo.Ensemble(1, 1)
+
+        c1 = nengo.Connection(a, c)
+        c2 = nengo.Connection(b, c)
+
+    fs = connections.Filters(
+        [connections.ConnectionWithFilter(c, True) for c in [c1, c2]]
+    )
+    assert(fs[c1] == fs[c2])
+    assert(fs.filters[fs[c1]].time_constant == c1.synapse)
+
+
+def test_multiple_filters():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        b = nengo.Ensemble(1, 1)
+        c = nengo.Ensemble(1, 1)
+        d = nengo.Ensemble(1, 1)
+
+        c1 = nengo.Connection(a, c, synapse=0.01)
+        c2 = nengo.Connection(b, c, synapse=0.05)
+        c3 = nengo.Connection(b, c, synapse=0.01)
+
+    fs = connections.Filters(
+        [connections.ConnectionWithFilter(c, True) for c in [c1, c2, c3]]
+    )
+    assert(fs[c1] != fs[c2])
+    assert(fs[c1] == fs[c3])
+    assert(fs.filters[fs[c1]].time_constant == c1.synapse)
+    assert(fs.filters[fs[c2]].time_constant == c2.synapse)
+    assert(fs.filters[fs[c3]].time_constant == c3.synapse)
+    assert(len(fs) == 2)
