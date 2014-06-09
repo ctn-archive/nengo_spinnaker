@@ -19,7 +19,7 @@ from pacman103.lib import graph
 from . import edges
 from . import ensemble_vertex
 from .nodes import value_source_vertex
-from .utils import probes
+from .utils import connections, probes
 from . import value_sink_vertex
 
 edge_builders = {}
@@ -83,7 +83,7 @@ class Builder(object):
         self.ensemble_vertices = dict()
         self.nodes = list()
         self.node_node_connections = list()
-        self.f_of_t_nodes = dict()
+        self.f_of_t_vertices = dict()
         self.probes = list()
 
         # Store a Node Builder
@@ -238,13 +238,13 @@ def _node_to_ensemble(builder, c):
                                           np.asarray(c.transform).T)
     elif builder.config[c.pre].f_of_t:
         # Node is a function of time to be evaluated in advance
-        if c.pre in builder.f_of_t_nodes:
-            prevertex = builder.f_of_t_nodes[c.pre]
+        if c.pre in builder.f_of_t_vertices:
+            prevertex = builder.f_of_t_vertices[c.pre]
         else:
             prevertex = value_source_vertex.ValueSourceVertex(
                 c.pre, builder.config[c.pre].f_period, builder.dt)
             builder.add_vertex(prevertex)
-            builder.f_of_t_nodes[c.pre] = prevertex
+            builder.f_of_t_vertices[c.pre] = prevertex
 
         edge = edges.NengoEdge(c, prevertex, postvertex)
         return edge

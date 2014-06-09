@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..utils import vertices, fp
+from ..utils import connections, fp, vertices
 
 
 class ValueSourceVertex(vertices.NengoVertex):
@@ -12,15 +12,13 @@ class ValueSourceVertex(vertices.NengoVertex):
 
     def __init__(self, node, node_period=0, dt=0.001, time_step=1000,
                  constraints=None, label=None):
-        super(ValueSourceVertex, self).__init__(1, constraints=constraints,
-                                                label="ValueSource %s" % node)
+        super(ValueSourceVertex, self).__init__(
+            1, constraints=constraints, label="ValueSource %s" % node
+        )
         self.node = node
         self.node_period = node_period
         self.time_step = time_step
         self.dt = dt
-
-        self.edge_indices = dict()
-        self.transforms = list()
 
     def get_maximum_atoms_per_core(self):
         return 1
@@ -46,37 +44,28 @@ class ValueSourceVertex(vertices.NengoVertex):
             self._periodic = False
             self._n_ticks = int(self.runtime / self.dt)
 
-        # For each outgoing edge determine if the transform is already in use,
-        # if so then add this edge to the list of edges for this transform,
-        # otherwise add the new transform.
-        for edge in self.out_edges:
-            t = np.array(edge.transform)
-
-            if t.shape == ():
-                t = np.eye(self.node.size_out)*t
-
-            if t not in self.transforms:
-                self.transforms.append(t)
-
-            i = self.transforms.index(t)
-            self.edge_indices[edge] = i
-
         # Data is split into blocks of 20KB, though a block may be less than
         # this.  Each block is pulled into DTCM sequentially.
-        self.width = sum([t.shape[0] if self.node.size_out > 1 else t.size for
-                          t in self.transforms])
+        self.connections = connections.Connections([e.conn for e in self.out_edges])
+        self.width = self.connections.width
         self.data_size = self._n_ticks * self.width
         self.frames_per_block = 5*1024 / self.width  # 20KB / 4*t
         self.full_blocks = self._n_ticks / self.frames_per_block
         self.r_blocks = self._n_ticks % self.frames_per_block
 
-        transform = np.vstack(self.transforms)    # Combine the transforms
         ts = np.arange(0, self._n_ticks * self.dt, self.dt)  # Eval points
 
         data = []
         for t in ts:
             v = np.array(self.node.output(t))
-            data.append(np.dot(transform, v))
+
+            output = []
+            for tf in self.connections.transforms_functions:
+                output.append(
+                    np.dot(tf.transform, v if tf.function is None else
+                           tf.function(v)))
+
+            data.append(np.hstack(output))
         data = np.array(data)
         self.data = data.reshape((1, data.size))
 
@@ -92,7 +81,7 @@ class ValueSourceVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('OUTPUT_KEYS')
     def sizeof_keys(self, n_atoms):
-        return sum([t.size for t in self.transforms])
+        return self.width
 
     @vertices.region_pre_sizeof('DATA')
     def sizeof_data(self, n_atoms):
@@ -111,8 +100,8 @@ class ValueSourceVertex(vertices.NengoVertex):
     def write_keys(self, subvertex, spec):
         (x, y, p) = subvertex.placement.processor.get_coordinates()
 
-        for i, transform in enumerate(self.transforms):
-            for d in range(transform.size):
+        for (i, t) in enumerate(self.connections.transforms_functions):
+            for d in range(t.transform.shape[0]):
                 spec.write(data=(x << 24) | (y << 16) | ((p-1) << 11) |
                                 (i << 6) | d)
 
@@ -123,7 +112,7 @@ class ValueSourceVertex(vertices.NengoVertex):
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = self.edge_indices[subedge.edge]
+        i = self.connections[subedge.edge.conn]
         key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
 
-        return key, 0xFFFFFFE0
+        return key, 0xFFFFFFC0
