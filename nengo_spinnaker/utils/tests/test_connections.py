@@ -469,3 +469,21 @@ def test_multiple_filters():
     assert(fs.filters[fs[c2]].time_constant == c2.synapse)
     assert(fs.filters[fs[c3]].time_constant == c3.synapse)
     assert(len(fs) == 2)
+
+
+def test_accumulatory_mix():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        b = nengo.Ensemble(1, 1)
+        c = nengo.Ensemble(1, 1)
+
+        c1 = nengo.Connection(a, c)
+        c2 = nengo.Connection(b, c)
+
+    fs = connections.Filters([
+        connections.ConnectionWithFilter(c1, True),
+        connections.ConnectionWithFilter(c2, False),
+    ])
+    assert(fs[c1] != fs[c2])
+    assert(fs.filters[fs[c1]].time_constant == c1.synapse)

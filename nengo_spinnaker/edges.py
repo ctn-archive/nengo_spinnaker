@@ -12,14 +12,17 @@ class DummyConnection(object):
     _preslice = None
     _postslice = None
 
-    def __init__(self, pre=None, transform=1., function=None, solver=None,
-                 eval_points=None, size_in=1, size_out=1):
+    def __init__(self, pre=None, post=None, transform=1., function=None,
+                 solver=None, eval_points=None, synapse=None, 
+                 size_in=1, size_out=1):
         self.pre = pre
+        self.post = post
         self.function = function
         self.solver = solver
         self.eval_points = eval_points
         self._size_in = size_in
         self._size_out = size_out
+        self.synapse = synapse
 
         if np.array(transform).ndim == 0:
             if size_in != size_out:
@@ -77,7 +80,8 @@ class ValueProbeEdge(NengoEdge):
                  label=None, filter_is_accumulatory=True):
         # Construct a dummy connection, pass to Nengo edge
         conn = DummyConnection(pre=pre._ens, size_in=size_in,
-                               size_out=size_out)
+                               size_out=size_out,
+                               synapse=probe.conn_args.get('synapse', None))
 
         super(ValueProbeEdge, self).__init__(
             conn, pre, post, constraints=constraints, label=label
@@ -85,8 +89,6 @@ class ValueProbeEdge(NengoEdge):
         self.index = None  # Used in generating routing keys
         self.probe = probe
         self._filter_is_accumulatory = filter_is_accumulatory
-
-        self.synapse = probe.conn_args.get('synapse', None)
 
     @property
     def width(self):
