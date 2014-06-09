@@ -25,5 +25,5 @@ sim.run(20.)
 
 from matplotlib import pyplot as plt
 plt.plot(sim.trange(), sim.data[p])
-plt.ylabel('Time / s')
+plt.xlabel('Time / s')
 plt.show()
