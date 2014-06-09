@@ -65,7 +65,7 @@ class ValueSourceVertex(vertices.NengoVertex):
                     np.dot(tf.transform, v if tf.function is None else
                            tf.function(v)))
 
-            data.append(np.hstack(output))
+            data.append(np.vstack(output))
         data = np.array(data)
         self.data = data.reshape((1, data.size))
 
