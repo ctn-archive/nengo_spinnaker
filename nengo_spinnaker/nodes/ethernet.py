@@ -144,8 +144,12 @@ class EthernetCommunicator(object):
         self.rx_fresh = dict()
         self.rx_buffer = dict()
         self.nodes_connections_buffers = collections.defaultdict(list)
+        self._node_out = list()  # List of Nodes which provide output
 
         for (node, connections_rxs) in nodes_connections_rxs.items():
+            if node not in self._node_out:
+                self._node_out.append(node)
+
             for crx in connections_rxs:
                 # If we haven't seen this Rx element before, then add it to the
                 # set of Rx elements, create a fresh mark and a buffer
@@ -206,6 +210,10 @@ class EthernetCommunicator(object):
         self.rx_timer.cancel()
         self.in_socket.close()
         self.out_socket.close()
+
+    def node_has_output(self, node):
+        """Return whether the given Node has output"""
+        return node in self._node_out
 
     def get_node_input(self, node):
         """Get the input for the given Node.

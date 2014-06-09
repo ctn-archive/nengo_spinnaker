@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 class Simulator(object):
     """SpiNNaker simulator for Nengo models."""
-    def __init__(self, model, machine_name=None, seed=None, io=None):
+    def __init__(self, model, machine_name=None, seed=None, io=None,
+                 config=None):
         """Initialise the simulator with a model, machine and IO preferences.
 
         :param nengo.Network model: The model to simulate
@@ -29,6 +30,7 @@ class Simulator(object):
             or None.  The IO is used to allow host-based computation of Nodes
             to communicate with the SpiNNaker board. If None then an Ethernet
             connection is used by default.
+        :param config: Configuration as required for components.
         """
         dt = 0.001
 
@@ -57,7 +59,7 @@ class Simulator(object):
         self.builder = builder.Builder()
 
         (self.dao, self.nodes, self.node_node_connections, self.probes) = \
-            self.builder(model, dt, seed, node_builder=io)
+            self.builder(model, dt, seed, node_builder=io, config=config)
         self.dao.writeTextSpecs = True
 
         self.dt = dt
@@ -102,7 +104,7 @@ class Simulator(object):
         :raises KeyError: if the Node is not a valid Node
         """
         # Output to board
-        if callable(node.output):
+        if self.node_io.node_has_output(node):
             self.node_io.set_node_output(node, output)
 
         # Output to other Nodes on host

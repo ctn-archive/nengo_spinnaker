@@ -111,6 +111,10 @@ class SpiNNlinkUSBCommunicator(object):
     def stop(self):
         self.rx_timer.cancel()
 
+    def node_has_output(self, node):
+        """Return whether the given Node has output"""
+        return node in self.serial_rx
+
     def get_node_input(self, node):
         """Return the latest input for the given Node
 
