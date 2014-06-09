@@ -113,7 +113,9 @@ class Builder(object):
                         probe.size_in)
                     self.add_vertex(postvertex)
                     self.add_edge(
-                        edges.ValueProbeEdge(probe, vertex, postvertex))
+                        edges.ValueProbeEdge(probe, vertex, postvertex,
+                                             size_in=vertex._ens.size_out,
+                                             size_out=vertex._ens.size_out))
                     self.probes.append(
                         probes.DecodedValueProbe(vertex, postvertex, probe))
                 else:
