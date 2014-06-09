@@ -64,13 +64,14 @@ class Ethernet(object):
             Nodes.
         """
         # Have we already assigned a Tx vertex for this Node
-        if conn.post in self.node_txes:
+        if conn.post in self.nodes_txes:
             return self.node_txes[conn.post]
 
         # Create a new Tx, add to the map, add to the graph
         tx = SDPTransmitVertex(conn.post, label="SDP_TX %s" % conn.post)
         self.nodes_txes[conn.post] = tx
         builder.add_vertex(tx)
+        return tx
 
     def get_node_out_vertex(self, builder, conn):
         """Return the Vertex at which to originate the given Node->x connection
@@ -171,7 +172,7 @@ class EthernetCommunicator(object):
         # input
         self.xyp_nodes = dict()
         self.node_inputs = dict()
-        for (node, tx) in self.nodes_tx:
+        for (node, tx) in self.nodes_tx.items():
             xyp = tx.subvertices[0].placement.processor.get_coordinates()
             self.xyp_nodes[xyp] = node
             self.node_inputs[node] = None
@@ -286,7 +287,7 @@ class EthernetCommunicator(object):
             # Save the data
             assert(len(values) == node.size_in)
             with self.input_lock:
-                self.nodes_inputs[node] = values
+                self.node_inputs[node] = values
         except IOError:
             pass
 
