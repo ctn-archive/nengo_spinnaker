@@ -104,6 +104,8 @@ class SpiNNlinkUSBCommunicator(object):
         # Start the thread(s)
         self.rx_timer = threading.Timer(self.rx_period, self.rx_tick)
         self.rx_timer.name = "SpiNNlinkUSBRx"
+
+    def start(self):
         self.rx_timer.start()
 
     def stop(self):
