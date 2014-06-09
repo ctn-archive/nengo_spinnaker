@@ -1,14 +1,10 @@
 import collections
-import itertools
 import numpy as np
 
 from . import fixpoint as fp
+from . import connections
 from vertices import (region_pre_sizeof, region_sizeof, region_write,
                       region_pre_prepare, region_post_prepare)
-
-
-FilterItem = collections.namedtuple('FilterItem', ['time_constant',
-                                                   'accumulatory'])
 
 
 FilterRoute = collections.namedtuple('FilterRoute', ['key', 'mask', 'index',
@@ -42,7 +38,7 @@ def with_filters(filter_id=14, routing_id=15):
 @region_pre_sizeof("FILTERS")
 def _sizeof_region_filters(self, n_atoms):
     # 3 words per filter + 1 for length
-    return 3 * len(self.__filters) + 1
+    return 3 * self.n_filters + 1
 
 
 @region_pre_sizeof("FILTER_ROUTING")
@@ -53,24 +49,18 @@ def _pre_sizeof_region_filter_routing(self, n_atoms):
 @region_pre_prepare('FILTERS')
 def _pre_prepare_filters(self):
     """Generate a list of filters from the incoming edges."""
-    self.__filters = list()
-    self.__filters_in = collections.defaultdict(list)
-
-    for edge in self.in_edges:
-        filter_item = FilterItem(edge.synapse, edge._filter_is_accumulatory)
-
-        if filter_item not in self.__filters:
-            self.__filters.append(filter_item)
-
-        self.__filters_in[self.__filters.index(filter_item)].append(edge)
-
+    self.__filters = connections.Filters(
+        [connections.ConnectionWithFilter(edge.conn,
+                                          edge._filter_is_accumulatory) for
+         edge in self.in_edges]
+    )
     self.n_filters = len(self.__filters)
 
 
 @region_write("FILTERS")
 def _write_region_filters(self, subvertex, spec):
     spec.write(data=len(self.__filters))
-    for filter_item in self.__filters:
+    for filter_item in self.__filters.filters:
         f = (np.exp(-self.dt / filter_item.time_constant) if
              filter_item.time_constant is not None else 0.)
         spec.write(data=fp.bitsk(f))
@@ -84,39 +74,29 @@ def _post_prepare_routing(self):
     # filter to which it is connected.  At some later point we can try
     # to combine keys and masks to minimise the number of comparisons
     # which are made in the SpiNNaker application.
+    self.__filter_keys = list()
 
-    # Mapping of subvertices to list of maps from keys and masks to filter
-    # indices (filter routing entries)
-    self.__subvertex_filter_keys = collections.defaultdict(list)
+    for edge in self.in_edges:
+        i = self.__filters[edge.conn]
+        dmask = edge.dimension_mask
 
-    for (i, edges) in self.__filters_in.items():
-        for subvertex in self.subvertices:
-            subedges = itertools.chain(*[
-                filter(lambda se: se.postsubvertex == subvertex,
-                       edge.subedges) for edge in edges]
-            )
-            kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
-                    subedge.edge.dimension_mask) for subedge in subedges]
+        routings = [edge.prevertex.generate_routing_info(se) for se in
+                    edge.subedges]
 
-            # Add the key and mask entries to the filter keys list for this
-            # subvertex.
-            self.__subvertex_filter_keys[subvertex].extend(
-                [FilterRoute(km[0], km[1], i, dm) for (km, dm) in kms]
-            )
+        self.__filter_keys.extend(
+            [FilterRoute(r[0], r[1], i, dmask) for r in routings])
 
 
 @region_sizeof("FILTER_ROUTING")
 def _sizeof_region_filter_routing(self, subvertex):
     # 4 words per entry, 1 entry per in_subedge + 1 for length
-    return 4 * len(self.__subvertex_filter_keys[subvertex]) + 1
+    return 4 * len(self.__filter_keys) + 1
 
 
 @region_write("FILTER_ROUTING")
 def _write_region_filter_routing(self, subvertex, spec):
-    routes = self.__subvertex_filter_keys[subvertex]
-
-    spec.write(data=len(routes))
-    for route in routes:
+    spec.write(data=len(self.__filter_keys))
+    for route in self.__filter_keys:
         spec.write(data=route.key)
         spec.write(data=route.mask)
         spec.write(data=route.index)

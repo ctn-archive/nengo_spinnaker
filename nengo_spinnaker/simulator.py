@@ -5,8 +5,6 @@ import sys
 import threading
 import time
 
-from nengo.utils.compat import is_callable
-
 from pacman103.core import control
 
 from . import builder
@@ -169,20 +167,21 @@ class Simulator(object):
         self.controller.generate_output()
         self.controller.load_targets()
         self.controller.load_write_mem()
-        self.controller.run(self.dao.app_id)
 
         # Start the IO and perform host computation
         with self.io as node_io:
             self.node_io = node_io
+            self.controller.run(self.dao.app_id)
+            node_io.start()
 
             # Create the Node threads
             for node in self.nodes:
-                if not is_callable(node.output):
+                if not callable(node.output):
                     self.set_node_output(node, node.output)
 
             node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds,
                                        self._internode_filters[node])
-                         for node in self.nodes if is_callable(node.output)]
+                         for node in self.nodes if callable(node.output)]
 
             # Sleep for simulation time/forever
             try:
