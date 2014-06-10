@@ -20,6 +20,7 @@ from . import edges
 from . import ensemble_vertex
 from .nodes import value_source_vertex
 from .utils import connections, probes
+import utils
 from . import value_sink_vertex
 
 edge_builders = {}
@@ -32,6 +33,15 @@ def register_build_edge(pre=None, post=None):
         edge_builders[(pre, post)] = f
         return f
     return f_
+
+
+# Register some external edge builders
+register_build_edge(pre=nengo.Ensemble, post=utils.probes.ProbeNode)(
+    utils.probes.build_ensemble_probenode_edge
+)
+register_build_edge(pre=nengo.Node, post=utils.probes.ProbeNode)(
+    utils.probes.build_node_probenode_edge
+)
 
 
 class Builder(object):
@@ -96,9 +106,13 @@ class Builder(object):
         self.config = config
 
         # Get a new network structure with passthrough nodes removed
+        (objs, connections) = nengo.utils.builder.objs_and_connections(model)
+        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(
+            model.probes)
+        objs.extend(n_objs)
+        connections.extend(n_conns)
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
-            *nengo.utils.builder.objs_and_connections(model)
-        )
+            objs, connections)
 
         # Create a MultiCastVertex
         self._mc_tx_vertex = None
@@ -128,10 +142,12 @@ class Builder(object):
                                              size_in=vertex._ens.size_out,
                                              size_out=vertex._ens.size_out))
                     self.probes.append(
-                        probes.DecodedValueProbe(vertex, postvertex, probe))
+                        probes.DecodedValueProbe(postvertex, probe))
                 else:
                     raise NotImplementedError(
                         "Cannot probe '%s' on Ensembles" % probe.attr)
+            elif isinstance(probe.target, nengo.Node):
+                pass  # This was dealt with previously
             else:
                 raise NotImplementedError(
                     "Cannot probe '%s' objects" % type(probe.target))
