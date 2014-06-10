@@ -1,17 +1,8 @@
 import nengo
 
+from . import connections
 from . import fixpoint as fp
-
-
-def totuple(a):
-    """Convert any object (e.g., numpy array) to a Tuple.
-
-    http://stackoverflow.com/questions/10016352/convert-numpy-array-to-tuple
-    """
-    try:
-        return tuple(totuple(i) for i in a)
-    except TypeError:
-        return a
+from . import nodes
 
 
 def get_connection_width(connection):
