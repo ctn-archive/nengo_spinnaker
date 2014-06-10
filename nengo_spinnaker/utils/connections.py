@@ -120,25 +120,9 @@ class ConnectionBank(object):
         return self._connections[connection.pre].\
             contains_compatible_connection(connection)
 
-    def get_transforms_functions_for_object(self, obj):
-        return self._connections[obj].transforms_functions
-
-    def get_starting_index_for_object(self, obj):
-        index = 0
-        for (o, cs) in self._connections.items():
-            if o == obj:
-                return index
-            index += len(cs)
-
     @property
     def width(self):
         return sum([c.width for c in self._connections.values()])
-
-    @property
-    def widths(self):
-        for cs in self._connections.values():
-            for c in cs.transforms_functions:
-                yield c.transform.shape[0]
 
     def __getitem__(self, connection):
         index = 0
