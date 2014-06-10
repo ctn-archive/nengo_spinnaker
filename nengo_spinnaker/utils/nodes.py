@@ -69,7 +69,7 @@ def replace_node_ensemble_connections(connections, io, config=None):
     of Connections.
 
     Every Node->Ensemble connection is replaced with a Node->OutputNode where
-    appropriate (i.e., output not constant nor function of time.
+    appropriate (i.e., output not constant nor function of time).
     """
     new_conns = list()
     new_nodes = list()
