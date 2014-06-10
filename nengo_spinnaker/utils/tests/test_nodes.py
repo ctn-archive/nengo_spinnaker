@@ -1,9 +1,170 @@
+"""Tests for Node simulation utilities.
+"""
+
 import mock
 import numpy as np
 
 import nengo
 import nengo_spinnaker
-from nengo_spinnaker.utils import nodes
+from nengo_spinnaker.utils import connections, nodes
+
+
+def test_build_output_buffers():
+    model = nengo.Network()
+    with model:
+        a = nengo.Node(lambda t: t)
+        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1)
+        c = nengo.Node(lambda t, v: v, size_in=1, size_out=1)
+        d = nengo.Node(lambda t, v: v, size_in=5)
+
+        c1 = nengo.Connection(a, b)
+        c2 = nengo.Connection(b, c)
+        c3 = nengo.Connection(a, c)
+        c4 = nengo.Connection(a, d, transform=[[1], [1], [0], [3], [1]])
+
+    buffers = nodes.build_output_buffers(connections.ConnectionBank(
+        [c1, c2, c3, c4]))
+    assert(len(buffers) == 3)
+    assert(5 in [b.size for b in buffers])
+
+
+def test_set_node_output():
+    model = nengo.Network()
+    with model:
+        a = nengo.Node(lambda t: t)
+        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1)
+        c = nengo.Node(lambda t, v: v, size_in=1, size_out=1)
+
+        c1 = nengo.Connection(a, b)
+        c2 = nengo.Connection(a, b, transform=-1)
+        c3 = nengo.Connection(a, c, function=np.sin)
+
+    buffers = nodes.OutputBuffer([c1, c2, c3])
+    buffers.set_output(a, np.pi)
+
+    assert(buffers.get_output_for_connection(c1) == np.pi)
+    assert(buffers.get_output_for_connection(c2) == -np.pi)
+    assert(buffers.get_output_for_connection(c3) == np.sin(np.pi))
+
+
+def test_get_node_input_returns_none_for_no_input():
+    model = nengo.Network()
+    with model:
+        a = nengo.Node(lambda t: t, label='A')
+        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='B')
+        c = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='C')
+
+        c1 = nengo.Connection(a, b)
+        c2 = nengo.Connection(a, b, transform=-1)
+        c3 = nengo.Connection(a, c, function=np.sin)
+
+    inputs = nodes.OutputBuffer([c1, c2, c3])
+
+    assert(inputs.get_input(b) is None)
+    assert(inputs.get_input(c) is None)
+
+
+def test_get_node_input_returns_value_when_set():
+    model = nengo.Network()
+    with model:
+        a = nengo.Node(lambda t: t, label='A')
+        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='B')
+
+        c1 = nengo.Connection(a, b)
+
+    buffers = nodes.OutputBuffer([c1])
+
+    assert(buffers.get_input(b) is None)
+
+    buffers.set_output(a, 5.0)
+    assert(buffers.get_input(b) == 5.0)
+
+
+def test_get_node_inputs():
+    model = nengo.Network()
+    with model:
+        a = nengo.Node(lambda t: t, label='A')
+        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='B')
+        c = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='C')
+        d = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='D')
+
+        c1 = nengo.Connection(a, c)
+        c2 = nengo.Connection(b, c)
+        c3 = nengo.Connection(a, d)
+        c4 = nengo.Connection(c, d)
+
+    buffers = nodes.OutputBuffer([c1, c2, c3, c4])
+    buffers.set_output(a, 5.0)
+    buffers.set_output(b, 1.0)
+
+    assert(buffers.get_inputs(c) == {c1: 5.0, c2: 1.0})
+    assert(buffers.get_inputs(d) is None)
+
+
+def test_integrated_node_io():
+    model = nengo.Network()
+    with model:
+        n_a = nengo.Node(lambda t: t, label='A')
+        n_b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='B')
+        n_c = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='C')
+        n_d = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='D')
+
+        e = nengo.Ensemble(100, 1)
+
+        c1 = nengo.Connection(n_a, e)  # Not included in Node->Node list
+        c2 = nengo.Connection(n_a, n_b)
+        c3 = nengo.Connection(e, n_c)  # Not included in Node->Node list
+        c4 = nengo.Connection(n_a, n_d)
+        c5 = nengo.Connection(e, n_d)  # Not included in Node->Node list
+
+    # A is the only Node with output to the board, so "node_has_output" returns
+    # True for n_a, and False otherwise
+    def node_is_a(node):
+        return node == n_a
+
+    # C and D are the only nodes with input from the board
+    def io_node_has_input(node):
+        return node == n_c or node == n_d
+
+    # Pretend the Ensemble hasn't returned a value for n_c, but has for n_d
+    def io_node_input(node):
+        if node == n_d:
+            return 5.
+
+    dummy_io = mock.Mock()
+    dummy_io.node_has_output.side_effect = node_is_a
+    dummy_io.node_has_input.side_effect = io_node_has_input
+    dummy_io.get_node_input.side_effect = io_node_input
+
+    # Construct a NodeIO handler
+    node_io = nodes.NodeIO([c2, c4], dummy_io)
+
+    # Try setting output on n_d, ensure that the IO caller is handler
+    # appropriately
+    node_io.set_node_output(n_d, 0.1)
+    dummy_io.node_has_output.assert_called_once_with(n_d)
+    assert(not dummy_io.set_node_output.called)
+
+    # Try setting output on n_a, ensure that the IO caller is handled
+    # appropriately and that the value can be retrieved by n_b
+    node_io.set_node_output(n_a, 0.3*np.pi)
+    dummy_io.node_has_output.assert_called_with(n_a)
+    dummy_io.set_node_output.assert_called_once_with(n_a, 0.3*np.pi)
+
+    # Try getting input on n_b
+    i_b = node_io.get_node_input(n_b)
+    assert(i_b == {c2: 0.3*np.pi})
+    dummy_io.node_has_input.assert_called_once_with(n_b)
+
+    # Try getting input on n_c
+    i_c = node_io.get_node_input(n_c)
+    assert(i_c is None)
+    dummy_io.node_has_input.assert_called_with(n_c)
+    dummy_io.get_node_input.assert_called_once_with(n_c)
+
+    # Try getting input on n_d
+    i_d = node_io.get_node_input(n_d)
+    assert(i_d == {None: 5., c4: 0.3*np.pi})
 
 
 def test_output_to_board_node_simple():
