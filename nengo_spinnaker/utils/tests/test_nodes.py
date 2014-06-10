@@ -169,6 +169,25 @@ def test_remove_custom_nodes():
     assert(a_b in conns)
 
 
+def test_get_connected_nodes():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        b = nengo.Node(lambda t, v: t, size_in=1, size_out=1)
+
+        c = nengo.Node(lambda t, v: None, size_in=1, size_out=0)
+        d = nengo.Node(lambda t, v: None, size_in=1, size_out=0)
+
+        a_c = nengo.Connection(a, c)
+        b_c = nengo.Connection(b, c)
+
+    ns = nodes.get_connected_nodes(model.connections)
+    assert(a not in ns)
+    assert(b in ns)
+    assert(c in ns)
+    assert(d not in ns)
+
+
 def test_create_host_network():
     """Test creating a network to simulate on the host.  All I/O connections
     will have been replaced with new Nodes which handle communication with the
@@ -185,6 +204,7 @@ def test_create_host_network():
         c = nengo.Node(lambda t, v: v**2, size_in=1, size_out=1, label="C")
         d = nengo.Ensemble(1, 1, label="D")
         n = TestNode(output=lambda t, v: v, size_in=1, size_out=1, label="N")
+        o = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label="Orphan")
 
         a_b = nengo.Connection(a, b)
         b_c = nengo.Connection(b, c)
@@ -208,6 +228,7 @@ def test_create_host_network():
     assert(b_n not in host_network.connections)
     assert(n_d not in host_network.connections)
     assert(n not in host_network.nodes)
+    assert(o not in host_network.nodes)
 
     for c_ in host_network.connections:
         if c_.post == b: assert(c_.pre.output.node == b)

@@ -15,19 +15,32 @@ def create_host_network(network, io, config=None):
 
     # Remove custom built Nodes
     (ns, conns) = remove_custom_nodes(network.nodes, network.connections)
-    new_network.nodes.extend(ns)
 
     # Replace Node -> Ensemble connections
     (ns, conns) = replace_node_ensemble_connections(conns, io, config)
-    new_network.nodes.extend(ns)
 
     # Replace Ensemble -> Node connections
     (ns, conns) = replace_ensemble_node_connections(conns, io)
-    new_network.nodes.extend(ns)
 
     # Finish up
+    new_network.nodes = get_connected_nodes(conns)
     new_network.connections.extend(conns)
     return new_network
+
+
+def get_connected_nodes(connections):
+    """From the connections return a list of Nodes which are are either at the
+    beginning or end of a connection.
+    """
+    nodes = list()
+
+    for c in connections:
+        if c.pre not in nodes and isinstance(c.pre, nengo.Node):
+            nodes.append(c.pre)
+        if c.post not in nodes and isinstance(c.post, nengo.Node):
+            nodes.append(c.post)
+
+    return nodes
 
 
 def remove_custom_nodes(nodes, connections):
