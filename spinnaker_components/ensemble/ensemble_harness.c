@@ -16,6 +16,17 @@
 
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;
+input_filter_t g_input;
+input_filter_t g_input_inhibitory;
+
+/* Multicast Wrapper ********************************************************/
+void mcpl_rx(uint key, uint payload) {
+  if (!input_filter_mcpl_rx(&g_input, key, payload)) {
+    if (!input_filter_mcpl_rx(&g_input_inhibitory, key, payload)) {
+      io_printf(IO_BUF, "[MCPL Rx] Unknown key %08x\n", key);
+    }
+  }
+}
 
 /* Initialisation ***********************************************************/
 bool initialise_ensemble(region_system_t *pars) {
@@ -25,6 +36,7 @@ bool initialise_ensemble(region_system_t *pars) {
   g_ensemble.t_ref = pars->t_ref;
   g_ensemble.dt_over_t_rc = pars->dt_over_t_rc;
   g_ensemble.recd.record = pars->record_spikes;
+  g_ensemble.n_inhib_dims = pars->n_inhibitory_dimensions;
 
   io_printf(IO_BUF, "[Ensemble] INITIALISE_ENSEMBLE n_neurons = %d," \
             "timestep = %d, t_ref = %d, dt_over_t_rc = 0x%08x\n",
@@ -61,9 +73,17 @@ bool initialise_ensemble(region_system_t *pars) {
                     "[Ensemble]");
 
   // Setup subcomponents
-  g_ensemble.input = initialise_input(pars->n_input_dimensions);
+  g_ensemble.input = input_filter_initialise(&g_input, pars->n_input_dimensions);
   if (g_ensemble.input == NULL)
     return false;
+
+  io_printf(IO_BUF, "@\n");
+  if (pars->n_inhibitory_dimensions > 0) {
+    if (NULL == input_filter_initialise(
+          &g_input_inhibitory, pars->n_inhibitory_dimensions))
+      return false;
+  }
+  io_printf(IO_BUF, "@\n");
 
   g_ensemble.output = initialise_output(pars);
   if (g_ensemble.output == NULL && g_n_output_dimensions > 0)
@@ -71,5 +91,6 @@ bool initialise_ensemble(region_system_t *pars) {
 
   // Register the update function
   spin1_callback_on(TIMER_TICK, ensemble_update, 2);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_rx, -1);
   return true;
 }

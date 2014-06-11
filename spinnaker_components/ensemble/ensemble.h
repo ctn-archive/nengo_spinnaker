@@ -12,14 +12,6 @@
  * using *decoders* (again provided by the host). Decoded values are output
  * in an interleaved fashion during the neuron update loop.
  *
- * Number | Region | Description | Handling Function
- * ------ | ------ | ----------- | -----------------
- * 1 | System | Global parameters | ::copy_in_system_region
- * 2 | Bias   | Bias currents | ::copy_in_bias
- * 3 | Encoders | Neuron encoder matrix | ::copy_in_encoders
- * 4 | Decoders | Decoder matrix | ::copy_in_decoders
- * 5 | Decoder Keys | Routing keys for decoded values | ::copy_in_decoder_keys
- *
  * \author Andrew Mundy <mundya@cs.man.ac.uk>
  * \author Terry Stewart
  * 
@@ -39,14 +31,13 @@
 
 #include "nengo_typedefs.h"
 #include "nengo-common.h"
-#include "dimensional-io.h"
 
 #include "recording.h"
 
-#include "ensemble-data.h"
-#include "ensemble-output.h"
+#include "ensemble_data.h"
+#include "ensemble_output.h"
 
-#include "filtered-input.h"
+#include "input_filter.h"
 
 /* Structs ******************************************************************/
 /** \brief Persistent neuron variables.
@@ -68,6 +59,9 @@ typedef struct ensemble_parameters {
   current_t *i_bias;        //!< Population biases \f$1 \times N\f$
   neuron_status_t *status;  //!< Neuron status
 
+  uint n_inhib_dims;        //!< Number of dimensions in inhibitory connection
+  value_t *inhib_gain;      //!< Gain of inhibitory connection (value of transform)
+
   value_t *encoders;        //!< Encoder values \f$N \times D_{in}\f$ (including gains)
   value_t *decoders;        //!< Decoder values \f$N \times\sum D_{outs}\f$
 
@@ -80,6 +74,8 @@ typedef struct ensemble_parameters {
 /* Parameters and Buffers ***************************************************/
 extern ensemble_parameters_t g_ensemble;  //!< Global parameters
 extern uint g_output_period;       //!< Delay in transmitting decoded output
+extern input_filter_t g_input;     //!< Input filters and buffers
+extern input_filter_t g_input_inhibitory;     //!< Input filters and buffers
 
 /* Functions ****************************************************************/
 /**

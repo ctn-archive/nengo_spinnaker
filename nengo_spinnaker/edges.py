@@ -1,4 +1,3 @@
-import collections
 import numpy as np
 
 from pacman103.lib import graph
@@ -13,7 +12,7 @@ class DummyConnection(object):
     _postslice = None
 
     def __init__(self, pre=None, post=None, transform=1., function=None,
-                 solver=None, eval_points=None, synapse=None, 
+                 solver=None, eval_points=None, synapse=None,
                  size_in=1, size_out=1):
         self.pre = pre
         self.post = post
@@ -73,6 +72,16 @@ class DecoderEdge(NengoEdge):
 class InputEdge(NengoEdge):
     """Edge representing a connection from a Node via an ReceiveVertex."""
     pass
+
+
+class InhibitionEdge(NengoEdge):
+    @property
+    def width(self):
+        return 1
+
+    @property
+    def transform(self):
+        return self.conn.transform[0][0]
 
 
 class ValueProbeEdge(NengoEdge):
