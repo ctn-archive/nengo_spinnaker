@@ -1,6 +1,7 @@
 import nengo
 
 from . import fixpoint as fp
+from . import decoders
 
 
 def totuple(a):

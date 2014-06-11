@@ -7,6 +7,7 @@ from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 
 from .utils import connections, fp, filters, vertices
+from . import utils
 
 
 @filters.with_filters(6, 7)
@@ -141,31 +142,11 @@ class EnsembleVertex(vertices.NengoVertex):
 
         # Generate each decoder in turn
         decoders = list()
+        decoder_builder = utils.decoders.DecoderBuilder(self._build_decoder)
         for tfse in tfses.transforms_functions:
-            eval_points = tfse.eval_points
-            if eval_points is None:
-                eval_points = self.eval_points
-
-            x = np.dot(eval_points, self.encoders.T / self._ens.radius)
-            activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
-
-            if tfse.function is None:
-                targets = eval_points
-            else:
-                targets = np.array([tfse.function(ep) for ep in eval_points])
-                if targets.ndim < 2:
-                    targets.shape = targets.shape[0], 1
-
-            solver = tfse.solver
-            if solver is None:
-                solver = nengo.decoders.LstsqL2()
-
-            decoder = solver(activities, targets, self.rng)
-
-            if isinstance(decoder, tuple):
-                decoder = decoder[0]
-
-            decoders.append(np.dot(decoder, tfse.transform.T))
+            decoders.append(decoder_builder.get_transformed_decoder(
+                tfse.function, tfse.transform, tfse.eval_points, tfse.solver
+            ))
 
         # Generate the decoder widths
         self._decoder_widths = [d.shape[1] for d in decoders]
@@ -174,6 +155,29 @@ class EnsembleVertex(vertices.NengoVertex):
         self._merged_decoders = np.array([[], ])
         if len(decoders) > 0:
             self._merged_decoders = np.hstack(decoders) / self.dt
+
+    def _build_decoder(self, function, eval_points, solver):
+        if eval_points is None:
+            eval_points = self.eval_points
+
+        x = np.dot(eval_points, self.encoders.T / self._ens.radius)
+        activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
+
+        if function is None:
+            targets = eval_points
+        else:
+            targets = np.array([function(ep) for ep in eval_points])
+            if targets.ndim < 2:
+                targets.shape = targets.shape[0], 1
+
+        if solver is None:
+            solver = nengo.decoders.LstsqL2()
+
+        decoder = solver(activities, targets, self.rng)
+
+        if isinstance(decoder, tuple):
+            decoder = decoder[0]
+        return decoder
 
     @vertices.region_pre_sizeof('DECODERS')
     def sizeof_region_decoders(self, n_atoms):
