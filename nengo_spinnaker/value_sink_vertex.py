@@ -32,7 +32,7 @@ class ValueSinkVertex(vertices.NengoVertex):
     def prepare_system(self):
         # Calculate the number of ticks of execution
         self.run_ticks = ((1 << 32) - 1 if self.runtime is None else
-                          self.runtime * 1000)
+                          int(self.runtime * 1000))
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_system(self, n_atoms):
