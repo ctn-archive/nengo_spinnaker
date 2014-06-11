@@ -4,7 +4,7 @@ import numpy as np
 import nengo.objects
 
 from . import fixpoint as fp
-from . import connections
+from . import connections, global_inhibition
 from vertices import (region_pre_sizeof, region_sizeof, region_write,
                       region_pre_prepare, region_post_prepare)
 
@@ -55,7 +55,8 @@ def _pre_prepare_filters(self):
         [connections.ConnectionWithFilter(edge.conn,
                                           edge._filter_is_accumulatory) for
          edge in self.in_edges if
-         not isinstance(edge.post, nengo.objects.Neurons)]
+         not isinstance(
+             edge.conn, global_inhibition.GlobalInhibitionConnection)]
     )
     self.n_filters = len(self.__filters)
 
@@ -80,6 +81,9 @@ def _post_prepare_routing(self):
     self.__filter_keys = list()
 
     for edge in self.in_edges:
+        if isinstance(edge.conn, global_inhibition.GlobalInhibitionConnection):
+            continue
+
         i = self.__filters[edge.conn]
         dmask = edge.dimension_mask
 

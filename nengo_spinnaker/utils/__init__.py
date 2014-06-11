@@ -1,6 +1,7 @@
 import nengo
 
 from . import fixpoint as fp
+from . import connections, global_inhibition, probes
 
 
 def totuple(a):

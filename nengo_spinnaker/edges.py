@@ -2,8 +2,6 @@ import numpy as np
 
 from pacman103.lib import graph
 
-from . import utils
-
 
 class DummyConnection(object):
     """Dummy Connection object used in Edges which do not represent a Nengo
@@ -57,7 +55,7 @@ class NengoEdge(graph.Edge, Edge):
 
     @property
     def width(self):
-        utils.get_connection_width(self.conn)
+        return self.conn.post.size_in
 
     def __getattr__(self, name):
         """Redirect missed attributes to the connection."""
@@ -72,16 +70,6 @@ class DecoderEdge(NengoEdge):
 class InputEdge(NengoEdge):
     """Edge representing a connection from a Node via an ReceiveVertex."""
     pass
-
-
-class InhibitionEdge(NengoEdge):
-    @property
-    def width(self):
-        return 1
-
-    @property
-    def transform(self):
-        return self.conn.transform[0][0]
 
 
 class ValueProbeEdge(NengoEdge):

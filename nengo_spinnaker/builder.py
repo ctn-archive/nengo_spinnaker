@@ -17,10 +17,8 @@ from pacman103.core import dao
 from pacman103.front import common
 from pacman103.lib import graph
 
-from . import edges
-from . import ensemble_vertex
+from . import edges, ensemble_vertex, utils
 from .nodes import value_source_vertex
-from .utils import connections, probes
 from . import value_sink_vertex
 
 edge_builders = {}
@@ -119,7 +117,7 @@ class Builder(object):
 
                 if probe.attr == 'spikes':
                     vertex.record_spikes = True
-                    self.probes.append(probes.SpikeProbe(vertex, probe))
+                    self.probes.append(utils.probes.SpikeProbe(vertex, probe))
                 elif probe.attr == 'decoded_output':
                     postvertex = value_sink_vertex.ValueSinkVertex(
                         probe.size_in)
@@ -129,7 +127,8 @@ class Builder(object):
                                              size_in=vertex._ens.size_out,
                                              size_out=vertex._ens.size_out))
                     self.probes.append(
-                        probes.DecodedValueProbe(vertex, postvertex, probe))
+                        utils.probes.DecodedValueProbe(
+                            vertex, postvertex, probe))
                 else:
                     raise NotImplementedError(
                         "Cannot probe '%s' on Ensembles" % probe.attr)
@@ -221,26 +220,14 @@ def _ensemble_to_neurons(builder, c):
     # Currently only support inhibitory connections from Ensembles to Neurons,
     # these are notable by having transforms which are [[k]*d]*n: so we check
     # for this also!
-    ts = np.array(c.transform)
-    ts = ts.reshape(ts.size)
-    if not np.all([ts[0] == t for t in ts[1:]]):
-        raise NotImplementedError("Cannot currently connect to Neurons with "
-                                  "anything but a uniform transform.")
-
     try:
         postvertex = builder.ensemble_vertices[c.post.ensemble]
     except KeyError:
         raise KeyError("Attempt to connect to unknown set of Neurons.")
 
-    if postvertex.inhibitory_edge is not None:
-        raise NotImplementedError("Only one inhibitory connection may be made "
-                                  "to an ensemble.")
-
     prevertex = builder.ensemble_vertices[c.pre]
-    edge = edges.InhibitionEdge(c, prevertex, postvertex)
-
-    postvertex.inhibitory_edge = edge
-
+    edge = utils.global_inhibition.create_inhibition_edge(
+        c, prevertex, postvertex)
     return edge
 
 

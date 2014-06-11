@@ -192,9 +192,9 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_prepare('INHIB_FILTER')
     def prepare_region_inhib_filters(self):
         self.inhib_dims = (0 if self.inhibitory_edge is None else
-                           self.inhibitory_edge.transform_full.shape[1])
+                           self.inhibitory_edge.transform.size)
         self.inhib_gain = (0 if self.inhibitory_edge is None else
-                           self.inhibitory_edge.transform_full[0][0])
+                           self.inhibitory_edge.transform)
 
     @vertices.region_pre_sizeof('INHIB_FILTER')
     def pre_sizeof_region_inhib_filters(self, n_atoms):
@@ -210,23 +210,19 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_post_prepare('INHIB_ROUTING')
     def post_prepare_inhib_routing(self):
-        self.inhib_filter_keys = collections.defaultdict(list)
+        self.inhib_filter_keys = list()
 
         if self.inhibitory_edge is not None:
-            for subvertex in self.subvertices:
-                subedges = [se for se in self.inhibitory_edge.subedges if
-                            se.postsubvertex == subvertex]
+            kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
+                    subedge.edge.dimension_mask) for subedge in self.inhibitory_edge.subedges]
 
-                kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
-                        subedge.edge.dimension_mask) for subedge in subedges]
-
-                self.inhib_filter_keys[subvertex].extend(
-                    [filters.FilterRoute(km[0], km[1], 0, dm) for (km, dm) in
-                     kms])
+            self.inhib_filter_keys.extend(
+                [filters.FilterRoute(km[0], km[1], 0, dm) for (km, dm) in
+                 kms])
 
     @vertices.region_sizeof('INHIB_ROUTING')
     def sizeof_region_inhib_routing(self, subvertex):
-        return 4 * len(self.inhib_filter_keys[subvertex]) + 1
+        return 4 * len(self.inhib_filter_keys) + 1
 
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
@@ -313,7 +309,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_write('INHIB_ROUTING')
     def write_region_inhib_routing(self, subvertex, spec):
-        routes = self.inhib_filter_keys[subvertex]
+        routes = self.inhib_filter_keys
 
         spec.write(data=len(routes))
         for route in routes:
