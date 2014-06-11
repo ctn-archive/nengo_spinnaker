@@ -12,7 +12,7 @@ with model:
     e = nengo.Ensemble(50, 1)
     f = nengo.Ensemble(50, 1)
 
-    pf = nengo.Probe(f, synapse=0.05)
+    pf = nengo.Probe(d, synapse=0.05)
     ps = nengo.Probe(f, 'spikes')
 
     nengo.Connection(a, e)
@@ -21,8 +21,10 @@ with model:
     nengo.Connection(d, e.neurons, transform=[[-100.]]*50)
 
 import nengo_spinnaker
-sim = nengo_spinnaker.Simulator(model)
-sim.run(10.)
+config = nengo_spinnaker.Config()
+config[b].f_of_t = True
+sim = nengo_spinnaker.Simulator(model, config=config)
+sim.run(10., clean=False)
 
 sim_ = nengo.Simulator(model)
 sim_.run(10.)
