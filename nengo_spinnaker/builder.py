@@ -19,7 +19,6 @@ from pacman103.lib import graph
 from . import edges
 from . import ensemble_vertex
 from .nodes import value_source_vertex
-from .utils import connections, probes
 import utils
 from . import value_sink_vertex
 
@@ -105,12 +104,19 @@ class Builder(object):
             config = Config()
         self.config = config
 
-        # Get a new network structure with passthrough nodes removed
+        # Flatten the network
         (objs, connections) = nengo.utils.builder.objs_and_connections(model)
-        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(
-            model.probes)
+
+        # Remove synapses from Probes(PassNode) where the PassNode has incoming
+        # synapses -- provides a RuntimeWarning that this is happening
+        probes = utils.probes.get_corrected_probes(model.probes, connections)
+
+        # Add new Nodes to represent decoded_value probes
+        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(probes)
         objs.extend(n_objs)
         connections.extend(n_conns)
+
+        # Remove all the PassNodes
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
             objs, connections)
 
@@ -126,7 +132,7 @@ class Builder(object):
             self._build(conn)
 
         # Probes
-        for probe in model.probes:
+        for probe in probes:
             if isinstance(probe.target, nengo.Ensemble):
                 vertex = self.ensemble_vertices[probe.target]
 

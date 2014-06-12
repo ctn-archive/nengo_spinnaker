@@ -1,8 +1,10 @@
 import numpy as np
 import logging
+import warnings
 logger = logging.getLogger(__name__)
 
 import nengo
+import nengo.utils.builder
 
 from . import vertices, filters
 from . import fixpoint as fp
@@ -27,6 +29,31 @@ def get_probe_nodes_connections(probes):
             new_conns.append(pc)
 
     return new_nodes, new_conns
+
+
+def get_corrected_probes(probes, connections):
+    """Get a modified list of Probes, removing the synapses from Probes which
+    probe PassNodes with synapses on *their* inputs.
+    """
+    new_probes = list()
+    ins, _ = nengo.utils.builder.find_all_io(connections)
+
+    for probe in probes:
+        if (isinstance(probe.target, nengo.Node) and
+                probe.target.output is None):
+            # This is a PassNode, modify if required
+            # Get the incoming connections to the target
+            if True in [c.synapse is not None for c in ins[probe.target]]:
+                warnings.warn("Can't currently have synapse on PassNode Probe."
+                              "\n\nDefaulting to synapse=None on %s\n"
+                              "This is because you tried to provide a"
+                              "synapse for a PassNode Probe where inputs to"
+                              "the PassNode already possessed synapses.\n"
+                              % probe, RuntimeWarning)
+                probe = nengo.Probe(probe.target, synapse=None,
+                                    add_to_container=False)
+        new_probes.append(probe)
+    return new_probes
 
 
 def build_ensemble_probenode_edge(builder, c):
@@ -134,6 +161,8 @@ try:
 
 except ImportError:
     # No bitarray, so no spike probing!
+    warnings.warn("Cannot import module bitarray: spike probing is disabled",
+                  ImportWarning)
     SpikeProbe = None
 
 

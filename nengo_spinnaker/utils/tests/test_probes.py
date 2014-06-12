@@ -2,6 +2,8 @@
 """
 import mock
 import numpy as np
+import pytest
+import warnings
 
 import nengo
 
@@ -68,3 +70,33 @@ def test_probenode_spinnaker_build():
     assert(builder.probes[0].probe == p)
     assert(builder.probes[0].recording_vertex == v)
     assert(pn.vertex == v)
+
+
+def test_passnode_modify():
+    """Returns a new set of probes where the synapse value of Probes probing
+    PassNodes which have synapses on their inputs is set to None.  Additionally,
+    functions and transforms on Probe as removed.
+    """
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 1)
+        pn = nengo.Node(None, size_in=1, size_out=1)
+        b = nengo.Ensemble(1, 1)
+
+        nengo.Connection(a, pn, synapse=0.01)
+        probe = nengo.Probe(pn, synapse=0.01)
+        p2 = nengo.Probe(a, synapse=0.05)
+
+    with warnings.catch_warnings(record=True) as w:
+        (objs, conns) = nengo.utils.builder.objs_and_connections(model)
+        new_objs = utils.probes.get_corrected_probes(model.probes, conns)
+
+        assert len(w) == 1
+        assert(issubclass(w[-1].category, RuntimeWarning))
+
+    assert(len(new_objs) == 2)
+    assert(p2 in new_objs)
+
+    for obj in new_objs:
+        if isinstance(obj, nengo.Probe) and obj.target == pn:
+            assert(obj.conn_args.get('synapse', None) is None)
