@@ -13,7 +13,8 @@ from .utils import connections, fp, filters, vertices
 class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
     REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
-                                       'DECODERS', 'OUTPUT_KEYS', 'PES',
+                                       'DECODERS', 'OUTPUT_KEYS', 
+                                       **{'PES': 8},
                                        **{'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
 
@@ -36,6 +37,10 @@ class EnsembleVertex(vertices.NengoVertex):
         # **TODO** Each learning rule should probably have it's own region, the
         # Writing and reserving of which should be deferred to them (somehow)
         self._pes_learning_rate = 0.0
+        
+        # Time constant for PES activity filtering in seconds
+        # **TODO** should be overridable by nengo_spinnaker.Config
+        self._pes_activity_time_constant = 0.01
         
         # Create random number generator
         if ens.seed is None:
@@ -190,8 +195,8 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('PES')
     def sizeof_region_pes(self, n_atoms):
-        # All PES region contains is the learning rate
-        return 1
+        # All PES region contains is the learning rate followed by an activity decay
+        return 2
     
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
@@ -263,7 +268,11 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_write('PES')
     def write_region_output_pes(self, subvertex, spec):
+        # Calculate activity decay from time constant
+        pes_activity_decay = math.exp(-self.dt / self._pes_activity_time_constant)
+        
         spec.write(data=fp.bitsk(self._pes_learning_rate))
+        spec.write(data=fp.bitsk(pes_activity_decay))
     
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""

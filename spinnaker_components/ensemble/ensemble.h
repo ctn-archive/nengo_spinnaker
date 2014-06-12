@@ -19,9 +19,11 @@
  * 3 | Encoders | Neuron encoder matrix | ::copy_in_encoders
  * 4 | Decoders | Decoder matrix | ::copy_in_decoders
  * 5 | Decoder Keys | Routing keys for decoded values | ::copy_in_decoder_keys
+ * 8 | PES | Parameters for PES learning rule | ::get_pes
  *
  * \author Andrew Mundy <mundya@cs.man.ac.uk>
  * \author Terry Stewart
+ * \author James Knight <knightj@cs.man.ac.uk>
  * 
  * \copyright Advanced Processor Technologies, School of Computer Science,
  *   University of Manchester
@@ -45,6 +47,7 @@
 
 #include "ensemble-data.h"
 #include "ensemble-output.h"
+#include "ensemble-pes.h"
 
 #include "filtered-input.h"
 
@@ -109,6 +112,11 @@ static inline value_t neuron_encoder( uint n, uint d )
 
 static inline value_t neuron_decoder( uint n, uint d )
   { return g_ensemble.decoders[ n * g_n_output_dimensions + d ]; };
+
+static inline value_t *neuron_decoder_vector(uint n)
+{
+  return &g_ensemble.decoders[n * g_n_output_dimensions];
+}
 
 // -- Voltages and refractory periods
 //! Get the membrane voltage for the given neuron
