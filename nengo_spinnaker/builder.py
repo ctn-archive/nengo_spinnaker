@@ -19,7 +19,7 @@ from pacman103.lib import graph
 from . import edges
 from . import ensemble_vertex
 from .nodes import value_source_vertex
-from .utils import connections, probes
+import utils
 from . import value_sink_vertex
 from . import utils
 
@@ -33,6 +33,15 @@ def register_build_edge(pre=None, post=None):
         edge_builders[(pre, post)] = f
         return f
     return f_
+
+
+# Register some external edge builders
+register_build_edge(pre=nengo.Ensemble, post=utils.probes.ProbeNode)(
+    utils.probes.build_ensemble_probenode_edge
+)
+register_build_edge(pre=nengo.Node, post=utils.probes.ProbeNode)(
+    utils.probes.build_node_probenode_edge
+)
 
 
 class Builder(object):
@@ -94,10 +103,21 @@ class Builder(object):
             config = Config()
         self.config = config
 
-        # Get a new network structure with passthrough nodes removed
+        # Flatten the network
+        (objs, connections) = nengo.utils.builder.objs_and_connections(model)
+
+        # Remove synapses from Probes(PassNode) where the PassNode has incoming
+        # synapses -- provides a RuntimeWarning that this is happening
+        probes = utils.probes.get_corrected_probes(model.probes, connections)
+
+        # Add new Nodes to represent decoded_value probes
+        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(probes)
+        objs.extend(n_objs)
+        connections.extend(n_conns)
+
+        # Remove all the PassNodes
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
-            *nengo.utils.builder.objs_and_connections(model)
-        )
+            objs, connections)
 
         # Create a MultiCastVertex
         self._mc_tx_vertex = None
@@ -111,7 +131,7 @@ class Builder(object):
             self._build(conn)
 
         # Probes
-        for probe in model.probes:
+        for probe in probes:
             if isinstance(probe.target, nengo.Ensemble):
                 vertex = self.ensemble_vertices[probe.target]
 
@@ -127,10 +147,12 @@ class Builder(object):
                                              size_in=vertex._ens.size_out,
                                              size_out=vertex._ens.size_out))
                     self.probes.append(
-                        probes.DecodedValueProbe(vertex, postvertex, probe))
+                        probes.DecodedValueProbe(postvertex, probe))
                 else:
                     raise NotImplementedError(
                         "Cannot probe '%s' on Ensembles" % probe.attr)
+            elif isinstance(probe.target, nengo.Node):
+                pass  # This was dealt with previously
             else:
                 raise NotImplementedError(
                     "Cannot probe '%s' objects" % type(probe.target))
