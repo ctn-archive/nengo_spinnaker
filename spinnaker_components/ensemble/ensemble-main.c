@@ -20,7 +20,7 @@ void c_main(void) {
     return;
   }
   
-  get_pes(region_start(8, address));
+  get_pes((region_pes_t*)region_start(8, address));
 
   // Set up recording
   if (!record_buffer_initialise(&g_ensemble.recd, region_start(15, address),

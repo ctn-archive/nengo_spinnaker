@@ -55,7 +55,7 @@ extern pes_parameters_t g_pes;
 //----------------------------------
 // Inline functions
 //----------------------------------
-static inline pes_update_neuron_activity(uint n, bool spiked)
+static inline void pes_update_neuron_activity(uint n, bool spiked)
 {
   // If learning is enabled
   if(g_pes.learning_rate > 0.0k)
