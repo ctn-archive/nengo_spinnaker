@@ -191,8 +191,8 @@ def test_nonequivalent_solvers():
         b = nengo.Ensemble(1, b_size_in)
         c = nengo.Ensemble(1, c_size_in)
 
-        a_b = nengo.Connection(a, b, solver=nengo.decoders.Solver)
-        a_c = nengo.Connection(a, c, solver=nengo.decoders.LstsqNoise)
+        a_b = nengo.Connection(a, b, solver=nengo.decoders.LstsqL2())
+        a_c = nengo.Connection(a, c, solver=nengo.decoders.LstsqNoise())
 
     tc = connections.ConnectionsWithSolvers([a_b, a_c])
     assert(tc.width == b_size_in + c_size_in)
