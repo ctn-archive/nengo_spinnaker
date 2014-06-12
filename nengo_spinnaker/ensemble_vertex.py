@@ -138,7 +138,6 @@ class EnsembleVertex(vertices.NengoVertex):
         )
         self._edge_decoders = dict([(edge, tfses[edge.conn]) for edge in
                                     self.out_edges])
-        self.n_output_dimensions = tfses.width
 
         # Generate each decoder in turn
         decoders = list()
@@ -148,13 +147,11 @@ class EnsembleVertex(vertices.NengoVertex):
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver
             ))
 
-        # Generate the decoder widths
-        self._decoder_widths = [d.shape[1] for d in decoders]
-
-        # Generate the merged decoders
-        self._merged_decoders = np.array([[], ])
-        if len(decoders) > 0:
-            self._merged_decoders = np.hstack(decoders) / self.dt
+        # Compress and merge the decoders
+        (self.decoder_headers, self._merged_decoders) = \
+            utils.decoders.get_combined_compressed_decoders(decoders)
+        self._merged_decoders /= self.dt
+        self.n_output_dimensions = len(self.decoder_headers)
 
     def _build_decoder(self, function, eval_points, solver):
         if eval_points is None:
@@ -248,12 +245,11 @@ class EnsembleVertex(vertices.NengoVertex):
         """Write the output keys region for the given subvertex."""
         x, y, p = subvertex.placement.processor.get_coordinates()
 
-        for (i, w) in enumerate(self._decoder_widths):
+        for (h, i, d) in self.decoder_headers:
             # Generate the routing keys for each dimension
-            # TODO Use edges to perform this calculation
-            for d in range(w):
-                spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
-                                 (i << 6) | d))
+            # TODO Use KeySpaces to perform this calculation
+            spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
+                             (i << 6) | d))
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
