@@ -137,7 +137,7 @@ class Builder(object):
 
                 if probe.attr == 'spikes':
                     vertex.record_spikes = True
-                    self.probes.append(probes.SpikeProbe(vertex, probe))
+                    self.probes.append(utils.probes.SpikeProbe(vertex, probe))
                 elif probe.attr == 'decoded_output':
                     postvertex = value_sink_vertex.ValueSinkVertex(
                         probe.size_in)
@@ -147,7 +147,7 @@ class Builder(object):
                                              size_in=vertex._ens.size_out,
                                              size_out=vertex._ens.size_out))
                     self.probes.append(
-                        probes.DecodedValueProbe(postvertex, probe))
+                        utils.probes.DecodedValueProbe(postvertex, probe))
                 else:
                     raise NotImplementedError(
                         "Cannot probe '%s' on Ensembles" % probe.attr)
