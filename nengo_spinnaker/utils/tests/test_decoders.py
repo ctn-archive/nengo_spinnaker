@@ -23,7 +23,7 @@ def test_decoder_generation():
         c4 = nengo.Connection(a, c, function=f,
                               transform=np.random.normal(size=(3, 3)))  # Share (c3)
 
-        # c5 = nengo.Connection(a, c, solver=nengo.decoders.LstsqL2)  # Share ()
+        c5 = nengo.Connection(a, c, solver=nengo.decoders.LstsqL2())  # Share ()
         c6 = nengo.Connection(a, c, eval_points=np.random.normal(100)) # !Share
 
         c7 = nengo.Connection(a, c, transform=3)
@@ -59,13 +59,11 @@ def test_decoder_generation():
     assert(not decoder_build_func.called)
 
     # Build C5, should ...
-    """
     decoder_build_func.reset_mock()
     decoder_builder.get_transformed_decoder(c5.function, c5.transform,
                                             c5.eval_points, c5.solver)
     decoder_build_func.assert_called_with(
         c5.function, c5.eval_points, c5.solver)
-    """
 
     # Build C6, should ...
     decoder_build_func.reset_mock()
