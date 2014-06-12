@@ -14,8 +14,7 @@ class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
     REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
                                        'DECODERS', 'OUTPUT_KEYS', 
-                                       **{'PES': 8},
-                                       **{'SPIKES': 15})
+                                       **{'PES': 8, 'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
 
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):

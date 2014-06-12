@@ -169,7 +169,7 @@ class Builder(object):
                     if connection.pre not in self.ensemble_vertices:
                         raise TypeError("Object %s, on the pre-side of connection\
                             %s is not an ensemble so does not support PES" 
-                            % (connection.pre, connection)
+                            % (connection.pre, connection))
                     
                     # Cache refence to PES rule in pre-connection ensemble
                     # **TODO** API probably should look more like add_learning_rule
