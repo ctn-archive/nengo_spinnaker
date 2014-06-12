@@ -13,7 +13,7 @@ from .utils import connections, fp, filters, vertices
 class EnsembleVertex(vertices.NengoVertex):
     """PACMAN Vertex for an Ensemble."""
     REGIONS = vertices.ordered_regions('SYSTEM', 'BIAS', 'ENCODERS',
-                                       'DECODERS', 'OUTPUT_KEYS',
+                                       'DECODERS', 'OUTPUT_KEYS', 'PES',
                                        **{'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
 
@@ -31,7 +31,12 @@ class EnsembleVertex(vertices.NengoVertex):
         self.dt = dt
         self.time_step = time_step
         self.record_spikes = False
-
+        
+        # PES learning rule rate
+        # **TODO** Each learning rule should probably have it's own region, the
+        # Writing and reserving of which should be deferred to them (somehow)
+        self._pes_learning_rate = 0.0
+        
         # Create random number generator
         if ens.seed is None:
             rng = np.random.RandomState(rng.tomaxint())
@@ -183,6 +188,11 @@ class EnsembleVertex(vertices.NengoVertex):
     def sizeof_region_output_keys(self, n_atoms):
         return self.n_output_dimensions
 
+    @vertices.region_pre_sizeof('PES')
+    def sizeof_region_pes(self, n_atoms):
+        # All PES region contains is the learning rate
+        return 1
+    
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
         size = 0
@@ -251,9 +261,23 @@ class EnsembleVertex(vertices.NengoVertex):
                 spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
                                  (i << 6) | d))
 
+    @vertices.region_write('PES')
+    def write_region_output_pes(self, subvertex, spec):
+        spec.write(data=fp.bitsk(self._pes_learning_rate))
+    
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self._edge_decoders[subedge.edge]
 
         return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
+    
+    @pes.setter
+    def pes(self, value):
+        if not isinstance(value, nengo.PES):
+            raise TypeError("Object type %s is not a PES learning rule" % type(value))
+                
+        if self._pes_learning_rate != 0.0 and self._pes_learning_rate != value.learning_rate:
+            raise NotImplementedError("Ensemble vertices can only support PES learning with a single learning rate")
+        
+        self._pes_learning_rate = value.learning_rate

@@ -106,7 +106,15 @@ class Builder(object):
         # Build each of the objects
         for obj in objs:
             self._build(obj)
-
+        
+        # Filter connections, removing modulatory connections as, on SpiNNaker,
+        # These may actually need to be reconnected to the pre end of modulated 
+        # Decoder learning connections as this is where the decoders are!
+        connections = filter(lambda c: c.modulatory == False, connections)
+       
+        # Perform any learning-rule specific rerouting of modulatory connections
+        connections = self._reroute_modulatory_connections(connections)
+        
         # Build each of the connections
         for conn in connections:
             self._build(conn)
@@ -145,6 +153,51 @@ class Builder(object):
     def add_edge(self, edge):
         self.dao.add_edge(edge)
 
+    def _reroute_modulatory_connections(self, connections):
+        # Create new connections list, initially just containing 
+        # All the original, non-modulatory connections
+        new_connections = connections
+        
+        # Loop through all connections and learning rules associated with them
+        for connection in connections:
+            for learning_rule in connection.learning_rule:
+                # **HACK** using the _build mechanism here would be much nicer
+                # If learning rule is PES
+                if isinstance(learning_rule, nengo.PES):
+                    # If the pre-connection object (where the deocoder is)
+                    # Isn't in the ensemble vertices dictionary, throw
+                    if connection.pre not in self.ensemble_vertices:
+                        raise TypeError("Object %s, on the pre-side of connection\
+                            %s is not an ensemble so does not support PES" 
+                            % (connection.pre, connection)
+                    
+                    # Cache refence to PES rule in pre-connection ensemble
+                    # **TODO** 
+                    pre_ensemble = self.ensemble_vertices[connection.pre]
+                    pre_ensemble.pes = learning_rule
+                    
+                    # Create copy of error connection, connecting source of error
+                    # To the pre-connection object (where the decoder is)
+                    # **YUCK** is there a nicer way of doing this?
+                    error_con = learning_rule.error_connection
+                    pre_error_con = nengo.Connection(error_con.pre, connection.pre, 
+                                                        synapse = error_con.synapse,
+                                                        transform = error_con.transform,
+                                                        solver = error_con.solver,
+                                                        function = error_con.function,
+                                                        modulatory = error_con.modulatory,
+                                                        eval_points = error_con.eval_points,
+                                                        learning_rule = error_con.learning_rule,
+                                                        seed = error_con.seed)
+                    new_connections.append(pre_error_con)
+                
+                # Otherwise (unsupported learning rule)
+                else:
+                    raise NotImplementedError(
+                        "Learning rules of type %s are not supported" % type(learning_rule))
+        
+        return new_connections
+    
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
