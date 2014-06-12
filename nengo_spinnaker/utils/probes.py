@@ -122,6 +122,10 @@ try:
     from bitarray import bitarray
 
     class SpikeProbe(SpiNNakerProbe):
+        def __init__(self, target_vertex, probe):
+            super(SpikeProbe, self).__init__(probe)
+            self.target_vertex = target_vertex
+
         def get_data(self, txrx):
             # Calculate the number of frames
             n_frames = int(self.target_vertex.runtime * 1000)  # TODO Neaten!

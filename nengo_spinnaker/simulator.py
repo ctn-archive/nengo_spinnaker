@@ -59,7 +59,11 @@ class Simulator(object):
 
         (self.dao, host_network, self.probes) = \
             self.builder(model, dt, seed, node_builder=io, config=config)
-        self.host_sim = nengo.Simulator(host_network, dt=dt)
+
+        self.host_sim = None
+        if not len(host_network.nodes) == 0:
+            self.host_sim = nengo.Simulator(host_network, dt=dt)
+
         self.dao.writeTextSpecs = True
 
         self.dt = dt
@@ -112,16 +116,19 @@ class Simulator(object):
 
             current_time = 0.
             try:
-                while (time_in_seconds is None or
-                       current_time < time_in_seconds):
-                    s = time.clock()
-                    self.host_sim.step()
-                    t = time.clock() - s
+                if self.host_sim is not None:
+                    while (time_in_seconds is None or
+                           current_time < time_in_seconds):
+                        s = time.clock()
+                        self.host_sim.step()
+                        t = time.clock() - s
 
-                    if t < self.dt:
-                        time.sleep(self.dt - t)
-                        t = self.dt
-                    current_time += t
+                        if t < self.dt:
+                            time.sleep(self.dt - t)
+                            t = self.dt
+                        current_time += t
+                else:
+                    time.sleep(time_in_seconds)
             except KeyboardInterrupt:
                 logger.debug("Stopping simulation.")
 

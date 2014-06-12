@@ -145,8 +145,7 @@ class Builder(object):
                                              size_in=vertex._ens.size_out,
                                              size_out=vertex._ens.size_out))
                     self.probes.append(
-                        utils.probes.DecodedValueProbe(
-                            vertex, postvertex, probe))
+                        utils.probes.DecodedValueProbe(postvertex, probe))
                 else:
                     raise NotImplementedError(
                         "Cannot probe '%s' on Ensembles" % probe.attr)

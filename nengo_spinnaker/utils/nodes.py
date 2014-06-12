@@ -22,6 +22,10 @@ def create_host_network(network, io, config=None):
     # Replace Ensemble -> Node connections
     (ns, conns) = replace_ensemble_node_connections(conns, io)
 
+    # Remove Ensemble -> Ensemble connections
+    conns = [c for c in conns if (not isinstance(c.pre, nengo.Ensemble) and
+                                  not isinstance(c.post, nengo.Ensemble))]
+
     # Finish up
     new_network.nodes = get_connected_nodes(conns)
     new_network.connections.extend(conns)

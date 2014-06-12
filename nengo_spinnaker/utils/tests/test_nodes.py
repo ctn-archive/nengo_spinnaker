@@ -205,6 +205,7 @@ def test_create_host_network():
         d = nengo.Ensemble(1, 1, label="D")
         n = TestNode(output=lambda t, v: v, size_in=1, size_out=1, label="N")
         o = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label="Orphan")
+        e = nengo.Ensemble(1, 1, label="E")
 
         a_b = nengo.Connection(a, b)
         b_c = nengo.Connection(b, c)
@@ -213,6 +214,8 @@ def test_create_host_network():
         a_n = nengo.Connection(a, n)
         b_n = nengo.Connection(b, n)
         n_d = nengo.Connection(n, d)
+
+        d_e = nengo.Connection(d, e)
 
     mock_io = mock.Mock()
     host_network = nodes.create_host_network(model, mock_io)
@@ -227,6 +230,7 @@ def test_create_host_network():
     assert(a_n not in host_network.connections)
     assert(b_n not in host_network.connections)
     assert(n_d not in host_network.connections)
+    assert(d_e not in host_network.connections)
     assert(n not in host_network.nodes)
     assert(o not in host_network.nodes)
 
