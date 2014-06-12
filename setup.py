@@ -22,7 +22,7 @@ devices such as robots.
 """
 setup(
     name="nengo_spinnaker",
-    version="0.0.1.dev",
+    version="0.1.a0dev",
     author="CNRGlab at UWaterloo and APT Group, University of Manchester",
     author_email="https://github.com/ctn-waterloo/nengo_spinnaker/issues",
     url="https://github.com/ctn-waterloo/nengo_spinnaker",
