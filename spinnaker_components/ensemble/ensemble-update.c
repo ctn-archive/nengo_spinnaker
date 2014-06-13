@@ -99,7 +99,8 @@ void ensemble_update(uint ticks, uint arg1) {
   }
   
   // Update PES decoder learning
-  pes_update();
+  // **HACK** use correct input filter
+  pes_update(2);
 
   // Transmit decoded Ensemble representation
   for (uint output_index = 0; output_index < g_n_output_dimensions;

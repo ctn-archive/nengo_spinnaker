@@ -1,5 +1,6 @@
 import numpy as np
 
+import math
 import nengo
 import nengo.builder
 import nengo.decoders
@@ -280,8 +281,8 @@ class EnsembleVertex(vertices.NengoVertex):
 
         return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
     
-    @pes.setter
-    def pes(self, value):
+    # **YUCK** a setter would be nicer here, but it doesn't seem to work without a getter
+    def set_pes(self, value):
         if not isinstance(value, nengo.PES):
             raise TypeError("Object type %s is not a PES learning rule" % type(value))
                 

@@ -174,7 +174,7 @@ class Builder(object):
                     # Cache refence to PES rule in pre-connection ensemble
                     # **TODO** API probably should look more like add_learning_rule
                     pre_ensemble = self.ensemble_vertices[connection.pre]
-                    pre_ensemble.pes = learning_rule
+                    pre_ensemble.set_pes(learning_rule)
                     
                     # Create copy of error connection, connecting source of error
                     # To the pre-connection object (where the decoder is)

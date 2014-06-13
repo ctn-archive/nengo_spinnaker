@@ -14,6 +14,8 @@
 
 #include "ensemble.h"
 
+#include <string.h>
+
 //----------------------------------
 // Global variables
 //----------------------------------
@@ -35,11 +37,11 @@ void get_pes(region_pes_t *pars)
 bool initialise_pes(uint n_neurons)
 {
   // Allocate memory for filtered neuron activity
-  MALLOC_FAIL_FALSE(g_filtered_activity, n_neurons * sizeof(value_t),
+  MALLOC_FAIL_FALSE(g_pes.filtered_activity, n_neurons * sizeof(value_t),
     "[PES]");
   
   // Zero it
-  memset(g_filtered_activity, 0, n_neurons * sizeof(value_t));
+  memset(g_pes.filtered_activity, 0, n_neurons * sizeof(value_t));
   
   return true;
 }
@@ -62,7 +64,7 @@ void pes_update(uint error_input_filter)
       // Loop through output dimensions and apply PES to decoder values
       for(uint d = 0; d < g_n_output_dimensions; d++) 
       {
-        decoder_vector[d] += (g_pes.learning_rate * filtered_activity * decoder_vector[d]);
+        decoder_vector[d] += (g_pes.learning_rate * filtered_activity * filtered_error_signal[d]);
       }
     }
   }
