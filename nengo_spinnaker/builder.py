@@ -21,7 +21,6 @@ from . import ensemble_vertex
 from .nodes import value_source_vertex
 import utils
 from . import value_sink_vertex
-from . import utils
 
 edge_builders = {}
 
@@ -256,9 +255,9 @@ def _node_to_ensemble(builder, c):
     # for the Ensemble and don't add an edge, otherwise add an
     # edge from the appropriate Rx element to the Ensemble.
     postvertex = builder.ensemble_vertices[c.post]
-    if c.pre.output is not None and not callable(c.pre.output):
-        postvertex.direct_input += np.dot(np.asarray(c.pre.output),
-                                          np.asarray(c.transform).T)
+    if (c.pre.output is not None and
+            not callable(c.pre.output) and c.pre.output.ndim == 1):
+        postvertex.direct_input += np.dot(c.transform, c.pre.output)
     elif builder.config[c.pre].f_of_t:
         # Node is a function of time to be evaluated in advance
         if c.pre in builder.f_of_t_vertices:
