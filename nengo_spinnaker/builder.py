@@ -257,7 +257,14 @@ def _node_to_ensemble(builder, c):
     postvertex = builder.ensemble_vertices[c.post]
     if (c.pre.output is not None and
             not callable(c.pre.output) and c.pre.output.ndim == 1):
-        postvertex.direct_input += np.dot(c.transform, c.pre.output)
+        tr = nengo.utils.builder.full_transform(c)
+
+        output = c.pre.output
+        if c.function is not None:
+            output = c.function(output)
+
+        postvertex.direct_input += np.dot(tr, output)
+
     elif builder.config[c.pre].f_of_t:
         # Node is a function of time to be evaluated in advance
         if c.pre in builder.f_of_t_vertices:
