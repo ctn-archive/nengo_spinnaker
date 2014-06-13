@@ -34,6 +34,9 @@ class DummyConnection(object):
     def _required_transform_shape(self):
         return self._size_out, self._size_in
 
+    @property
+    def modulatory(self):
+        return False
 
 class Edge(object):
     mask = 0xFFFFFFC0  # Routing mask for this type of edge

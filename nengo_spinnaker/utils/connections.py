@@ -172,7 +172,7 @@ class Filters(object):
             new_f = FilteredConnection(
                 connection_with_filter.connection.synapse,
                 connection_with_filter.accumulatory,
-                connection_with_filter.modulatory,
+                connection_with_filter.connection.modulatory,
             )
             self.filters.append(new_f)
             index = len(self.filters) - 1

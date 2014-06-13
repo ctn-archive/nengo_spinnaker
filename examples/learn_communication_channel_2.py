@@ -35,7 +35,7 @@ with model:
     post_p = nengo.Probe(post, synapse=0.01)
     
     if spinnaker:
-        sim = nengo_spinnaker.Simulator(model)
+        sim = nengo_spinnaker.Simulator(model, config = config)
         sim.run(10.0, clean=False)
     else:
         sim = nengo.Simulator(model)
@@ -57,15 +57,5 @@ with model:
         plt.plot(sim.trange(), sim.data[post_p].T[d], c='r', label='Post')
         plt.ylabel("Dimension 1")
         plt.legend(loc='best')
-    #plt.subplot(2, 1, 2)
-    
-    '''
-    if not spinnaker:
-        plt.plot(sim.trange(), sim.data[inp_p].T[1], c='k', label='Input')
-        
-    plt.plot(sim.trange(), sim.data[pre_p].T[1], c='b', label='Pre')
-    plt.plot(sim.trange(), sim.data[post_p].T[1], c='r', label='Post')
-    plt.ylabel("Dimension 2")
-    plt.legend(loc='best')
-    '''
+
     plt.show()

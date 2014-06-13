@@ -31,7 +31,7 @@ def with_filters(filter_id=14, routing_id=15):
         cls._prep_region_filters = _pre_prepare_filters
         cls._prep_region_filter_routing = _post_prepare_routing
         
-        cls.__get_connection_filter_index = _get_connection_filter_index
+        cls._get_connection_filter_index = _get_connection_filter_index
         return cls
     return cls_
 
@@ -64,7 +64,7 @@ def _get_connection_filter_index(self, connection):
 @region_write("FILTERS")
 def _write_region_filters(self, subvertex, spec):
     spec.write(data=len(self.__filters))
-    for filter_tem in self.__filters.filters:
+    for filter_item in self.__filters.filters:
         f = (np.exp(-self.dt / filter_item.time_constant) if
              filter_item.time_constant is not None else 0.)
         spec.write(data=fp.bitsk(f))

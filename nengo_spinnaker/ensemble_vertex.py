@@ -33,17 +33,14 @@ class EnsembleVertex(vertices.NengoVertex):
         self.time_step = time_step
         self.record_spikes = False
         
-        # PES learning rule rate
         # **TODO** Each learning rule should probably have it's own region, the
-        # Writing and reserving of which should be deferred to them (somehow)
+        # Handling of which should be deferred to a nengo_spinnaker class (somehow)
         self._pes_learning_rate = 0.0
+        self._pes_error_connection = None
         
         # Time constant for PES activity filtering in seconds
         # **TODO** should be overridable by nengo_spinnaker.Config
         self._pes_activity_time_constant = 0.01
-        
-        # Index of input filter that handles error signal
-        self._pes_error_connection_input_filter_index = 0
         
         # Create random number generator
         if ens.seed is None:
@@ -198,8 +195,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('PES')
     def sizeof_region_pes(self, n_atoms):
-        # All PES region contains is the learning rate followed by an activity decay
-        return 2
+        return 3
     
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
@@ -274,9 +270,23 @@ class EnsembleVertex(vertices.NengoVertex):
         # Calculate activity decay from time constant
         pes_activity_decay = math.exp(-self.dt / self._pes_activity_time_constant)
         
+        # Write PES learning rate and activity decay to spec
         spec.write(data = fp.bitsk(self._pes_learning_rate))
         spec.write(data = fp.bitsk(pes_activity_decay))
-        spec.write(data = self._pes_error_connection_input_filter_index)
+            
+        # If this ensemble uses PES
+        if self._pes_learning_rate > 0.0:
+            if self._pes_error_connection == None:
+                raise TypeError("Ensemble %s uses PES learning, but doesn't have an error connection" % self)
+            
+            # Find the index of the input filter associated with the PES learning error connection
+            pes_error_connection_input_filter_index = self._get_connection_filter_index(self._pes_error_connection)
+            print("PES ERROR CONNECTION FILTER INDEX %u" % (pes_error_connection_input_filter_index))
+            
+            spec.write(data = pes_error_connection_input_filter_index)
+        # Otherwise, just write a zero
+        else:
+            spec.write(data = 0)
     
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
@@ -285,14 +295,17 @@ class EnsembleVertex(vertices.NengoVertex):
 
         return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
     
-    # **YUCK** a setter would be nicer here, but it doesn't seem to work without a getter
-    def set_pes(self, value):
-        if not isinstance(value, nengo.PES):
-            raise TypeError("Object type %s is not a PES learning rule" % type(value))
+    # **YUCK** this API is 
+    def set_pes(self, learning_rule, pre_error_connection):
+        if not isinstance(learning_rule, nengo.PES):
+            raise TypeError("Object type %s is not a PES learning rule" % type(learning_rule))
                 
-        if self._pes_learning_rate != 0.0 and self._pes_learning_rate != value.learning_rate:
+        if self._pes_learning_rate != 0.0 and self._pes_learning_rate != learning_rule.learning_rate:
             raise NotImplementedError("Ensemble vertices can only support PES learning with a single learning rate")
         
-        self._pes_learning_rate = value.learning_rate
-        self._pes_error_connection_input_filter_index = self.__get_connection_filter_index(value.error_connection)
-        print("PES ERROR CONNECTION FILTER INDEX %u" % (self._pes_error_connection_input_filter_index))
+        if self._pes_error_connection != None and id(self._pes_error_connection) != id(pre_error_connection):
+            raise NotImplementedError("Ensemble vertices can only support PES learning based on a single error connection")
+        
+        self._pes_error_connection = pre_error_connection
+        self._pes_learning_rate = learning_rule.learning_rate
+        

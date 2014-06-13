@@ -195,11 +195,6 @@ class Builder(object):
                             %s is not an ensemble so does not support PES" 
                             % (connection.pre, connection))
                     
-                    # Cache refence to PES rule in pre-connection ensemble
-                    # **TODO** API probably should look more like add_learning_rule
-                    pre_ensemble = self.ensemble_vertices[connection.pre]
-                    pre_ensemble.set_pes(learning_rule)
-                    
                     # Create copy of error connection, connecting source of error
                     # To the pre-connection object (where the decoder is)
                     # **YUCK** is there a nicer way of doing this?
@@ -213,8 +208,13 @@ class Builder(object):
                                                         eval_points = error_con.eval_points,
                                                         learning_rule = error_con.learning_rule,
                                                         seed = error_con.seed)
+                    
+                    # Cache refence to PES rule in pre-connection ensemble
+                    # **TODO** API probably should look more like add_learning_rule
+                    pre_ensemble = self.ensemble_vertices[connection.pre]
+                    pre_ensemble.set_pes(learning_rule, pre_error_con)
+                    
                     new_connections.append(pre_error_con)
-                
                 # Otherwise (unsupported learning rule)
                 else:
                     raise NotImplementedError(
