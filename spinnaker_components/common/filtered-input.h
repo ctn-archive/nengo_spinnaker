@@ -41,6 +41,7 @@ typedef struct input_filter_data {
   value_t filter;   //!< Filter value
   value_t filter_;  //!< 1.0 - filter value
   uint mask;        //!< Filter accumulator mask
+  uint modulatory;  //!< Is this filter accumulatory
 } input_filter_data_t;
 
 /**

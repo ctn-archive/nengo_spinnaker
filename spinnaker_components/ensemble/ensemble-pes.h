@@ -21,6 +21,7 @@
 // Structs
 //----------------------------------
 // Structure defining structure of PES region
+// **TODO** this could be an opaque type here
 typedef struct region_pes_t
 {
   // Scalar learning rate used in PES decoder delta calculation
@@ -29,6 +30,9 @@ typedef struct region_pes_t
   // Values defining the decay of the exponential filter applied 
   // To the neuron activity used in PES decoder delta calculation
   value_t activity_decay;
+  
+  // Index of the input signal filter that contains error signal
+  uint error_signal_filter_index;
 } region_pes_t;
 
 
@@ -45,6 +49,9 @@ typedef struct pes_parameters_t
   // Applied to the neuron activity used in PES decoder delta calculation
   value_t activity_decay;
   value_t one_minus_activity_decay;
+  
+  // Index of the input signal filter that contains error signal
+  uint error_signal_filter_index;
 } pes_parameters_t;
 
 //----------------------------------
@@ -88,10 +95,9 @@ void get_pes(region_pes_t *pars);
 bool initialise_pes(uint n_neurons);
 
 /**
-* \brief Update PES learning rule using error 
-* signal handled by specified input filter
+* \brief Update PES learning rule
 */
-void pes_update(uint error_input_filter);
+void pes_update();
 
 /** @} */
 

@@ -42,6 +42,9 @@ class EnsembleVertex(vertices.NengoVertex):
         # **TODO** should be overridable by nengo_spinnaker.Config
         self._pes_activity_time_constant = 0.01
         
+        # Index of input filter that handles error signal
+        self._pes_error_connection_input_filter_index = 0
+        
         # Create random number generator
         if ens.seed is None:
             rng = np.random.RandomState(rng.tomaxint())
@@ -271,8 +274,9 @@ class EnsembleVertex(vertices.NengoVertex):
         # Calculate activity decay from time constant
         pes_activity_decay = math.exp(-self.dt / self._pes_activity_time_constant)
         
-        spec.write(data=fp.bitsk(self._pes_learning_rate))
-        spec.write(data=fp.bitsk(pes_activity_decay))
+        spec.write(data = fp.bitsk(self._pes_learning_rate))
+        spec.write(data = fp.bitsk(pes_activity_decay))
+        spec.write(data = self._pes_error_connection_input_filter_index)
     
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
@@ -290,3 +294,5 @@ class EnsembleVertex(vertices.NengoVertex):
             raise NotImplementedError("Ensemble vertices can only support PES learning with a single learning rate")
         
         self._pes_learning_rate = value.learning_rate
+        self._pes_error_connection_input_filter_index = self.__get_connection_filter_index(value.error_connection)
+        print("PES ERROR CONNECTION FILTER INDEX %u" % (self._pes_error_connection_input_filter_index))

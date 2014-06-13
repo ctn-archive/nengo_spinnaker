@@ -39,7 +39,8 @@ typedef struct filtered_input_buffer {
   uint mask;            //!< Mask to apply to accumulator after each input step
                         //   e.g., all zeroes to clear, all ones to retain.
   uint mask_;           //!< Inverse of the mask, applied before assignments.
-
+  bool modulatory;      //!< Is this filtered input modulatory (doesn't get assigned to input)
+  
   value_t *accumulator; //!< Accumulates input values, a 1xD_in matrix
   value_t *filtered;    //!< Holds the filtered value, a 1xD_in matrix
 

@@ -54,10 +54,11 @@ bool get_filters(filtered_input_t* input, address_t filter_region) {
       input->filters[f]->n_filter = filters[f].filter_;
       input->filters[f]->mask = filters[f].mask;
       input->filters[f]->mask_ = ~filters[f].mask;
-
-      io_printf(IO_BUF, "Filter [%d] = %k/%k Masked: 0x%08x/0x%08x\n",
+      input->filters[f]->modulatory = (filters[f].modulatory != 0);
+      
+      io_printf(IO_BUF, "Filter [%d] = %k/%k Masked: 0x%08x/0x%08x Modulatory: %u\n",
                 f, filters[f].filter, filters[f].filter_, filters[f].mask,
-                ~filters[f].mask);
+                ~filters[f].mask, filters[f].modulatory);
     };
   }
 
@@ -123,8 +124,14 @@ void input_filter_step( void ) {
   for( uint f = 0; f < g_input.n_filters; f++ ) {
     input_buffer_step( g_input.filters[f] );
 
-    for( uint d = 0; d < g_input.n_dimensions; d++ ) {
-      g_input.input[d] += g_input.filters[f]->filtered[d];
+    // If this input filter isn't purely modulatory
+    if(!g_input.filters[f]->modulatory)
+    {
+      // Apply filtered values to input
+      for( uint d = 0; d < g_input.n_dimensions; d++ ) 
+      {
+        g_input.input[d] += g_input.filters[f]->filtered[d];
+      }
     }
   }
 }

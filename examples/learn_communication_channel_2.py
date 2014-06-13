@@ -18,6 +18,16 @@ with model:
     post = nengo.Ensemble(60, dimensions=dimensions, label = "post")
     conn = nengo.Connection(pre, post, function=lambda x: np.random.random(dimensions))
     
+    error = nengo.Ensemble(60, dimensions=dimensions)
+    error_p = nengo.Probe(error, synapse=0.03)
+    # Error = pre - post
+    nengo.Connection(pre, error)
+    nengo.Connection(post, error, transform=-1)
+    # Modulatory connections don't impart current
+    error_conn = nengo.Connection(error, post, modulatory=True)
+    # Add the learning rule to the connection
+    conn.learning_rule = nengo.PES(error_conn, learning_rate=1.0)
+    
     if not spinnaker:
         inp_p = nengo.Probe(inp)
         
@@ -26,10 +36,12 @@ with model:
     
     if spinnaker:
         sim = nengo_spinnaker.Simulator(model)
+        sim.run(10.0, clean=False)
     else:
         sim = nengo.Simulator(model)
+        sim.run(10.0)
     
-    sim.run(10.0)
+    
 
     import matplotlib.pyplot as plt
     plt.figure(figsize=(12, 8))

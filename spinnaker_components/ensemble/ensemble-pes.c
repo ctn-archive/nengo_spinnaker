@@ -30,8 +30,10 @@ void get_pes(region_pes_t *pars)
   g_pes.learning_rate = pars->learning_rate;
   g_pes.activity_decay = pars->activity_decay;
   g_pes.one_minus_activity_decay = 1.0k - g_pes.activity_decay;
+  g_pes.error_signal_filter_index = pars->error_signal_filter_index;
   
-  io_printf(IO_BUF, "PES learning: Learning rate:%k, Activity decay:%k", g_pes.learning_rate, g_pes.activity_decay);
+  io_printf(IO_BUF, "PES learning: Learning rate:%k, Activity decay:%k, Error signal filter index:%u\n", 
+            g_pes.learning_rate, g_pes.activity_decay, g_pes.error_signal_filter_index);
 }
 //----------------------------------
 bool initialise_pes(uint n_neurons)
@@ -46,13 +48,13 @@ bool initialise_pes(uint n_neurons)
   return true;
 }
 //----------------------------------
-void pes_update(uint error_input_filter)
+void pes_update()
 {
   // If PES learning is enabled
   if(g_pes.learning_rate > 0.0k)
   {
     // Extract error signal vector from 
-    const value_t *filtered_error_signal = g_input.filters[error_input_filter]->filtered;
+    const value_t *filtered_error_signal = g_input.filters[g_pes.error_signal_filter_index]->filtered;
     
     // Loop through output dimensions
     for(uint n = 0; n < g_ensemble.n_neurons; n++) 

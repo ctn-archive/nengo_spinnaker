@@ -142,7 +142,7 @@ class ConnectionBank(object):
 ConnectionWithFilter = collections.namedtuple(
     'ConnectionWithFilter', ['connection', 'accumulatory'])
 FilteredConnection = collections.namedtuple(
-    'FilteredConnection', ['time_constant', 'accumulatory'])
+    'FilteredConnection', ['time_constant', 'accumulatory', 'modulatory'])
 
 
 class Filters(object):
@@ -161,14 +161,18 @@ class Filters(object):
 
         index = None
         for (i, f) in enumerate(self.filters):
-            if (connection_with_filter.accumulatory == f.accumulatory and
+            # If this filter isn't modulatory (modulatory signals need to be kept
+            # Seperate, if its parameters match existing filter, use its index
+            if (connection_with_filter.connection.modulatory == False and
+                connection_with_filter.accumulatory == f.accumulatory and
                 connection_with_filter.connection.synapse == f.time_constant):
                 index = i
                 break
         else:
             new_f = FilteredConnection(
                 connection_with_filter.connection.synapse,
-                connection_with_filter.accumulatory
+                connection_with_filter.accumulatory,
+                connection_with_filter.modulatory,
             )
             self.filters.append(new_f)
             index = len(self.filters) - 1

@@ -30,15 +30,16 @@ def with_filters(filter_id=14, routing_id=15):
 
         cls._prep_region_filters = _pre_prepare_filters
         cls._prep_region_filter_routing = _post_prepare_routing
-
+        
+        cls.__get_connection_filter_index = _get_connection_filter_index
         return cls
     return cls_
 
 
 @region_pre_sizeof("FILTERS")
 def _sizeof_region_filters(self, n_atoms):
-    # 3 words per filter + 1 for length
-    return 3 * self.n_filters + 1
+    # 4 words per filter + 1 for length
+    return (4 * self.n_filters) + 1
 
 
 @region_pre_sizeof("FILTER_ROUTING")
@@ -56,16 +57,20 @@ def _pre_prepare_filters(self):
     )
     self.n_filters = len(self.__filters)
 
+def _get_connection_filter_index(self, connection):
+    return  self.__filters[connection]
+
 
 @region_write("FILTERS")
 def _write_region_filters(self, subvertex, spec):
     spec.write(data=len(self.__filters))
-    for filter_item in self.__filters.filters:
+    for filter_tem in self.__filters.filters:
         f = (np.exp(-self.dt / filter_item.time_constant) if
              filter_item.time_constant is not None else 0.)
         spec.write(data=fp.bitsk(f))
         spec.write(data=fp.bitsk(1 - f))
         spec.write(data=(0x0 if filter_item.accumulatory else 0xffffffff))
+        spec.write(data=(1 if filter_item.modulatory else 0))
 
 
 @region_post_prepare('FILTER_ROUTING')
