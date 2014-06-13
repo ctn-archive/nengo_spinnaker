@@ -1,10 +1,9 @@
-import collections
 import logging
 import numpy as np
 import sys
-import threading
 import time
 
+import nengo
 from pacman103.core import control
 
 from . import builder
@@ -58,61 +57,16 @@ class Simulator(object):
         # Build the model
         self.builder = builder.Builder()
 
-        (self.dao, self.nodes, self.node_node_connections, self.probes) = \
+        (self.dao, host_network, self.probes) = \
             self.builder(model, dt, seed, node_builder=io, config=config)
+
+        self.host_sim = None
+        if not len(host_network.nodes) == 0:
+            self.host_sim = nengo.Simulator(host_network, dt=dt)
+
         self.dao.writeTextSpecs = True
 
         self.dt = dt
-
-    def get_node_input(self, node):
-        """Return the latest input for the given Node
-
-        :return: None if the input data is not complete, otherwise a tuple
-                 containing filtered input from the board and a dict of input
-                 from different Nodes.
-        :raises KeyError: if the Node is not a valid Node
-        """
-        # Get the input from the board
-        try:
-            i = self.node_io.get_node_input(node)
-        except KeyError:
-            # Node does not receive input from the board
-            i = np.zeros(node.size_in)
-
-        if i is None or None in i:
-            # Incomplete input, return None
-            return None
-
-        # Add Node->Node input if required
-        if node not in self._internode_cache:
-            return i, {}
-
-        with self._internode_cache_lock:
-            i_s = self._internode_cache[node]
-
-        if None in i_s.values():
-            print "Incomplete Node->Node input", node, i_s
-            # Incomplete input, return None
-            return None
-
-        # Return input from board, input from other Nodes on host
-        return i, i_s
-
-    def set_node_output(self, node, output):
-        """Set the output of the given Node
-
-        :raises KeyError: if the Node is not a valid Node
-        """
-        # Output to board
-        if self.node_io.node_has_output(node):
-            self.node_io.set_node_output(node, output)
-
-        # Output to other Nodes on host
-        if node in self._internode_out_maps:
-            with self._internode_cache_lock:
-                for (post, transform) in self._internode_out_maps[node]:
-                    self._internode_cache[post][node] = np.dot(transform,
-                                                               output)
 
     def run(self, time_in_seconds=None, clean=True):
         """Run the model for the specified amount of time.
@@ -131,20 +85,6 @@ class Simulator(object):
             vertex.runtime = time_in_seconds
             if hasattr(vertex, 'pre_prepare'):
                 vertex.pre_prepare()
-
-        # Create some caches for Node->Node connections, and a map of Nodes to
-        # other Nodes on host
-        self._internode_cache = collections.defaultdict(dict)
-        self._internode_out_maps = collections.defaultdict(list)
-        self._internode_filters = collections.defaultdict(dict)
-        for c in self.node_node_connections:
-            self._internode_cache[c.post][c.pre] = None
-            self._internode_out_maps[c.pre].append((c.post, c.transform))
-
-            ftc = np.exp(-self.dt/c.synapse)
-            self._internode_filters[c.post][c.pre] = (ftc, 1. - ftc)
-
-        self._internode_cache_lock = threading.Lock()
 
         # PACMANify!
         self.controller.dao = self.dao
@@ -174,110 +114,35 @@ class Simulator(object):
             self.controller.run(self.dao.app_id)
             node_io.start()
 
-            # Create the Node threads
-            for node in self.nodes:
-                if not callable(node.output):
-                    self.set_node_output(node, node.output)
-
-            node_sims = [NodeSimulator(node, self, self.dt, time_in_seconds,
-                                       self._internode_filters[node])
-                         for node in self.nodes if callable(node.output)]
-
-            # Sleep for simulation time/forever
+            current_time = 0.
             try:
-                if time_in_seconds is not None:
-                    time.sleep(time_in_seconds)
+                if self.host_sim is not None:
+                    while (time_in_seconds is None or
+                           current_time < time_in_seconds):
+                        s = time.clock()
+                        self.host_sim.step()
+                        t = time.clock() - s
+
+                        if t < self.dt:
+                            time.sleep(self.dt - t)
+                            t = self.dt
+                        current_time += t
                 else:
-                    while True:
-                        time.sleep(10.)
+                    time.sleep(time_in_seconds)
             except KeyboardInterrupt:
-                pass
-            finally:
-                # Any necessary teardown functions
-                for sim in node_sims:
-                    sim.stop()
+                logger.debug("Stopping simulation.")
 
         # Retrieve any probed values
+        logger.debug("Retrieving data from the board.")
         self.data = dict()
         for p in self.probes:
             self.data[p.probe] = p.get_data(self.controller.txrx)
 
         # Stop the application from executing
+        logger.debug("Stopping the application from executing.")
         if clean:
             self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
 
     def trange(self, dt=None):
         dt = self.dt if dt is None else dt
         return dt * np.arange(int(self.time_in_seconds/dt))
-
-
-class NodeSimulator(object):
-    """A "thread" to periodically evaluate a Node."""
-    def __init__(self, node, simulator, dt, time_in_seconds, infilters={}):
-        """Create a new NodeSimulator
-
-        :param node: the `Node` to simulate
-        :param simulator: the simulator, providing functions `get_node_input`
-                          and `set_node_output`
-        :param dt: timestep with which to evaluate the `Node`
-        :param time_in_seconds: duration of the simulation
-        """
-        self.node = node
-        self.simulator = simulator
-        self.dt = dt
-        self.time = time_in_seconds
-        self.time_passed = 0.
-        self.infilters = infilters
-
-        self.filtered_inputs = collections.defaultdict(lambda: 0.)
-
-        self.start = time.clock()
-
-        self.timer = threading.Timer(self.dt, self.tick)
-        self.timer.name = "%sEvalThread" % self.node
-        self.timer.start()
-
-    def stop(self):
-        """Permanently stop simulation of the Node."""
-        self.time = 0.
-        self.timer.cancel()
-
-    def tick(self):
-        """Simulate the Node and prepare the next timer tick if necessary."""
-        start = time.clock()
-
-        node_output = None
-
-        if self.node.size_in > 0:
-            node_input = self.simulator.get_node_input(self.node)
-
-            if node_input is not None:
-                # Filter the inputs
-                for (node, value) in node_input[1].items():
-                    self.filtered_inputs[node] = (
-                        value * self.infilters[node][0] +
-                        self.filtered_inputs[node] * self.infilters[node][1]
-                    )
-
-                # Sum the inputs
-                complete_input = (np.sum(self.filtered_inputs.values()) +
-                                  node_input[0])
-                node_output = self.node.output(self.time_passed,
-                                               complete_input)
-        else:
-            node_output = self.node.output(self.time_passed)
-
-        if node_output is not None:
-            self.simulator.set_node_output(self.node, node_output)
-        stop = time.clock()
-
-        if stop - start > self.dt:
-            self.dt = stop - start
-            logger.warning("%s took longer than one timestep to simulate. "
-                           "Decreasing frequency of evaluation." % self.node)
-
-        self.time_passed = time.clock() - self.start
-        if self.time is None or self.time_passed < self.time:
-            self.timer = threading.Timer(self.dt, self.tick)
-            self.timer.name = "EvalThread(%s)" % self.node
-            self.timer.start()

@@ -35,6 +35,7 @@ class Ethernet(object):
         self.machinename = machinename
         self.port = port
         self.input_period = input_period
+        self.comms = None
 
         # Map Node --> Tx
         self.nodes_txes = dict()
@@ -109,6 +110,12 @@ class Ethernet(object):
         rx.add_connection(conn)
         return rx
 
+    @property
+    def io(self):
+        if self.comms is None:
+            self.comms = EthernetCommunicator()
+        return self.comms
+
     def __enter__(self):
         # Generates a map of Nodes --> [(Rx, Connection)]
         nodes_connections_rxs = collections.defaultdict(list)
@@ -118,9 +125,8 @@ class Ethernet(object):
                     ConnectionRx(rx=self.connections_rx[c], connection=c)
                 )
 
-        self.comms = EthernetCommunicator(self.machinename, self.port,
-                                          self.input_period, self.nodes_txes,
-                                          nodes_connections_rxs)
+        self.comms.setup(self.machinename, self.port, self.input_period,
+                         self.nodes_txes, nodes_connections_rxs)
         return self.comms
 
     def __exit__(self, exc_type, exc_val, traceback):
@@ -128,8 +134,14 @@ class Ethernet(object):
 
 
 class EthernetCommunicator(object):
-    def __init__(self, machinename, port, input_period, nodes_tx,
-                 nodes_connections_rxs):
+    def __init__(self):
+        """Create the object so that we have reference to it, setup has to be
+        later.
+        """
+        pass
+
+    def setup(self, machinename, port, input_period, nodes_tx,
+              nodes_connections_rxs):
         """Create a new EthernetCommunicator."""
         self.machinename = machinename
         self.port = port
