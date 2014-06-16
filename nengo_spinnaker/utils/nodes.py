@@ -144,8 +144,8 @@ class OutputToBoard(object):
         self.node = represent_node
         self.io = io
 
-    def __call__(self, *vs):
-        self.io.set_node_output(self.node, vs[1:])
+    def __call__(self, t, vs):
+        self.io.set_node_output(self.node, vs)
 
 
 class InputFromBoard(object):
