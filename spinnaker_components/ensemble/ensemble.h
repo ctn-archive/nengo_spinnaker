@@ -37,7 +37,7 @@
 
 #include "spin1_api.h"
 #include "stdfix-full-iso.h"
-#include "common-typedefs.h"
+#include "common-impl.h"
 
 #include "nengo_typedefs.h"
 #include "nengo-common.h"
@@ -45,13 +45,21 @@
 
 #include "recording.h"
 
-#include "ensemble-data.h"
-#include "ensemble-output.h"
-#include "ensemble-pes.h"
-
 #include "filtered-input.h"
 
 /* Structs ******************************************************************/
+/** \brief Representation of system region. See ::data_system. */
+typedef struct region_system 
+{
+  uint n_input_dimensions;
+  uint n_output_dimensions;
+  uint n_neurons;
+  uint machine_timestep;
+  uint t_ref;
+  value_t dt_over_t_rc;
+  bool record_spikes;
+} region_system_t;
+
 /** \brief Persistent neuron variables.
   */
 typedef struct neuron_status {
@@ -83,6 +91,7 @@ typedef struct ensemble_parameters {
 /* Parameters and Buffers ***************************************************/
 extern ensemble_parameters_t g_ensemble;  //!< Global parameters
 extern uint g_output_period;       //!< Delay in transmitting decoded output
+extern uint g_n_output_dimensions;
 
 /* Functions ****************************************************************/
 /**

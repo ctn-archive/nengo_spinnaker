@@ -1,4 +1,6 @@
 #include "ensemble.h"
+#include "ensemble-data.h"
+#include "ensemble-pes.h"
 
 void c_main(void) {
   // Set the system up
@@ -20,7 +22,7 @@ void c_main(void) {
     return;
   }
   
-  get_pes((region_pes_t*)region_start(8, address));
+  get_pes((struct region_pes_t*)region_start(8, address));
 
   // Set up recording
   if (!record_buffer_initialise(&g_ensemble.recd, region_start(15, address),

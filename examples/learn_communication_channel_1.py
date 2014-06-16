@@ -18,18 +18,18 @@ with model:
     post = nengo.Ensemble(60, dimensions=dimensions, label = "post")
     conn = nengo.Connection(pre, post, function=lambda x: np.random.random(dimensions))
     
-    if not spinnaker:
-        inp_p = nengo.Probe(inp)
+    #if not spinnaker:
+    inp_p = nengo.Probe(inp)
         
     pre_p = nengo.Probe(pre, synapse=0.01)
     post_p = nengo.Probe(post, synapse=0.01)
     
     if spinnaker:
         sim = nengo_spinnaker.Simulator(model, config = config)
+        sim.run(10.0, clean = False)
     else:
         sim = nengo.Simulator(model)
-    
-    sim.run(10.0)
+        sim.run(10.0)
 
     import matplotlib.pyplot as plt
     plt.figure(figsize=(12, 8))
@@ -38,8 +38,8 @@ with model:
         #if dimensions > 1:
         plt.subplot(dimensions, 1, d + 1)
         
-        if not spinnaker:
-            plt.plot(sim.trange(), sim.data[inp_p].T[d], c='k', label='Input')
+        #if not spinnaker:
+        plt.plot(sim.trange(), sim.data[inp_p].T[d], c='k', label='Input')
             
         plt.plot(sim.trange(), sim.data[pre_p].T[d], c='b', label='Pre')
         plt.plot(sim.trange(), sim.data[post_p].T[d], c='r', label='Post')

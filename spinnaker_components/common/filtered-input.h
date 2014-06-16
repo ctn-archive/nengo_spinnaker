@@ -16,14 +16,14 @@
  * \addtogroup filtered-input Filtered Input
  */
 
+#ifndef __FILTERED_INPUT_H__
+#define __FILTERED_INPUT_H__
+
 #include "spin1_api.h"
 #include "common-typedefs.h"
 #include "nengo-common.h"
 
 #include "dimensional-io.h"
-
-#ifndef __FILTERED_INPUT_H__
-#define __FILTERED_INPUT_H__
 
 /* Structs *******************************************************************/
 /**

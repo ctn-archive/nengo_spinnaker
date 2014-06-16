@@ -13,6 +13,8 @@
  */
 
 #include "ensemble.h"
+#include "ensemble-output.h"
+#include "ensemble-pes.h"
 
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;

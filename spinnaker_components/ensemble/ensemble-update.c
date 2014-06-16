@@ -11,6 +11,8 @@
  */
 
 #include "ensemble.h"
+#include "ensemble-output.h"
+#include "ensemble-pes.h"
 
 uint lfsr = 1;                   //!< LFSR for spike perturbation
 
@@ -89,18 +91,18 @@ void ensemble_update(uint ticks, uint arg1) {
       record_spike(&g_ensemble.recd, n);
       
       // Update learning rule's filtered activity
-      pes_update_neuron_activity(n, true);
+      //pes_update_neuron_activity(n, true);
+      pes_neuron_spiked(n);
     }
     // Otherwise, just update learning rule's filtered activity
-    else
+    /*else
     {
       pes_update_neuron_activity(n, false);
-    }
+    }*/
   }
   
   // Update PES decoder learning
-  // **HACK** use correct input filter
-  pes_update(2);
+  //pes_update();
 
   // Transmit decoded Ensemble representation
   for (uint output_index = 0; output_index < g_n_output_dimensions;

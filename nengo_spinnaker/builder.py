@@ -212,7 +212,7 @@ class Builder(object):
                     # Cache refence to PES rule in pre-connection ensemble
                     # **TODO** API probably should look more like add_learning_rule
                     pre_ensemble = self.ensemble_vertices[connection.pre]
-                    pre_ensemble.set_pes(learning_rule, pre_error_con)
+                    pre_ensemble.set_pes(connection, learning_rule, pre_error_con)
                     
                     new_connections.append(pre_error_con)
                 # Otherwise (unsupported learning rule)

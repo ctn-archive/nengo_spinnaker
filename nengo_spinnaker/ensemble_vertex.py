@@ -37,6 +37,8 @@ class EnsembleVertex(vertices.NengoVertex):
         # Handling of which should be deferred to a nengo_spinnaker class (somehow)
         self._pes_learning_rate = 0.0
         self._pes_error_connection = None
+        self._pes_connection = None
+        self._pes_decoder_offset = None
         
         # Time constant for PES activity filtering in seconds
         # **TODO** should be overridable by nengo_spinnaker.Config
@@ -149,6 +151,11 @@ class EnsembleVertex(vertices.NengoVertex):
                                     self.out_edges])
         self.n_output_dimensions = tfses.width
 
+        # **YUCK** knowing what bit of the decoder they should be modifying should be common for all decoder-learning rules
+        if self._pes_connection != None:
+            self._pes_decoder_offset = tfses.get_connection_offset(self._pes_connection)
+            print("PES USES DECODER OFFSET %u" % self._pes_decoder_offset)
+            
         # Generate each decoder in turn
         decoders = list()
         for tfse in tfses.transforms_functions:
@@ -195,7 +202,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('PES')
     def sizeof_region_pes(self, n_atoms):
-        return 3
+        return 4
     
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
@@ -270,8 +277,8 @@ class EnsembleVertex(vertices.NengoVertex):
         # Calculate activity decay from time constant
         pes_activity_decay = math.exp(-self.dt / self._pes_activity_time_constant)
         
-        # Write PES learning rate and activity decay to spec
-        spec.write(data = fp.bitsk(self._pes_learning_rate))
+        # Write PES learning rate, scaled by dt and activity decay to spec
+        spec.write(data = fp.bitsk(self._pes_learning_rate * self.dt))
         spec.write(data = fp.bitsk(pes_activity_decay))
             
         # If this ensemble uses PES
@@ -284,8 +291,10 @@ class EnsembleVertex(vertices.NengoVertex):
             print("PES ERROR CONNECTION FILTER INDEX %u" % (pes_error_connection_input_filter_index))
             
             spec.write(data = pes_error_connection_input_filter_index)
+            spec.write(data = self._pes_decoder_offset)
         # Otherwise, just write a zero
         else:
+            spec.write(data = 0)
             spec.write(data = 0)
     
     def generate_routing_info(self, subedge):
@@ -296,7 +305,7 @@ class EnsembleVertex(vertices.NengoVertex):
         return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
     
     # **YUCK** this API is 
-    def set_pes(self, learning_rule, pre_error_connection):
+    def set_pes(self, pes_connection, learning_rule, pre_error_connection):
         if not isinstance(learning_rule, nengo.PES):
             raise TypeError("Object type %s is not a PES learning rule" % type(learning_rule))
                 
@@ -306,6 +315,9 @@ class EnsembleVertex(vertices.NengoVertex):
         if self._pes_error_connection != None and id(self._pes_error_connection) != id(pre_error_connection):
             raise NotImplementedError("Ensemble vertices can only support PES learning based on a single error connection")
         
+        if self._pes_connection != None and id(self._pes_connection) != id(connection):
+            raise NotImplementedError("Ensemble vertices can only support a single, outgoing PES connection")
+        
         self._pes_error_connection = pre_error_connection
         self._pes_learning_rate = learning_rule.learning_rate
-        
+        self._pes_connection = pes_connection

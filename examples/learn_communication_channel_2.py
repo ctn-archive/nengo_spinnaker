@@ -26,32 +26,27 @@ with model:
     # Modulatory connections don't impart current
     error_conn = nengo.Connection(error, post, modulatory=True)
     # Add the learning rule to the connection
-    conn.learning_rule = nengo.PES(error_conn, learning_rate=1.0)
-    
-    if not spinnaker:
-        inp_p = nengo.Probe(inp)
+    conn.learning_rule = nengo.PES(error_conn, learning_rate = 1.0)
+
+    inp_p = nengo.Probe(inp)
         
     pre_p = nengo.Probe(pre, synapse=0.01)
     post_p = nengo.Probe(post, synapse=0.01)
     
     if spinnaker:
         sim = nengo_spinnaker.Simulator(model, config = config)
-        sim.run(10.0, clean=False)
+        sim.run(10.0, clean=True)
     else:
         sim = nengo.Simulator(model)
         sim.run(10.0)
-    
-    
 
     import matplotlib.pyplot as plt
     plt.figure(figsize=(12, 8))
     
     for d in range(dimensions):
-        #if dimensions > 1:
         plt.subplot(dimensions, 1, d + 1)
-        
-        if not spinnaker:
-            plt.plot(sim.trange(), sim.data[inp_p].T[d], c='k', label='Input')
+
+        plt.plot(sim.trange(), sim.data[inp_p].T[d], c='k', label='Input')
             
         plt.plot(sim.trange(), sim.data[pre_p].T[d], c='b', label='Pre')
         plt.plot(sim.trange(), sim.data[post_p].T[d], c='r', label='Post')
