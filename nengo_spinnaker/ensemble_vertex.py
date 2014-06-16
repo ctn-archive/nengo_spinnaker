@@ -159,7 +159,7 @@ class EnsembleVertex(vertices.NengoVertex):
             eval_points = self.eval_points
 
         x = np.dot(eval_points, self.encoders.T / self._ens.radius)
-        activities = self.dt * self._ens.neuron_type.rates(x, self.gain, self.bias)
+        activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
 
         if function is None:
             targets = eval_points
