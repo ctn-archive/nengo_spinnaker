@@ -71,11 +71,6 @@ bool initialise_ensemble(region_system_t *pars) {
   if (g_ensemble.output == NULL && g_n_output_dimensions > 0)
     return false;
 
-  // Initialise PES learning
-  if(!initialise_pes(g_ensemble.n_neurons))
-  {
-    return false;
-  }
   // Register the update function
   spin1_callback_on(TIMER_TICK, ensemble_update, 2);
   return true;

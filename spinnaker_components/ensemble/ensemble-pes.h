@@ -31,15 +31,8 @@ struct region_pes_t;
 // Structure containing parameters and state required for PES learning
 typedef struct pes_parameters_t
 {
-  // Number of neuron sized array used to hold filtered neuron activity
-  value_t *filtered_activity;
-
   // Scalar learning rate used in PES decoder delta calculation
   value_t learning_rate;
-
-  // Values defining the decay applied to the neuron 
-  // Activity used in PES decoder delta calculation
-  value_t activity_decay;
   
   // Index of the input signal filter that contains error signal
   uint error_signal_filter_index;
@@ -77,20 +70,6 @@ static inline void pes_neuron_spiked(uint n)
     }
   }
 }
-/*static inline void pes_update_neuron_activity(uint n, bool spiked)
-{
-  if(g_pes.learning_rate > 0.0k)
-  {
-    // Decay neuron's filtered activity
-    g_pes.filtered_activity[n] *= g_pes.activity_decay;
-    
-    // If neuron's spiked, add extra energy into trace
-    if(spiked)
-    {
-      g_pes.filtered_activity[n] += 1.0k;
-    }
-  }
-}*/
 
 //----------------------------------
 // Functions
@@ -100,17 +79,6 @@ static inline void pes_neuron_spiked(uint n)
 * rule to the PES region of the Ensemble.
 */
 void get_pes(struct region_pes_t *pars);
-
-/**
-* \brief Copy in data controlling the PES learning 
-* rule to the PES region of the Ensemble.
-*/
-bool initialise_pes(uint n_neurons);
-
-/**
-* \brief Update PES learning rule
-*/
-//void pes_update();
 
 /** @} */
 

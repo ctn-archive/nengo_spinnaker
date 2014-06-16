@@ -90,20 +90,11 @@ void ensemble_update(uint ticks, uint arg1) {
       // Record that the spike occurred
       record_spike(&g_ensemble.recd, n);
       
-      // Update learning rule's filtered activity
-      //pes_update_neuron_activity(n, true);
+      // Notify PES that neuron has spiked
       pes_neuron_spiked(n);
     }
-    // Otherwise, just update learning rule's filtered activity
-    /*else
-    {
-      pes_update_neuron_activity(n, false);
-    }*/
   }
   
-  // Update PES decoder learning
-  //pes_update();
-
   // Transmit decoded Ensemble representation
   for (uint output_index = 0; output_index < g_n_output_dimensions;
        output_index++) {

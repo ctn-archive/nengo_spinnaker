@@ -274,13 +274,9 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_write('PES')
     def write_region_output_pes(self, subvertex, spec):
-        # Calculate activity decay from time constant
-        pes_activity_decay = math.exp(-self.dt / self._pes_activity_time_constant)
-        
         # Write PES learning rate, scaled by dt and activity decay to spec
         spec.write(data = fp.bitsk(self._pes_learning_rate * self.dt))
-        spec.write(data = fp.bitsk(pes_activity_decay))
-            
+        
         # If this ensemble uses PES
         if self._pes_learning_rate > 0.0:
             if self._pes_error_connection == None:
