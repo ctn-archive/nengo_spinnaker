@@ -5,6 +5,7 @@ import nengo.builder
 import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
+from nengo.utils.inspect import checked_call
 
 from .utils import connections, fp, filters, vertices
 from . import utils
@@ -158,14 +159,16 @@ class EnsembleVertex(vertices.NengoVertex):
             eval_points = self.eval_points
 
         x = np.dot(eval_points, self.encoders.T / self._ens.radius)
-        activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
+        activities = self.dt * self._ens.neuron_type.rates(x, self.gain, self.bias)
 
         if function is None:
             targets = eval_points
         else:
-            targets = np.array([function(ep) for ep in eval_points])
-            if targets.ndim < 2:
-                targets.shape = targets.shape[0], 1
+            (value, invoked) = checked_call(function)
+            function_size = np.asarray(value).size
+            targets = np.zeros((len(eval_points), function_size))
+            for (i, ep) in enumerate(eval_points):
+                targets[i] = function(ep)
 
         if solver is None:
             solver = nengo.decoders.LstsqL2()
