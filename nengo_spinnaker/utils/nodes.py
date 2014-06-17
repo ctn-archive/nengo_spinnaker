@@ -1,7 +1,6 @@
 import numpy as np
 
 import nengo
-from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 
 
 def create_host_network(nodes, connections, io, config=None):
