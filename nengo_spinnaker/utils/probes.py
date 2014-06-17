@@ -35,7 +35,6 @@ def get_corrected_probes(probes, connections):
     """Get a modified list of Probes, removing the synapses from Probes which
     probe PassNodes with synapses on *their* inputs.
     """
-    new_probes = list()
     ins, _ = nengo.utils.builder.find_all_io(connections)
 
     for probe in probes:
@@ -46,14 +45,12 @@ def get_corrected_probes(probes, connections):
             if True in [c.synapse is not None for c in ins[probe.target]]:
                 warnings.warn("Can't currently have synapse on PassNode Probe."
                               "\n\nDefaulting to synapse=None on %s\n"
-                              "This is because you tried to provide a"
-                              "synapse for a PassNode Probe where inputs to"
+                              "This is because you tried to provide a "
+                              "synapse for a PassNode Probe where inputs to "
                               "the PassNode already possessed synapses.\n"
                               % probe, RuntimeWarning)
-                probe = nengo.Probe(probe.target, synapse=None,
-                                    add_to_container=False)
-        new_probes.append(probe)
-    return new_probes
+                probe.conn_args['synapse'] = None
+    return probes
 
 
 def build_ensemble_probenode_edge(builder, c):
