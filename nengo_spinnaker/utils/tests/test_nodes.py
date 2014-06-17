@@ -2,6 +2,7 @@ import mock
 import numpy as np
 
 import nengo
+from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 import nengo_spinnaker
 from nengo_spinnaker.utils import nodes
 
@@ -218,7 +219,9 @@ def test_create_host_network():
         d_e = nengo.Connection(d, e)
 
     mock_io = mock.Mock()
-    host_network = nodes.create_host_network(model, mock_io)
+    (objs, conns) = remove_passthrough_nodes(*objs_and_connections(model))
+    host_network = nodes.create_host_network(
+        [n for n in objs if isinstance(n, nengo.Node)], conns, mock_io)
 
     assert(len(host_network.ensembles) == 0)
     assert(len(host_network.nodes) == 4)
@@ -238,3 +241,38 @@ def test_create_host_network():
         if c_.post == b: assert(c_.pre.output.node == b)
         if c_.pre == b: assert(c_.post == c)
         if c_.pre == c: assert(c_.post.output.node == c)
+
+
+def test_create_host_network_nested():
+    model = nengo.Network()
+    with model:
+        m2 = nengo.Network()
+        with m2:
+            pn0 = nengo.Node(None, size_in=1, label='PassNode')
+            a = nengo.Ensemble(1, 1)
+            n1 = nengo.Node(lambda t, v: v, size_in=1, label='n1')
+
+            nengo.Connection(pn0, a, synapse=None)
+            nengo.Connection(a, n1)
+
+        n2 = nengo.Node(np.sin, label='input')
+        n3 = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='output')
+
+        nengo.Connection(n2, pn0)
+        nn = nengo.Connection(n1, n3)
+
+    mock_io = mock.Mock()
+    (objs, conns) = remove_passthrough_nodes(*objs_and_connections(model))
+    host_network = nodes.create_host_network(
+        [n for n in objs if isinstance(n, nengo.Node)], conns, mock_io)
+
+    # Should be 5 nodes
+    # n1, n2, n3, Input for n1, Output for n2
+    assert(len(host_network.nodes) == 5)
+    assert(pn0 not in host_network.nodes)
+    assert(n1 in host_network.nodes)
+    assert(n2 in host_network.nodes)
+    assert(n3 in host_network.nodes)
+
+    assert(len(host_network.connections) == 3)
+    assert(nn in host_network.connections)

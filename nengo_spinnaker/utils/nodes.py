@@ -1,9 +1,10 @@
 import numpy as np
 
 import nengo
+from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 
 
-def create_host_network(network, io, config=None):
+def create_host_network(nodes, connections, io, config=None):
     """Create a network of Nodes for simulation on the host.
 
     :returns: A Network with no Ensembles, all Node->Ensemble or Ensemble->Node
@@ -14,7 +15,7 @@ def create_host_network(network, io, config=None):
     new_network = nengo.Network()
 
     # Remove custom built Nodes
-    (ns, conns) = remove_custom_nodes(network.nodes, network.connections)
+    (ns, conns) = remove_custom_nodes(nodes, connections)
 
     # Replace Node -> Ensemble connections
     (ns, conns) = replace_node_ensemble_connections(conns, io, config)

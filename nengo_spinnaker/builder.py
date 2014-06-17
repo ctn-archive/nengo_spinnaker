@@ -118,6 +118,11 @@ class Builder(object):
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
             objs, connections)
 
+        # Generate a version of the network to simulate on the host
+        host_network = utils.nodes.create_host_network(
+            [n for n in objs if isinstance(n, nengo.Node)], connections,
+            node_builder.io, config)
+
         # Create a MultiCastVertex
         self._mc_tx_vertex = None
 
@@ -158,8 +163,6 @@ class Builder(object):
 
         # Return the DAO, a reduced version of the network to simulate on the
         # host and a list of probes.
-        host_network = utils.nodes.create_host_network(
-            model, node_builder.io, config)
         return self.dao, host_network, self.probes
 
     def add_vertex(self, vertex):
