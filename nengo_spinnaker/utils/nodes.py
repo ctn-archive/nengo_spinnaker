@@ -15,7 +15,7 @@ def create_host_network(nodes, connections, io, config=None):
     new_network = nengo.Network()
 
     # Remove custom built Nodes
-    (ns, conns) = remove_custom_nodes(nodes, connections)
+    (ns, conns) = remove_custom_nodes(nodes, connections, io)
 
     # Replace Node -> Ensemble connections
     (ns, conns) = replace_node_ensemble_connections(conns, io, config)
@@ -48,7 +48,7 @@ def get_connected_nodes(connections):
     return nodes
 
 
-def remove_custom_nodes(nodes, connections):
+def remove_custom_nodes(nodes, connections, io):
     """Remove Nodes with a `spinnaker_build` method and their associated
     connections.
     """
@@ -63,7 +63,21 @@ def remove_custom_nodes(nodes, connections):
             final_nodes.append(n)
 
     for c in connections:
-        if c.pre not in removed_nodes and c.post not in removed_nodes:
+        if c.pre in removed_nodes:
+            # Custom Node -> Node
+            if c.post not in removed_nodes and isinstance(c.post, nengo.Node):
+                n = create_input_node(c.post, io)
+                c_ = nengo.Connection(n, c.post, add_to_container=False)
+                final_nodes.append(n)
+                final_conns.append(c_)
+        elif c.post in removed_nodes:
+            # Node -> Custom Node
+            if c.pre not in removed_nodes and isinstance(c.pre, nengo.Node):
+                n = create_output_node(c.pre, io)
+                c_ = nengo.Connection(c.pre, n, add_to_container=False)
+                final_nodes.append(n)
+                final_conns.append(c_)
+        else:
             final_conns.append(c)
 
     return final_nodes, final_conns

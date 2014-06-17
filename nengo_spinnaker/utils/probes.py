@@ -83,7 +83,7 @@ class SpiNNakerProbe(object):
 
 class ProbeNode(nengo.Node):
     def __init__(self, probe, output=None):
-        self.output = lambda t: t  # NOT None!
+        self.output = lambda t, v: t  # NOT None!
         self.probe = probe
         self.size_in = probe.target.size_out
         self.vertex = None

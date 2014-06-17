@@ -140,7 +140,8 @@ def test_replace_ensemble_node_connections():
 
 
 def test_remove_custom_nodes():
-    """Remove Nodes which have a `spinnaker_build` method.
+    """Remove Nodes which have a `spinnaker_build` method.  Connections to/from
+    them from Nodes should be treated like connections to/from Ensembles.
     """
     class TestNode(nengo.Node):
         def spinnaker_build(self, builder):
@@ -148,11 +149,11 @@ def test_remove_custom_nodes():
 
     model = nengo.Network()
     with model:
-        n = TestNode(output=lambda t, v: v, size_in=1, size_out=1)
-        a = nengo.Ensemble(1, 1)
-        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1)
-        c = nengo.Node(lambda t: t, size_in=0, size_out=1)
-        d = nengo.Node(lambda t, v: t, size_in=1, size_out=1)
+        n = TestNode(output=lambda t, v: v, size_in=1, size_out=1, label='n')
+        a = nengo.Ensemble(1, 1, label='a')
+        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='b')
+        c = nengo.Node(lambda t: t, size_in=0, size_out=1, label='c')
+        d = nengo.Node(lambda t, v: t, size_in=1, size_out=1, label='d')
 
         n_a = nengo.Connection(n, a)
         a_b = nengo.Connection(a, b)
@@ -160,14 +161,21 @@ def test_remove_custom_nodes():
         c_n = nengo.Connection(c, n)
         n_d = nengo.Connection(n, d)
 
-    (ns, conns) = nodes.remove_custom_nodes(model.nodes, model.connections)
-    assert(len(ns) == 3)
-    assert(len(conns) == 1)
+    mock_io = mock.Mock()
+    (ns, conns) = nodes.remove_custom_nodes(
+        model.nodes, model.connections, mock_io)
+
+    # There should be the 3 nodes b, c, d and (b->n), (c->n), n->d)
+    assert(len(ns) == 6)
     assert(n not in ns)
-    assert(b in ns)
-    assert(n_a not in conns)
-    assert(b_n not in conns)
-    assert(a_b in conns)
+
+    # There should be the connections A->(B), B->(N), C->(N) and N->(D)
+    assert(len(conns) == 4)
+    for c in conns:
+        if c.post == b: assert(c.pre == a)
+        if c.pre == b: assert(c.post.output.node == b)
+        if c.pre == c: assert(c.post.output.node == c)
+        if c.post == d: assert(c.pre.output.node == d)
 
 
 def test_get_connected_nodes():
@@ -224,8 +232,8 @@ def test_create_host_network():
         [n for n in objs if isinstance(n, nengo.Node)], conns, mock_io)
 
     assert(len(host_network.ensembles) == 0)
-    assert(len(host_network.nodes) == 4)
-    assert(len(host_network.connections) == 3)
+    assert(len(host_network.nodes) == 5)  # b, c, (a->b), (c->d), (b->n)
+    assert(len(host_network.connections) == 4) # (a)->b, b->c, c->(d), b->(n)
 
     assert(b in host_network.nodes)
     assert(c in host_network.nodes)
@@ -239,7 +247,7 @@ def test_create_host_network():
 
     for c_ in host_network.connections:
         if c_.post == b: assert(c_.pre.output.node == b)
-        if c_.pre == b: assert(c_.post == c)
+        if c_.pre == b: assert(c_.post == c or c_.post.output.node == b)
         if c_.pre == c: assert(c_.post.output.node == c)
 
 
