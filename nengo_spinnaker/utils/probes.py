@@ -8,7 +8,6 @@ import nengo.utils.builder
 
 from . import vertices, filters
 from . import fixpoint as fp
-from .. import edges
 
 
 def get_probe_nodes_connections(probes):
@@ -51,19 +50,6 @@ def get_corrected_probes(probes, connections):
                               % probe, RuntimeWarning)
                 probe.conn_args['synapse'] = None
     return probes
-
-
-def build_ensemble_probenode_edge(builder, c):
-    prevertex = builder.ensemble_vertices[c.pre]
-    edge = edges.DecoderEdge(c, prevertex, c.post.vertex)
-    return edge
-
-
-def build_node_probenode_edge(builder, c):
-    prevertex = builder.get_node_out_vertex(c)
-    edge = edges.NengoEdge(c, prevertex, c.post.vertex,
-                           filter_is_accumulatory=False)
-    return edge
 
 
 class SpiNNakerProbe(object):

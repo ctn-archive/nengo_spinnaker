@@ -1,5 +1,6 @@
 import nengo
 
+from . import builder
 from . import connections
 from . import fixpoint as fp
 from . import nodes

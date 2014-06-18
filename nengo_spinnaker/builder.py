@@ -10,7 +10,6 @@ import numpy as np
 import itertools
 
 import nengo
-import nengo.utils.builder
 
 from pacman103.core import dao
 from pacman103.front import common
@@ -32,15 +31,6 @@ def register_build_edge(pre=None, post=None):
         edge_builders[(pre, post)] = f
         return f
     return f_
-
-
-# Register some external edge builders
-register_build_edge(pre=nengo.Ensemble, post=utils.probes.ProbeNode)(
-    utils.probes.build_ensemble_probenode_edge
-)
-register_build_edge(pre=nengo.Node, post=utils.probes.ProbeNode)(
-    utils.probes.build_node_probenode_edge
-)
 
 
 class Builder(object):
@@ -102,40 +92,23 @@ class Builder(object):
             config = Config()
         self.config = config
 
-        # Flatten the network
-        (objs, connections) = nengo.utils.builder.objs_and_connections(model)
-
-        # Remove synapses from Probes(PassNode) where the PassNode has incoming
-        # synapses -- provides a RuntimeWarning that this is happening
-        probes = utils.probes.get_corrected_probes(model.probes, connections)
-
-        # Add new Nodes to represent decoded_value probes
-        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(probes)
-        objs.extend(n_objs)
-        connections.extend(n_conns)
-
-        # Remove all the PassNodes
-        (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
-            objs, connections)
-
-        # Generate a version of the network to simulate on the host
-        host_network = utils.nodes.create_host_network(
-            [n for n in objs if isinstance(n, nengo.Node)], connections,
-            node_builder.io, config)
+        # Get the model for building
+        prepped_model = utils.builder.prepare_network(
+            model, node_builder.io, self.config)
 
         # Create a MultiCastVertex
         self._mc_tx_vertex = None
 
         # Build each of the objects
-        for obj in objs:
+        for obj in prepped_model.objects:
             self._build(obj)
 
         # Build each of the connections
-        for conn in connections:
+        for conn in prepped_model.connections:
             self._build(conn)
 
         # Probes
-        for probe in probes:
+        for probe in prepped_model.probes:
             if isinstance(probe.target, nengo.Ensemble):
                 vertex = self.ensemble_vertices[probe.target]
 
@@ -163,7 +136,7 @@ class Builder(object):
 
         # Return the DAO, a reduced version of the network to simulate on the
         # host and a list of probes.
-        return self.dao, host_network, self.probes
+        return self.dao, prepped_model.host_network, self.probes
 
     def add_vertex(self, vertex):
         self.dao.add_vertex(vertex)
@@ -291,3 +264,18 @@ def _node_to_ensemble(builder, c):
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
     pass
+
+
+@register_build_edge(pre=nengo.Ensemble, post=utils.probes.ProbeNode)
+def build_ensemble_probenode_edge(builder, c):
+    prevertex = builder.ensemble_vertices[c.pre]
+    edge = edges.DecoderEdge(c, prevertex, c.post.vertex)
+    return edge
+
+
+@register_build_edge(pre=nengo.Node, post=utils.probes.ProbeNode)
+def build_node_probenode_edge(builder, c):
+    prevertex = builder.get_node_out_vertex(c)
+    edge = edges.NengoEdge(c, prevertex, c.post.vertex,
+                           filter_is_accumulatory=False)
+    return edge
