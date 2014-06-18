@@ -178,7 +178,8 @@ class EthernetCommunicator(object):
 
                 # Store the Rx, Connection and Buffer slice
                 i = crx.rx.connections[crx.connection]
-                _transform = crx.rx.connections.transforms_functions[i].transform
+                _transform = \
+                    crx.rx.connections.transforms_functions[i].transform
                 self.nodes_connections_buffers[node].append(
                     BufferedConnection(crx.rx, crx.connection, _transform,
                                        cbuffer)
