@@ -85,7 +85,7 @@ class Ethernet(object):
         rx = None
         for _rx in self.nodes_rxes[conn.pre]:
             # See if we've already assigned a similar connection for this Node
-            if rx.contains_compatible_connection(conn):
+            if _rx.contains_compatible_connection(conn):
                 rx = _rx
                 break
         else:
@@ -246,13 +246,14 @@ class EthernetCommunicator(object):
         for crxb in self.nodes_connections_buffers[node]:
             # Transform the output, store in the buffer and mark the Rx as
             # being fresh.
+            t_output = output
             if callable(crxb.connection.function):
-                output = crxb.connection.function(output)
-            output = np.dot(crxb.transform, output)
+                t_output = crxb.connection.function(output)
+            t_output = np.dot(crxb.transform, t_output)
 
-            if np.any(output != crxb.buffered_output):
+            if np.any(t_output != crxb.buffered_output):
                 with self.output_lock:
-                    crxb.buffered_output[:] = output.reshape(output.size)
+                    crxb.buffered_output[:] = t_output.reshape(output.size)
                     self.rx_fresh[crxb.rx] = True
 
     @stop_on_keyboard_interrupt
