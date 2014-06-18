@@ -85,7 +85,7 @@ class Ethernet(object):
         rx = None
         for _rx in self.nodes_rxes[conn.pre]:
             # See if we've already assigned a similar connection for this Node
-            if rx.contains_compatible_connection(conn):
+            if _rx.contains_compatible_connection(conn):
                 rx = _rx
                 break
         else:
@@ -95,7 +95,7 @@ class Ethernet(object):
             # See if we have space for this connection in any of the existing
             # Rxes for this Node
             for _rx in self.nodes_rxes[conn.pre]:
-                if _rx.n_remaining_dimensions >= conn.size_out:
+                if _rx.n_remaining_dimensions >= conn.dimensions:
                     rx = _rx
                     break
             else:
@@ -178,7 +178,8 @@ class EthernetCommunicator(object):
 
                 # Store the Rx, Connection and Buffer slice
                 i = crx.rx.connections[crx.connection]
-                _transform = crx.rx.connections.transforms_functions[i].transform
+                _transform = \
+                    crx.rx.connections.transforms_functions[i].transform
                 self.nodes_connections_buffers[node].append(
                     BufferedConnection(crx.rx, crx.connection, _transform,
                                        cbuffer)
@@ -246,13 +247,14 @@ class EthernetCommunicator(object):
         for crxb in self.nodes_connections_buffers[node]:
             # Transform the output, store in the buffer and mark the Rx as
             # being fresh.
+            t_output = output
             if callable(crxb.connection.function):
-                output = crxb.connection.function(output)
-            output = np.dot(crxb.transform, output)
+                t_output = crxb.connection.function(output)
+            t_output = np.dot(crxb.transform, t_output)
 
-            if np.any(output != crxb.buffered_output):
+            if np.any(t_output != crxb.buffered_output):
                 with self.output_lock:
-                    crxb.buffered_output[:] = output.reshape(output.size)
+                    crxb.buffered_output[:] = t_output.reshape(output.size)
                     self.rx_fresh[crxb.rx] = True
 
     @stop_on_keyboard_interrupt
