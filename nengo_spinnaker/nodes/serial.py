@@ -18,7 +18,7 @@ class Serial(object):
 
     :param protocol:
     :param connection: The location where the connection to SpiNNlink is made.
-    :param
+    :param device: The USB device to connect to.
     """
     def __init__(self, protocol, connection=None, device="/dev/ttyUSB0"):
         # General components
@@ -41,6 +41,10 @@ class Serial(object):
     @property
     def io(self):
         return self
+
+    def build_node(self, builder, node):
+        # TODO: Probably deprecate and remove this function as it's not used...
+        pass
 
     def get_node_in_vertex(self, builder, c):
         """Get the vertex which will accept input on this Connection.
