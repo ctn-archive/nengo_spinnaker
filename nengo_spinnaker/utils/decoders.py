@@ -38,12 +38,12 @@ class DecoderBuilder(object):
         return np.dot(decoder, transform.T)
 
 
-def get_compressed_decoder(decoder):
+def get_compressed_decoder(decoder, threshold=0.):
     """Get a list of used dimensions and a compressed version of the decoder
     with zeroed columns removed.
     """
     # Used dimensions (columns where there is at least one non zero value)
-    dims = np.where(np.any(decoder != 0., axis=0))[0].tolist()
+    dims = np.where(np.any(np.abs(decoder) > threshold, axis=0))[0].tolist()
 
     # Compress the decoder (remove zeroed columns)
     cdec = (decoder.T[dims]).T
@@ -51,13 +51,16 @@ def get_compressed_decoder(decoder):
     return dims, cdec
 
 
-def get_combined_compressed_decoders(decoders, indices=None, headers=None):
+def get_combined_compressed_decoders(decoders, indices=None, headers=None,
+                                     threshold=0.):
     """Create a compressed decoder block, and return a list of tuples
     samples from headers, indices and dimension numbers.
 
     :param decoders: A list of decoders to compress.
     :param indices: A list of indices for the decoders.
     :param headers: A list of headers for the decoders (might be KeySpaces).
+    :param threshold: Any columns containing a value greater than the threshold
+                      will be retained.
     :returns: A list of tuples of (header, index, dimension) and a combined
               compressed decoder block (NxD).
     """
@@ -65,7 +68,7 @@ def get_combined_compressed_decoders(decoders, indices=None, headers=None):
     assert(headers is None or len(decoders) == len(headers))
 
     # Compress all of the decoders
-    dimsdecs = [get_compressed_decoder(d) for d in decoders]
+    dimsdecs = [get_compressed_decoder(d, threshold) for d in decoders]
 
     # Combine the final decoder
     decoder = np.hstack([d[1] for d in dimsdecs])
