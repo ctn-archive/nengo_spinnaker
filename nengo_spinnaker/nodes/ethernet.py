@@ -95,7 +95,7 @@ class Ethernet(object):
             # See if we have space for this connection in any of the existing
             # Rxes for this Node
             for _rx in self.nodes_rxes[conn.pre]:
-                if _rx.n_remaining_dimensions >= conn.size_out:
+                if _rx.n_remaining_dimensions >= conn.dimensions:
                     rx = _rx
                     break
             else:
