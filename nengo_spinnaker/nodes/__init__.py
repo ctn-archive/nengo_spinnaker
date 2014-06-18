@@ -1,6 +1,8 @@
 from ethernet import Ethernet
 
 try:
-    from spinnlink import SpiNNlinkUSB
+    from serial import Serial, SpIOUART, NSTSpiNNlink
 except ImportError:
-    SpiNNlinkUSB = None
+    Serial = None
+    SpIOUART = None
+    NSTSpiNNlink = None
