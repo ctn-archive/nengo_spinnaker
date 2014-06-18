@@ -1,6 +1,7 @@
 import nengo
 
 from . import connections
+from . import decoders
 from . import fixpoint as fp
 from . import nodes
 
