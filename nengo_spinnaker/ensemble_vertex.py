@@ -164,7 +164,7 @@ class EnsembleVertex(vertices.NengoVertex):
         if function is None:
             targets = eval_points
         else:
-            (value, invoked) = checked_call(function)
+            (value, invoked) = checked_call(function, eval_points[0])
             function_size = np.asarray(value).size
             targets = np.zeros((len(eval_points), function_size))
             for (i, ep) in enumerate(eval_points):
