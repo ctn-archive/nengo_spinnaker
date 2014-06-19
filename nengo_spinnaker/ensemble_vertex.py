@@ -149,8 +149,11 @@ class EnsembleVertex(vertices.NengoVertex):
             ))
 
         # Compress and merge the decoders
+        # @neworderofjamie -- modify the True as required for learnt decoders
         (self.decoder_headers, self._merged_decoders) = \
-            utils.decoders.get_combined_compressed_decoders(decoders)
+            utils.decoders.get_combined_compressed_decoders(
+                decoders, compress=[True for d in decoders])
+
         self._merged_decoders /= self.dt
         self.n_output_dimensions = len(self.decoder_headers)
 
