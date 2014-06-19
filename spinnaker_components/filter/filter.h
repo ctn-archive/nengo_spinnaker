@@ -25,6 +25,8 @@ typedef struct filter_parameters {
   uint machine_timestep;   //!< Machine time step / useconds
   uint transmission_delay; //!< Number of ticks between output transmissions
 
+  uint interpacket_pause;  //!< Delay in usecs between transmitting packets
+
   uint n_dimensions;       //!< Number of dimensions to represent
 
   value_t *input;          //!< Input buffer
