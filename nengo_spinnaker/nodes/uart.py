@@ -71,7 +71,7 @@ class UART(object):
         if c.post not in self.nodes_filters:
             # Create the new FilterVertex
             self.nodes_filters[node] = filter_vertex.FilterVertex(
-                c.post.size_in, 0, output_period=10)
+                c.post.size_in, 0, output_period=10, interpacket_pause=50)
             builder.add_vertex(self.nodes_filters[node])
 
             # Connect it to the SerialVertex
