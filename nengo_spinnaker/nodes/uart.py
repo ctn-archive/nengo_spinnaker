@@ -161,6 +161,8 @@ class GenericUARTProtocol(object):
         self.outgoing_packet_queue = collections.OrderedDict()
         self.queue_lock = threading.Lock()
 
+        self.stop_now = False
+
         self.transmit_ticker = threading.Timer(
             self.tx_period, self.transmit_tick)
         self.receive_ticker = threading.Timer(
@@ -174,6 +176,7 @@ class GenericUARTProtocol(object):
 
     def stop(self):
         """Stop the communication threads."""
+        self.stop_now = True
         self.transmit_ticker.cancel()
         self.receive_ticker.cancel()
 
@@ -194,9 +197,10 @@ class GenericUARTProtocol(object):
             self.send_mc_packet(key, payload)
 
         # Schedule this function to run again
-        self.transmit_ticker = threading.Timer(
-            self.tx_period, self.transmit_tick)
-        self.transmit_ticker.start()
+        if not self.stop_now:
+            self.transmit_ticker = threading.Timer(
+                self.tx_period, self.transmit_tick)
+            self.transmit_ticker.start()
 
     def receive_mc_packet(self, key, payload):
         """Callback for when a multicast packet has been received.
@@ -212,9 +216,10 @@ class GenericUARTProtocol(object):
         self.receive_tick_inner()
 
         # Schedule this function to run again
-        self.receive_ticker = threading.Timer(
-            self.rx_period, self.receive_tick)
-        self.receive_ticker.start()
+        if not self.stop_now:
+            self.receive_ticker = threading.Timer(
+                self.rx_period, self.receive_tick)
+            self.receive_ticker.start()
 
     def send_mc_packet(self, key, payload):
         """Transmit a multicast packet into the system given the appropriate
@@ -241,7 +246,7 @@ class NSTSpiNNlinkProtocol(GenericUARTProtocol):
 
         # Set up the serial link
         self.serial = serial.Serial(dev, baudrate=8000000, rtscts=True,
-                                    timeout=self.rx_period)
+                                    timeout=0.1)
         self.serial.write("S+\n")  # Send SpiNNaker packets to host
 
     def send_mc_packet(self, key, payload):
