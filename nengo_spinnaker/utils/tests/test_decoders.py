@@ -24,7 +24,7 @@ def test_decoder_generation():
                               transform=np.random.normal(size=(3, 3)))  # Share (c3)
 
         c5 = nengo.Connection(a, c, solver=nengo.decoders.LstsqL2())  # Share ()
-        c6 = nengo.Connection(a, c, eval_points=np.random.normal(100)) # !Share
+        c6 = nengo.Connection(a, c, eval_points=np.random.normal((100,2))) # !Share
 
         c7 = nengo.Connection(a, c, transform=3)
 

@@ -66,7 +66,7 @@ class Ethernet(object):
         """
         # Have we already assigned a Tx vertex for this Node
         if conn.post in self.nodes_txes:
-            return self.node_txes[conn.post]
+            return self.nodes_txes[conn.post]
 
         # Create a new Tx, add to the map, add to the graph
         tx = SDPTransmitVertex(conn.post, label="SDP_TX %s" % conn.post)
