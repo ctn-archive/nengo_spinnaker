@@ -1,8 +1,8 @@
 from ethernet import Ethernet
 
 try:
-    from serial import Serial, SpIOUART, NSTSpiNNlink
+    from uart import UART, SpIOUARTProtocol, NSTSpiNNlinkProtocol
 except ImportError:
-    Serial = None
-    SpIOUART = None
-    NSTSpiNNlink = None
+    UART = None
+    SpIOUARTProtocol = None
+    NSTSpiNNlinkProtocol = None

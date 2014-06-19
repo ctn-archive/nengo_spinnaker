@@ -21,6 +21,7 @@ with model:
     nengo.Connection(b, c, synapse=0.01)
     nengo.Connection(c, d, synapse=0.01)
 
-io = nengo_spinnaker.io.Serial(protocol=nengo_spinnaker.io.SpIOUART)
+io = nengo_spinnaker.io.UART(nengo_spinnaker.io.SpIOUARTProtocol, port="/dev/ttyUSB0")
 sim = nengo_spinnaker.Simulator(model, io=io)
+#sim = nengo.Simulator(model)
 sim.run(10.)
