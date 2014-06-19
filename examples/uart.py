@@ -6,8 +6,7 @@ model = nengo.Network("Node -> Node -> Ensemble -> Node")
 
 with model:
     def in_f(t):
-        val = np.sin(t)
-        return val
+        return [np.sin(t)]
 
     def out_f(t, val):
         print("Output %.3f" % val[0])
