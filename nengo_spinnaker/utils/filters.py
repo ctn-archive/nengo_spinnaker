@@ -77,10 +77,10 @@ def _post_prepare_routing(self):
     # XXX: Warning: This currently makes use of knowledge of the routing key
     # format used. Additionally, further optimisation is possible which is not
     # done here.
-    
+
     # Intialise the final filter list
     self.__filter_keys = list()
-    
+
     # Internal list of the unoptimised filters
     filter_keys = list()
 
@@ -90,34 +90,37 @@ def _post_prepare_routing(self):
 
         routings = [edge.prevertex.generate_routing_info(se) for se in
                     edge.subedges]
-        
+
         filter_keys.extend(
             [FilterRoute(r[0], r[1], i, dmask) for r in routings])
-    
+
     # We cannot optimise cases where connections from cores on a chip go to
     # different filters. Find these cases
     chip_to_filters = collections.defaultdict(set)
     for key, mask, filter, dimension_mask in filter_keys:
         chip_xy = key & 0xFFFF0000
         chip_to_filters[chip_xy].add(filter)
-    
+
     # Bin optimisable connections by chip and put the rest in the final list.
     optimisable_connections = dict()
     for key, mask, filter, dimension_mask in filter_keys:
         chip_xy = key & 0xFFFF0000
         if len(chip_to_filters[chip_xy]) == 1:
-            optimisable_connections[chip_xy] = (key,mask,filter,dimension_mask)
+            optimisable_connections[chip_xy] = (
+                key, mask, filter, dimension_mask)
         else:
-            self.__filter_keys.append(FilterRoute(key,mask,filter,dimension_mask))
-    
+            self.__filter_keys.append(
+                FilterRoute(key, mask, filter, dimension_mask))
+
     # Optimise any connections possible by compacting the rules for each core
     # into just one rule for the whole chip.
     #
-    # XXX: Also mask off all of the bottom 16 bits since the additional bits set
-    # by the PACMAN router key allocator may be different for cases optimised
-    # together.
+    # XXX: Also mask off all of the bottom 16 bits since the additional bits
+    # set by the PACMAN router key allocator may be different for cases
+    # optimised together.
     for key, mask, filter, dimension_mask in optimisable_connections.values():
-        self.__filter_keys.append(FilterRoute(key & ~0x0000FFFF, mask & ~0x0000FFFF, filter, dimension_mask))
+        self.__filter_keys.append(FilterRoute(
+            key & ~0x0000FFFF, mask & ~0x0000FFFF, filter, dimension_mask))
 
 
 @region_sizeof("FILTER_ROUTING")
