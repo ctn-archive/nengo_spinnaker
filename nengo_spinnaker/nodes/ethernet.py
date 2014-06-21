@@ -254,7 +254,7 @@ class EthernetCommunicator(object):
 
             if np.any(t_output != crxb.buffered_output):
                 with self.output_lock:
-                    crxb.buffered_output[:] = t_output.reshape(output.size)
+                    crxb.buffered_output[:] = t_output.reshape(t_output.size)
                     self.rx_fresh[crxb.rx] = True
 
     @stop_on_keyboard_interrupt
