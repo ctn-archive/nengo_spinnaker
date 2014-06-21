@@ -46,10 +46,13 @@ class ValueSourceVertex(vertices.NengoVertex):
 
         # Data is split into blocks of 20KB, though a block may be less than
         # this.  Each block is pulled into DTCM sequentially.
-        self.connections = connections.Connections([e.conn for e in self.out_edges])
-        self.width = self.connections.width
+        self.out_connections = connections.Connections(
+            [(e.conn, e.keyspace) for e in self.out_edges])
+        self.width = self.out_connections.width
+
         self.data_size = self._n_ticks * self.width
         self.frames_per_block = 5*1024 / self.width  # 20KB / 4*t
+
         self.full_blocks = self._n_ticks / self.frames_per_block
         self.r_blocks = self._n_ticks % self.frames_per_block
 
@@ -60,7 +63,7 @@ class ValueSourceVertex(vertices.NengoVertex):
             v = np.array(self.node.output(t))
 
             output = []
-            for tf in self.connections.transforms_functions:
+            for tf in self.out_connections.transforms_functions:
                 output.append(
                     np.dot(tf.transform, v if tf.function is None else
                            tf.function(v)))
@@ -100,19 +103,13 @@ class ValueSourceVertex(vertices.NengoVertex):
     def write_keys(self, subvertex, spec):
         (x, y, p) = subvertex.placement.processor.get_coordinates()
 
-        for (i, t) in enumerate(self.connections.transforms_functions):
+        for (i, t) in enumerate(self.out_connections.transforms_functions):
             for d in range(t.transform.shape[0]):
-                spec.write(data=(x << 24) | (y << 16) | ((p-1) << 11) |
-                                (i << 6) | d)
+                if not t.keyspace.is_set_i:
+                    spec.write(data=t.keyspace.key(x=x, y=y, p=p-1, i=i, d=d))
+                else:
+                    spec.write(data=t.keyspace.key(x=x, y=y, p=p-1, d=d))
 
     @vertices.region_write('DATA')
     def write_data(self, subvertex, spec):
         spec.write_array(data=fp.bitsk(self.data))
-
-    def generate_routing_info(self, subedge):
-        """Generate a key and mask for the given subedge."""
-        x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = self.connections[subedge.edge.conn]
-        key = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
-
-        return key, 0xFFFFFFC0
