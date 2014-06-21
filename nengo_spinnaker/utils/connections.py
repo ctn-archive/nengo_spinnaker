@@ -20,13 +20,22 @@ TransformFunctionWithSolverEvalPoints = collections.namedtuple(
 
 
 class Connections(object):
+    """Generates a list of unique transform, function, keyspace triples.
+
+    Merge together equivalent connections when they share a transform,
+    function, source and keyspace.
+    """
     def __init__(self, connections=[]):
         self._connection_indices = dict()
         self._source = None
         self.transforms_functions = list()
 
         for connection in connections:
-            self.add_connection(connection)
+            # If the connection is a tuple then it's (connection, keyspace)
+            if isinstance(connection, tuple) and len(connection) == 2:
+                self.add_connection(connection[0], connection[1])
+            else:
+                self.add_connection(connection)
 
     def add_connection(self, connection, keyspace=default_keyspace):
         # Ensure that this Connection collection is only for connections from
@@ -41,11 +50,17 @@ class Connections(object):
         connection_entry = self._make_connection_entry(
             connection, transform, keyspace)
 
+        # For each pre-existing unique connection see if this connection
+        # matches
         for (i, tf) in enumerate(self.transforms_functions):
             if self._are_compatible_connections(tf, connection_entry):
+                # If it does then the index for this connection is the same as
+                # that for the unique connection set
                 index = i
                 break
         else:
+            # Otherwise create a new transform/function/keyspace entry and
+            # use its index.
             self.transforms_functions.append(connection_entry)
             index = len(self.transforms_functions) - 1
 
@@ -53,17 +68,27 @@ class Connections(object):
 
     def contains_compatible_connection(self, connection,
                                        keyspace=default_keyspace):
+        """Does the Connection block already contain an equivalent connection.
+        """
+        # It doesn't if the connections have different sources
         if self._source is None or self._source != connection.pre:
             return False
 
+        # Simulate an entry for the given connection
+        transform = full_transform(connection, allow_scalars=False)
+        connection_entry = self._make_connection_entry(
+            connection, transform, keyspace)
+
+        # For each entry in the Connections block is the given connection
+        # compatible?
         for tf in self.transforms_functions:
-            if self._are_compatible_connections(tf, connection):
+            if self._are_compatible_connections(tf, connection_entry):
                 return True
         return False
 
     def _are_compatible_connections(self, c1, c2):
         return (np.all(c1.transform == c2.transform) and
-                c1.function == c2.function)
+                c1.function == c2.function and c1.keyspace == c2.keyspace)
 
     def _make_connection_entry(self, connection, transform,
                                keyspace=default_keyspace):
@@ -72,14 +97,18 @@ class Connections(object):
 
     @property
     def width(self):
+        # The total dimensionality of __all__ connections
         return sum([t.transform.shape[0] for t in self.transforms_functions])
 
     def get_connection_offset(self, connection):
+        # Get the offset (width of the connection block up until this
+        # connection)
         i = self[connection]
         return sum([t.transform.shape[0] for t in
                     self.transforms_functions[:i]])
 
     def __len__(self):
+        # Number of unique transform/function/keyspaces/...
         return len(self.transforms_functions)
 
     def __iter__(self):
@@ -94,7 +123,7 @@ class ConnectionsWithSolvers(Connections):
         return (np.all(c1.transform == c2.transform) and
                 np.all(c1.eval_points == c2.eval_points) and
                 c1.solver == c2.solver and
-                c1.function == c2.function)
+                c1.function == c2.function and c1.keyspace == c2.keyspace)
 
     def _make_connection_entry(self, connection, transform,
                                keyspace=default_keyspace):
