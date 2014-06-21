@@ -54,22 +54,11 @@ class SDPReceiveVertex(vertices.NengoVertex):
 
     @vertices.region_write('OUTPUT_KEYS')
     def write_region_output_keys(self, subvertex, spec):
+        # Ensure the keys generated for edges match what we're about to write
+        self.out_connections = self.connections
+
+        # For each unique output connection write the key we'll be using
         for (i, tf) in enumerate(self.connections.transforms_functions):
             x, y, p = subvertex.placement.processor.get_coordinates()
-            base = (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
             for d in range(tf.transform.shape[0]):
-                spec.write(data=base | d)
-
-    def get_routing_id_for_connection(self, connection):
-        return self.connections[connection]
-
-    def get_routing_key_for_connection(self, subvertex, connection):
-        # TODO Use edges to perform this calculation
-        x, y, p = subvertex.placement.processor.get_coordinates()
-        i = self.get_routing_id_for_connection(connection)
-        return (x << 24) | (y << 16) | ((p-1) << 11) | (i << 6)
-
-    def generate_routing_info(self, subedge):
-        key = self.get_routing_key_for_connection(subedge.presubvertex,
-                                                  subedge.edge.conn)
-        return key, subedge.edge.mask
+                spec.write(data=tf.keyspace.key(x=x, y=y, p=p-1, i=i, d=d))
