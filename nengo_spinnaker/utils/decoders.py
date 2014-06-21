@@ -4,6 +4,13 @@ import collections
 import numpy as np
 
 
+def totuple(a):
+    try:
+        return tuple(totuple(i) for i in a)
+    except TypeError:
+        return a
+
+
 FunctionSolverEvals = collections.namedtuple(
     'FunctionSolverEvals', ['function', 'solver', 'eval_points'])
 
@@ -29,11 +36,15 @@ class DecoderBuilder(object):
         """
         for cons, decoder in self.built_decoders.items():
             if (cons.function == function and cons.solver == solver and
-                    np.all(cons.eval_points == eval_points)):
+                    (cons.eval_points is None and eval_points is None or
+                        np.all(np.asarray(cons.eval_points) == eval_points))):
                 break
         else:
             decoder = self.decoder_builder(function, eval_points, solver)
-            key = FunctionSolverEvals(function, solver, eval_points)
+
+            key = FunctionSolverEvals(function, solver,
+                None if eval_points is None else totuple(eval_points))
+
             self.built_decoders[key] = decoder
         return np.dot(decoder, transform.T)
 
@@ -79,7 +90,10 @@ def get_combined_compressed_decoders(decoders, indices=None, headers=None,
                 (d, c) in zip(decoders, compress)]
 
     # Combine the final decoder
-    decoder = np.hstack([d[1] for d in dimsdecs])
+    if len(dimsdecs) > 0:
+        decoder = np.hstack([d[1] for d in dimsdecs])
+    else:
+        decoder = np.array([])
 
     # Generate the header (header element, index and dimension)
     final_headers = list()

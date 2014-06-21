@@ -66,7 +66,7 @@ class Ethernet(object):
         """
         # Have we already assigned a Tx vertex for this Node
         if conn.post in self.nodes_txes:
-            return self.node_txes[conn.post]
+            return self.nodes_txes[conn.post]
 
         # Create a new Tx, add to the map, add to the graph
         tx = SDPTransmitVertex(conn.post, label="SDP_TX %s" % conn.post)
@@ -254,7 +254,7 @@ class EthernetCommunicator(object):
 
             if np.any(t_output != crxb.buffered_output):
                 with self.output_lock:
-                    crxb.buffered_output[:] = t_output.reshape(output.size)
+                    crxb.buffered_output[:] = t_output.reshape(t_output.size)
                     self.rx_fresh[crxb.rx] = True
 
     @stop_on_keyboard_interrupt
