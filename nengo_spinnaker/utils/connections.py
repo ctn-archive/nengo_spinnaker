@@ -6,14 +6,17 @@ import numpy as np
 
 from nengo.utils.builder import full_transform
 
+from . import keyspaces
+default_keyspace = keyspaces.nengo_default()
 
-TransformFunctionPair = collections.namedtuple(
-    'TransformFunctionPair', ['transform', 'function'])
+
+TransformFunctionKeyspace = collections.namedtuple(
+    'TransformFunctionPair', ['transform', 'function', 'keyspace'])
 
 
 TransformFunctionWithSolverEvalPoints = collections.namedtuple(
     'TransformFunctionWithSolverEvalPoints',
-    ['transform', 'function', 'solver', 'eval_points'])
+    ['transform', 'function', 'solver', 'eval_points', 'keyspace'])
 
 
 class Connections(object):
@@ -25,7 +28,7 @@ class Connections(object):
         for connection in connections:
             self.add_connection(connection)
 
-    def add_connection(self, connection):
+    def add_connection(self, connection, keyspace=default_keyspace):
         # Ensure that this Connection collection is only for connections from
         # the same source object
         if self._source is None:
@@ -35,7 +38,9 @@ class Connections(object):
         # Get the index of the connection if the same transform and function
         # have already been added, otherwise add the transform/function pair
         transform = full_transform(connection, allow_scalars=False)
-        connection_entry = self._make_connection_entry(connection, transform)
+        connection_entry = self._make_connection_entry(
+            connection, transform, keyspace)
+
         for (i, tf) in enumerate(self.transforms_functions):
             if self._are_compatible_connections(tf, connection_entry):
                 index = i
@@ -46,7 +51,8 @@ class Connections(object):
 
         self._connection_indices[connection] = index
 
-    def contains_compatible_connection(self, connection):
+    def contains_compatible_connection(self, connection,
+                                       keyspace=default_keyspace):
         if self._source is None or self._source != connection.pre:
             return False
 
@@ -59,8 +65,10 @@ class Connections(object):
         return (np.all(c1.transform == c2.transform) and
                 c1.function == c2.function)
 
-    def _make_connection_entry(self, connection, transform):
-        return TransformFunctionPair(transform, connection.function)
+    def _make_connection_entry(self, connection, transform,
+                               keyspace=default_keyspace):
+        return TransformFunctionKeyspace(transform, connection.function,
+                                         keyspace)
 
     @property
     def width(self):
@@ -88,10 +96,11 @@ class ConnectionsWithSolvers(Connections):
                 c1.solver == c2.solver and
                 c1.function == c2.function)
 
-    def _make_connection_entry(self, connection, transform):
+    def _make_connection_entry(self, connection, transform,
+                               keyspace=default_keyspace):
         return TransformFunctionWithSolverEvalPoints(
             transform, connection.function, connection.solver,
-            connection.eval_points)
+            connection.eval_points, keyspace)
 
 
 class ConnectionBank(object):
