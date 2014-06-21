@@ -85,3 +85,50 @@ def test_keyspace_equivalence():
         "xypd"
     )()
     assert ks1 != ks4
+
+
+def test_keyspace_preset():
+    # Check that we can set presets on keyspaces in two different ways
+    ks1 = utils.keyspaces.nengo_default(i=1)
+    ks2 = ks1(x=5)
+
+    assert((ks1.key() & ks1.mask_i) >> 6 == 1)
+    assert((ks2.key() & ks1.mask_x) >> 24 == 5)
+
+
+def test_keyspace_size_checks():
+    # Check that if we try to set a field value too high we get an exception
+    with pytest.raises(ValueError):
+        utils.keyspaces.nengo_default(x=512)
+
+    ks = utils.keyspaces.nengo_default()
+    with pytest.raises(ValueError):
+        print ks._field_values
+        ks.key(x=512)
+
+    with pytest.raises(ValueError):
+        ks.routing_key(x=512)
+
+    with pytest.raises(ValueError):
+        ks(x=512)
+
+
+def test_keyspace_inheritance():
+    ks = utils.keyspaces.nengo_default()
+    ks1 = ks(x=1)
+    ks2 = ks1(y=2)
+
+    assert((ks2.key() & ks2.mask_x) >> 24 == 1)
+    assert((ks2.key() & ks2.mask_y) >> 16 == 2)
+
+    # Check that the set value overrides any provided values
+    with pytest.raises(AttributeError):
+        ks2.key(x = 5)
+
+
+def test_field_set_check():
+    ks = utils.keyspaces.nengo_default(i=6)
+    assert(ks.is_set_i)
+
+    with pytest.raises(AttributeError):
+        ks.is_set_i = False

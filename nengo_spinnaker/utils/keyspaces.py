@@ -9,14 +9,10 @@ def _make_mask_getter(mask):
         return mask
     return get_mask
 
-
-def _make_field_getter(fname):
-    fname = '_%s' % fname
-
-    def get_field(self):
-        return getattr(self, fname)
-
-    return get_field
+def _make_set_checker(field):
+    def get_set(self):
+        return field in self._field_values
+    return get_set
 
 
 class MetaKeySpace(type):
@@ -44,12 +40,8 @@ class MetaKeySpace(type):
                 r_mask |= mask
 
             new_dct['mask_%s' % name] = property(_make_mask_getter(mask))
+            new_dct['is_set_%s' % name] = property(_make_set_checker(name))
         new_dct['routing_mask'] = property(_make_mask_getter(r_mask))
-
-        # Create properties for each field
-        for (n, _) in dct['fields']:
-            new_dct[n] = property(_make_field_getter(n))
-            new_dct['_%s' % n] = None
 
         return super(MetaKeySpace, cls).__new__(cls, clsname, bases, new_dct)
 
@@ -58,13 +50,49 @@ class KeySpace(with_metaclass(MetaKeySpace)):
     fields = []
     routing_fields = []
 
+    def __init__(self, **field_values):
+        self._field_values = dict()
+
+        # For each field in the given list of field values
+        for (f, v) in field_values.items():
+            # Assert that the value given is within range
+            v_max = 2**self.__field_lengths__[f] - 1
+            if v > v_max:
+                raise ValueError("%d is larger than the maximum value for this"
+                                 " field '%s' (%d)" % (v, f, v_max))
+
+            # Then save the value for this field
+            self._field_values[f] = v
+
+    def __call__(self, **field_values):
+        new_field_values = dict(self._field_values)
+        new_field_values.update(field_values)
+        return type(self)(**new_field_values)
+
     def _make_key(self, fields, field_values):
         key = 0x0
         b = 32
         for f in fields:
+            # Get the number of bits and the maximum value
             bits = self.__field_lengths__[f]
-            v = field_values.get(f, None)
+            v_max = 2**bits - 1
 
+            # Get the value for this field -- try from the dict first, then
+            # the local values.  That way the value in the KeySpace takes
+            # precedence.  Raise an Exception if there's been an attempt to
+            # override the value set in the keyspace.
+            if f in self._field_values and f in field_values:
+                raise AttributeError("Field '%s' has already been assigned for"
+                                     " this keyspace" % f)
+            v_ = field_values.get(f, None)
+            v = self._field_values.get(f, v_)
+
+            # Assert that it is within range
+            if v is not None and v > v_max:
+                raise ValueError("%d is larger than the maximum value for this"
+                                 " field '%s' (%d)" % (v, f, v_max))
+
+            # Add this field to the key
             if v is not None:
                 key |= v << (b - bits)
 
