@@ -6,6 +6,8 @@ from pacman103.lib import graph, data_spec_gen, lib_map
 from pacman103.core.utilities import memory_utils
 from pacman103.core.spinnman.scp import scamp
 
+from . import connections
+
 try:
     from pkg_resources import resource_filename
 except ImportError:
@@ -59,6 +61,8 @@ def ordered_regions(*args, **kwargs):
 
 
 class NengoVertex(graph.Vertex):
+    _conn_type = connections.Connections
+
     def __new__(cls, *args, **kwargs):
         """Generate the region mapping for the new instance of cls."""
         # Get a new instance, then map in the region functions
@@ -85,6 +89,11 @@ class NengoVertex(graph.Vertex):
 
     def pre_prepare(self):
         """Prepare vertex, called prior to partitioning."""
+        # Generate the outgoing connections list
+        self.out_connections = self._conn_type(
+            [(e.conn, e.keyspace) for e in self.out_edges])
+
+        # Call the pre_prepare function for each region
         for region in self._regions:
             if region.pre_prepare is not None:
                 region.pre_prepare()
@@ -157,6 +166,15 @@ class NengoVertex(graph.Vertex):
             if region.write is not None and size > 0:
                 spec.switchWriteFocus(region.index)
                 region.write(subvertex, spec)
+
+    def generate_routing_info(self, subedge):
+        # Get the x, y, p and i for the subedge, create the keyspace using the
+        # routing info.
+        x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
+        i = self.out_connections[subedge.edge.conn]
+        ks = subedge.edge.keyspace
+
+        return ks.routing_key(x=x, y=y, p=p-1, i=i), ks.routing_mask
 
 
 def _region_role_mark(region, role):

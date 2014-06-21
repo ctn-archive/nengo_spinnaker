@@ -200,7 +200,8 @@ class Filters(object):
         index = None
         for (i, f) in enumerate(self.filters):
             if (connection_with_filter.accumulatory == f.accumulatory and
-                connection_with_filter.connection.synapse == f.time_constant):
+                    connection_with_filter.connection.synapse ==
+                    f.time_constant):
                 index = i
                 break
         else:

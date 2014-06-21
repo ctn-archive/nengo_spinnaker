@@ -18,6 +18,7 @@ class EnsembleVertex(vertices.NengoVertex):
                                        'DECODERS', 'OUTPUT_KEYS',
                                        **{'SPIKES': 15})
     MODEL_NAME = "nengo_ensemble"
+    _conn_type = connections.ConnectionsWithSolvers
 
     def __init__(self, ens, rng, dt=0.001, time_step=1000, constraints=None):
         """Create a new EnsembleVertex using the given Ensemble to generate
@@ -134,23 +135,25 @@ class EnsembleVertex(vertices.NengoVertex):
         """Generate decoders for the Ensemble."""
         # Get a list of unique transform/function/solver triples, the width and
         # connection indices of this list.
-        tfses = connections.ConnectionsWithSolvers(
-            [edge.conn for edge in self.out_edges]
-        )
+        tfses = self.out_connections
         self._edge_decoders = dict([(edge, tfses[edge.conn]) for edge in
                                     self.out_edges])
 
         # Generate each decoder in turn
         decoders = list()
+        headers = list()
         decoder_builder = utils.decoders.DecoderBuilder(self._build_decoder)
         for tfse in tfses.transforms_functions:
             decoders.append(decoder_builder.get_transformed_decoder(
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver
             ))
+            headers.append(tfse.keyspace)
 
         # Compress and merge the decoders
         (self.decoder_headers, self._merged_decoders) = \
-            utils.decoders.get_combined_compressed_decoders(decoders)
+            utils.decoders.get_combined_compressed_decoders(
+                decoders, headers=headers)
+
         self._merged_decoders /= self.dt
         self.n_output_dimensions = len(self.decoder_headers)
 
@@ -251,12 +254,4 @@ class EnsembleVertex(vertices.NengoVertex):
         for (h, i, d) in self.decoder_headers:
             # Generate the routing keys for each dimension
             # TODO Use KeySpaces to perform this calculation
-            spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
-                             (i << 6) | d))
-
-    def generate_routing_info(self, subedge):
-        """Generate a key and mask for the given subedge."""
-        x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
-        i = self._edge_decoders[subedge.edge]
-
-        return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
+            spec.write(data=h.key(x=x, y=y, p=p-1, i=i, d=d))

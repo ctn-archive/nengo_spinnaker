@@ -66,14 +66,15 @@ class FilterVertex(vertices.NengoVertex):
         i = self.output_id
 
         assert(len(self.out_edges) == 1)
-        key = self.out_edges[0].generate_key(x, y, p, i)
 
         for d in range(self.dimensions):
-            spec.write(data=key | d)
+            spec.write(data=self.out_edges[0].keyspace.key(
+                x=x, y=y, p=p-1, i=i, d=d))
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self.output_id
 
-        return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
+        return (subedge.edge.keyspace.key(x=x, y=y, p=p-1, i=i),
+                subedge.edge.keyspace.routing_mask)
