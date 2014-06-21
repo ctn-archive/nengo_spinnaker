@@ -82,7 +82,10 @@ def get_combined_compressed_decoders(decoders, indices=None, headers=None,
     dimsdecs = [get_compressed_decoder(d, threshold) for d in decoders]
 
     # Combine the final decoder
-    decoder = np.hstack([d[1] for d in dimsdecs])
+    if len(dimsdecs) > 0:
+        decoder = np.hstack([d[1] for d in dimsdecs])
+    else:
+        decoder = np.array([])
 
     # Generate the header (header element, index and dimension)
     final_headers = list()

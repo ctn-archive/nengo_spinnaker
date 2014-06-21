@@ -213,3 +213,8 @@ def test_get_compressed_decoders_with_headers():
     
     assert(cdec.shape == (n_neurons, len(expected_headers)))
     assert(headers == expected_headers)
+
+
+def test_null_decoders():
+    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+        [], headers=[])
