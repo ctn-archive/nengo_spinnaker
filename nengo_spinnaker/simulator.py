@@ -80,68 +80,73 @@ class Simulator(object):
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
-        # Preparation functions, set the run time for each vertex
-        for vertex in self.dao.vertices:
-            vertex.runtime = time_in_seconds
-            if hasattr(vertex, 'pre_prepare'):
-                vertex.pre_prepare()
+        try:
+            # Preparation functions, set the run time for each vertex
+            for vertex in self.dao.vertices:
+                vertex.runtime = time_in_seconds
+                if hasattr(vertex, 'pre_prepare'):
+                    vertex.pre_prepare()
 
-        # PACMANify!
-        self.controller.dao = self.dao
-        self.dao.set_hostname(self.machine_name)
+            # PACMANify!
+            self.controller.dao = self.dao
+            self.dao.set_hostname(self.machine_name)
 
-        # TODO: Modify Transceiver so that we can manually check for
-        # application termination  i.e., we want to do something during the
-        # simulation time, not pause in the TxRx.
-        self.dao.run_time = None
+            # TODO: Modify Transceiver so that we can manually check for
+            # application termination  i.e., we want to do something during the
+            # simulation time, not pause in the TxRx.
+            self.dao.run_time = None
 
-        self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
+            self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
 
-        self.controller.map_model()
+            self.controller.map_model()
 
-        # Preparation functions
-        for vertex in self.dao.vertices:
-            if hasattr(vertex, 'post_prepare'):
-                vertex.post_prepare()
+            # Preparation functions
+            for vertex in self.dao.vertices:
+                if hasattr(vertex, 'post_prepare'):
+                    vertex.post_prepare()
 
-        self.controller.generate_output()
-        self.controller.load_targets()
-        self.controller.load_write_mem()
+            self.controller.generate_output()
+            self.controller.load_targets()
+            self.controller.load_write_mem()
 
-        # Start the IO and perform host computation
-        with self.io as node_io:
-            self.node_io = node_io
-            self.controller.run(self.dao.app_id)
-            node_io.start()
+            # Start the IO and perform host computation
+            with self.io as node_io:
+                self.node_io = node_io
+                self.controller.run(self.dao.app_id)
+                node_io.start()
 
-            current_time = 0.
+                current_time = 0.
+                try:
+                    if self.host_sim is not None:
+                        while (time_in_seconds is None or
+                               current_time < time_in_seconds):
+                            s = time.clock()
+                            self.host_sim.step()
+                            t = time.clock() - s
+
+                            if t < self.dt:
+                                time.sleep(self.dt - t)
+                                t = self.dt
+                            current_time += t
+                    else:
+                        time.sleep(time_in_seconds)
+                except KeyboardInterrupt:
+                    logger.debug("Stopping simulation.")
+
+            # Retrieve any probed values
+            logger.debug("Retrieving data from the board.")
+            self.data = dict()
+            for p in self.probes:
+                self.data[p.probe] = p.get_data(self.controller.txrx)
+
+        finally:
+            # Stop the application from executing
             try:
-                if self.host_sim is not None:
-                    while (time_in_seconds is None or
-                           current_time < time_in_seconds):
-                        s = time.clock()
-                        self.host_sim.step()
-                        t = time.clock() - s
-
-                        if t < self.dt:
-                            time.sleep(self.dt - t)
-                            t = self.dt
-                        current_time += t
-                else:
-                    time.sleep(time_in_seconds)
-            except KeyboardInterrupt:
-                logger.debug("Stopping simulation.")
-
-        # Retrieve any probed values
-        logger.debug("Retrieving data from the board.")
-        self.data = dict()
-        for p in self.probes:
-            self.data[p.probe] = p.get_data(self.controller.txrx)
-
-        # Stop the application from executing
-        logger.debug("Stopping the application from executing.")
-        if clean:
-            self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
+                logger.debug("Stopping the application from executing.")
+                if clean:
+                    self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
+            except Exception:
+                pass
 
     def trange(self, dt=None):
         dt = self.dt if dt is None else dt
