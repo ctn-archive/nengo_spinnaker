@@ -13,7 +13,36 @@ logger = logging.getLogger(__name__)
 
 
 class Simulator(object):
-    """SpiNNaker simulator for Nengo models."""
+    """SpiNNaker simulator for Nengo models.
+
+    In general Probes return data in the same form as Nengo and data can be
+    accessed using the :py:attr:`data` dictionary.
+
+    ::
+
+         output = sim.data[probe]
+
+    Spike probes
+        The one current exception to this rule is spike data.  Spike data from
+        Ensembles is formatted as a list of spike times for each neuron.  This
+        allows it to be used directly with
+        :py:func:`matplotlib.pyplot.eventplot`::
+
+            model = nengo.Network()
+            with model:
+                target = nengo.Ensemble(25, 1)
+                p = nengo.Probe(target, 'spikes')
+
+            sim = nengo_spinnaker.Simulator(model)
+            sim.run(10.)
+
+            plt.eventplot(sim.data[p], colors=[[0, 0, 1]])
+
+    Voltage probes
+        Currently not supported.
+
+    :attr data: A dictionary mapping Probes to the data they probed.
+    """
     def __init__(self, model, machine_name=None, seed=None, io=None,
                  config=None):
         """Initialise the simulator with a model, machine and IO preferences.
