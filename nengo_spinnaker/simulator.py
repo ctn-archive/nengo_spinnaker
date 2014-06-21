@@ -96,7 +96,7 @@ class Simulator(object):
             # simulation time, not pause in the TxRx.
             self.dao.run_time = None
 
-            self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
+            self.controller.set_tag_output(1, 17895)  # Only reqd. for Ethernet
 
             self.controller.map_model()
 
@@ -129,7 +129,11 @@ class Simulator(object):
                                 t = self.dt
                             current_time += t
                     else:
-                        time.sleep(time_in_seconds)
+                        if time_in_seconds is not None:
+                            time.sleep(time_in_seconds)
+                        else:
+                            while True:
+                                time.sleep(10.)
                 except KeyboardInterrupt:
                     logger.debug("Stopping simulation.")
 
@@ -144,7 +148,8 @@ class Simulator(object):
             try:
                 logger.debug("Stopping the application from executing.")
                 if clean:
-                    self.controller.txrx.app_calls.app_signal(self.dao.app_id, 2)
+                    self.controller.txrx.app_calls.app_signal(
+                        self.dao.app_id, 2)
             except Exception:
                 pass
 
