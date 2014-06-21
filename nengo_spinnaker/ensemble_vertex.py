@@ -254,4 +254,7 @@ class EnsembleVertex(vertices.NengoVertex):
         for (h, i, d) in self.decoder_headers:
             # Generate the routing keys for each dimension
             # TODO Use KeySpaces to perform this calculation
-            spec.write(data=h.key(x=x, y=y, p=p-1, i=i, d=d))
+            if not h.is_set_i:
+                spec.write(data=h.key(x=x, y=y, p=p-1, i=i, d=d))
+            else:
+                spec.write(data=h.key(x=x, y=y, p=p-1, d=d))

@@ -105,7 +105,10 @@ class ValueSourceVertex(vertices.NengoVertex):
 
         for (i, t) in enumerate(self.out_connections.transforms_functions):
             for d in range(t.transform.shape[0]):
-                spec.write(data=t.keyspace.key(x=x, y=y, p=p-1, i=i, d=d))
+                if not t.keyspace.is_set_i:
+                    spec.write(data=t.keyspace.key(x=x, y=y, p=p-1, i=i, d=d))
+                else:
+                    spec.write(data=t.keyspace.key(x=x, y=y, p=p-1, d=d))
 
     @vertices.region_write('DATA')
     def write_data(self, subvertex, spec):

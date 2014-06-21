@@ -61,4 +61,7 @@ class SDPReceiveVertex(vertices.NengoVertex):
         for (i, tf) in enumerate(self.connections.transforms_functions):
             x, y, p = subvertex.placement.processor.get_coordinates()
             for d in range(tf.transform.shape[0]):
-                spec.write(data=tf.keyspace.key(x=x, y=y, p=p-1, i=i, d=d))
+                if not tf.keyspace.is_set_i:
+                    spec.write(data=tf.keyspace.key(x=x, y=y, p=p-1, i=i, d=d))
+                else:
+                    spec.write(data=tf.keyspace.key(x=x, y=y, p=p-1, d=d))

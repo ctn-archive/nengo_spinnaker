@@ -174,7 +174,10 @@ class NengoVertex(graph.Vertex):
         i = self.out_connections[subedge.edge.conn]
         ks = subedge.edge.keyspace
 
-        return ks.routing_key(x=x, y=y, p=p-1, i=i), ks.routing_mask
+        if not ks.is_set_i:
+            return ks.routing_key(x=x, y=y, p=p-1, i=i), ks.routing_mask
+        else:
+            return ks.routing_key(x=x, y=y, p=p-1), ks.routing_mask
 
 
 def _region_role_mark(region, role):
