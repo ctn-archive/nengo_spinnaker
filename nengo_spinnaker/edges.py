@@ -36,14 +36,17 @@ class DummyConnection(object):
 
 
 class NengoEdge(graph.Edge):
-    def __init__(self, conn, pre, post, constraints=None, label=None,
-                 filter_is_accumulatory=True):
+    def __init__(self, conn, pre, post, keyspace=None, constraints=None,
+                 label=None, filter_is_accumulatory=True):
         super(NengoEdge, self).__init__(
             pre, post, constraints=constraints, label=label
         )
         self.conn = conn   # Handy reference
         self._filter_is_accumulatory = filter_is_accumulatory
-        self.keyspace = utils.keyspaces.nengo_default()
+
+        self.keyspace = keyspace
+        if self.keyspace is None:
+            self.keyspace = utils.keyspaces.nengo_default()
 
     @property
     def width(self):
