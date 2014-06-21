@@ -191,9 +191,9 @@ class Simulator(object):
 
                             # If it takes less than one time step then sleep
                             # for the remaining time
-                            if t < self.dt:
-                                time.sleep(self.dt - t)
-                                t = self.dt
+                            if t < self.host_sim.dt:
+                                time.sleep(self.host_sim.dt - t)
+                                t = self.host_sim.dt
 
                             # TODO: Currently if one step of the simulator
                             # takes more than one time step we can't do
@@ -204,7 +204,7 @@ class Simulator(object):
                             # step with the board, albeit at a lower sample
                             # rate.
                             #
-                            # if t > dt:
+                            # if t > self.host_sim.dt:
                             #     self.host_sim.dt = t
 
                             # Keep track of how long we've been running for
