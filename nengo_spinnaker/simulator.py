@@ -128,7 +128,11 @@ class Simulator(object):
                             t = self.dt
                         current_time += t
                 else:
-                    time.sleep(time_in_seconds)
+                    if time_in_seconds is not None:
+                        time.sleep(time_in_seconds)
+                    else:
+                        while True:
+                            time.sleep(10.)
             except KeyboardInterrupt:
                 logger.debug("Stopping simulation.")
 

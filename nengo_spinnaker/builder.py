@@ -117,6 +117,11 @@ class Builder(object):
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
             objs, connections)
 
+        # Generate a version of the network to simulate on the host
+        host_network = utils.nodes.create_host_network(
+            [n for n in objs if isinstance(n, nengo.Node)], connections,
+            node_builder.io, config)
+
         # Create a MultiCastVertex
         self._mc_tx_vertex = None
 
@@ -157,8 +162,6 @@ class Builder(object):
 
         # Return the DAO, a reduced version of the network to simulate on the
         # host and a list of probes.
-        host_network = utils.nodes.create_host_network(
-            model, node_builder.io, config)
         return self.dao, host_network, self.probes
 
     def add_vertex(self, vertex):
@@ -270,9 +273,16 @@ def _node_to_ensemble(builder, c):
     # for the Ensemble and don't add an edge, otherwise add an
     # edge from the appropriate Rx element to the Ensemble.
     postvertex = builder.ensemble_vertices[c.post]
-    if c.pre.output is not None and not callable(c.pre.output):
-        postvertex.direct_input += np.dot(np.asarray(c.pre.output),
-                                          np.asarray(c.transform).T)
+    if (c.pre.output is not None and
+            not callable(c.pre.output) and c.pre.output.ndim == 1):
+        tr = nengo.utils.builder.full_transform(c)
+
+        output = c.pre.output
+        if c.function is not None:
+            output = c.function(output)
+
+        postvertex.direct_input += np.dot(tr, output)
+
     elif builder.config[c.pre].f_of_t:
         # Node is a function of time to be evaluated in advance
         if c.pre in builder.f_of_t_vertices:

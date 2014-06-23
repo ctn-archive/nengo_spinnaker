@@ -1,7 +1,11 @@
 import nengo
 
+from . import connections
+from . import decoders
 from . import fixpoint as fp
-from . import connections, global_inhibition, nodes, probes
+from . import global_inhibition
+from . import nodes
+from . import probes
 
 
 def get_connection_width(connection):

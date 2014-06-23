@@ -5,8 +5,10 @@ import nengo.builder
 import nengo.decoders
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
+from nengo.utils.inspect import checked_call
 
 from .utils import connections, fp, filters, vertices
+from . import utils
 
 
 @filters.with_filters(6, 7)
@@ -143,43 +145,45 @@ class EnsembleVertex(vertices.NengoVertex):
         )
         self._edge_decoders = dict([(edge, tfses[edge.conn]) for edge in
                                     self.out_edges])
-        self.n_output_dimensions = tfses.width
 
         # Generate each decoder in turn
         decoders = list()
+        decoder_builder = utils.decoders.DecoderBuilder(self._build_decoder)
         for tfse in tfses.transforms_functions:
-            eval_points = tfse.eval_points
-            if eval_points is None:
-                eval_points = self.eval_points
+            decoders.append(decoder_builder.get_transformed_decoder(
+                tfse.function, tfse.transform, tfse.eval_points, tfse.solver
+            ))
 
-            x = np.dot(eval_points, self.encoders.T / self._ens.radius)
-            activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
+        # Compress and merge the decoders
+        (self.decoder_headers, self._merged_decoders) = \
+            utils.decoders.get_combined_compressed_decoders(decoders)
+        self._merged_decoders /= self.dt
+        self.n_output_dimensions = len(self.decoder_headers)
 
-            if tfse.function is None:
-                targets = eval_points
-            else:
-                targets = np.array([tfse.function(ep) for ep in eval_points])
-                if targets.ndim < 2:
-                    targets.shape = targets.shape[0], 1
+    def _build_decoder(self, function, eval_points, solver):
+        if eval_points is None:
+            eval_points = self.eval_points
 
-            solver = tfse.solver
-            if solver is None:
-                solver = nengo.decoders.LstsqL2()
+        x = np.dot(eval_points, self.encoders.T / self._ens.radius)
+        activities = self._ens.neuron_type.rates(x, self.gain, self.bias)
 
-            decoder = solver(activities, targets, self.rng)
+        if function is None:
+            targets = eval_points
+        else:
+            (value, invoked) = checked_call(function, eval_points[0])
+            function_size = np.asarray(value).size
+            targets = np.zeros((len(eval_points), function_size))
+            for (i, ep) in enumerate(eval_points):
+                targets[i] = function(ep)
 
-            if isinstance(decoder, tuple):
-                decoder = decoder[0]
+        if solver is None:
+            solver = nengo.decoders.LstsqL2()
 
-            decoders.append(np.dot(decoder, tfse.transform.T))
+        decoder = solver(activities, targets, self.rng)
 
-        # Generate the decoder widths
-        self._decoder_widths = [d.shape[1] for d in decoders]
-
-        # Generate the merged decoders
-        self._merged_decoders = np.array([[], ])
-        if len(decoders) > 0:
-            self._merged_decoders = np.hstack(decoders) / self.dt
+        if isinstance(decoder, tuple):
+            decoder = decoder[0]
+        return decoder
 
     @vertices.region_pre_sizeof('DECODERS')
     def sizeof_region_decoders(self, n_atoms):
@@ -286,12 +290,11 @@ class EnsembleVertex(vertices.NengoVertex):
         """Write the output keys region for the given subvertex."""
         x, y, p = subvertex.placement.processor.get_coordinates()
 
-        for (i, w) in enumerate(self._decoder_widths):
+        for (h, i, d) in self.decoder_headers:
             # Generate the routing keys for each dimension
-            # TODO Use edges to perform this calculation
-            for d in range(w):
-                spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
-                                 (i << 6) | d))
+            # TODO Use KeySpaces to perform this calculation
+            spec.write(data=((x << 24) | (y << 16) | ((p-1) << 11) |
+                             (i << 6) | d))
 
     @vertices.region_write('INHIB_FILTER')
     def write_region_inhib_filter(self, subvertex, spec):
