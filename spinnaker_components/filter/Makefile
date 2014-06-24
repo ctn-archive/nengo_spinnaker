@@ -10,6 +10,6 @@
 
 APP = nengo_filter
 APP_OUTPUT_DIR = $(PWD)/../../nengo_spinnaker/binaries/
-SOURCES = filter-main.c ../common/filtered-input.c
+SOURCES = filter_main.c ../common/input_filter.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

@@ -12,7 +12,7 @@
  * 
  */
 
-#include "ensemble-pes.h"
+#include "ensemble_pes.h"
 
 #include <string.h>
 

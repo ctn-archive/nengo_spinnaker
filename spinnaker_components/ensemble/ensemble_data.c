@@ -13,8 +13,8 @@
  * 
  */
 
-#include "ensemble-data.h"
-#include "ensemble-output.h"
+#include "ensemble_data.h"
+#include "ensemble_output.h"
 
 bool data_system(address_t addr) {
   return initialise_ensemble((region_system_t *) addr);

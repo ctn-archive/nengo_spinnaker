@@ -1,9 +1,6 @@
-import collections
 import numpy as np
 
 from pacman103.lib import graph
-
-from . import utils
 
 
 class DummyConnection(object):
@@ -13,7 +10,7 @@ class DummyConnection(object):
     _postslice = None
 
     def __init__(self, pre=None, post=None, transform=1., function=None,
-                 solver=None, eval_points=None, synapse=None, 
+                 solver=None, eval_points=None, synapse=None,
                  size_in=1, size_out=1):
         self.pre = pre
         self.post = post
@@ -61,7 +58,7 @@ class NengoEdge(graph.Edge, Edge):
 
     @property
     def width(self):
-        utils.get_connection_width(self.conn)
+        return self.conn.post.size_in
 
     def __getattr__(self, name):
         """Redirect missed attributes to the connection."""

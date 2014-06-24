@@ -45,7 +45,6 @@ typedef struct pes_parameters_t
 // External variables
 //----------------------------------
 extern pes_parameters_t g_pes;
-extern filtered_input_t g_input;
 
 //----------------------------------
 // Inline functions
@@ -58,7 +57,7 @@ static inline void pes_neuron_spiked(uint n)
   if(g_pes.learning_rate > 0.0k)
   {
     // Extract error signal vector from 
-    const value_t *filtered_error_signal = g_input.filters[g_pes.error_signal_filter_index]->filtered;
+    const value_t *filtered_error_signal = g_input_modulatory.filters[g_pes.error_signal_filter_index]->filtered;
     
     // Get filtered activity of this neuron and it's decoder vector
     value_t *decoder_vector = neuron_decoder_vector(n);

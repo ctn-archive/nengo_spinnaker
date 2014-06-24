@@ -20,7 +20,6 @@
 
 #include "ensemble.h"
 
-
 /**
 * \brief Copy in data pertaining to the system region of the Ensemble.
 */

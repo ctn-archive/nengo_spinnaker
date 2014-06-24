@@ -15,7 +15,7 @@
  * 
  */
 
-#include "ensemble-output.h"
+#include "ensemble_output.h"
 
 uint g_n_output_dimensions, *gp_output_keys;
 value_t * gp_output_values;
