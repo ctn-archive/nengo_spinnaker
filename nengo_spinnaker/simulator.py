@@ -96,35 +96,6 @@ class Simulator(object):
 
         self.dt = dt
 
-    def _prepare_model_for_execution(self, time_in_seconds):
-        # Preparation functions, set the run time for each vertex
-        for vertex in self.dao.vertices:
-            vertex.runtime = time_in_seconds
-            if hasattr(vertex, 'pre_prepare'):
-                vertex.pre_prepare()
-
-        # PACMANify!
-        self.controller.dao = self.dao
-        self.dao.set_hostname(self.machine_name)
-
-        # TODO: Modify Transceiver so that we can manually check for
-        # application termination  i.e., we want to do something during the
-        # simulation time, not pause in the TxRx.
-        self.dao.run_time = None
-
-        self.controller.set_tag_output(1, 17895)  # Only required for Ethernet
-
-        self.controller.map_model()
-
-        # Preparation functions
-        for vertex in self.dao.vertices:
-            if hasattr(vertex, 'post_prepare'):
-                vertex.post_prepare()
-
-        self.controller.generate_output()
-        self.controller.load_targets()
-        self.controller.load_write_mem()
-
     def run(self, time_in_seconds=None, clean=True):
         """Run the model for the specified amount of time.
 
