@@ -131,7 +131,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
-        return 8
+        return 9
 
     @vertices.region_pre_prepare('BIAS')
     def preprepare_region_bias(self):
@@ -162,7 +162,6 @@ class EnsembleVertex(vertices.NengoVertex):
         # **YUCK** knowing what bit of the decoder they should be modifying should be common for all decoder-learning rules
         if self._pes_connection != None:
             self._pes_decoder_offset = tfses.get_connection_offset(self._pes_connection)
-            print("PES USES DECODER OFFSET %u" % self._pes_decoder_offset)
             
         # Generate each decoder in turn
         decoders = list()
@@ -315,6 +314,7 @@ class EnsembleVertex(vertices.NengoVertex):
         spec.write(data=fp.bitsk(self.dt / self.tau_rc))
         spec.write(data=0x1 if self.record_spikes else 0x0)  # Recording flag
         spec.write(data=self.inhib_dims)
+        spec.write(data=self.modulatory_dims)
 
     @vertices.region_write('BIAS')
     def write_region_bias(self, subvertex, spec):
@@ -413,7 +413,8 @@ class EnsembleVertex(vertices.NengoVertex):
             if self.modulatory_edge == None:
                 raise TypeError("Ensemble %s uses PES learning, but doesn't have a modulatory input" % self)
             
-            # **HACK** we only support a single modulatory connection so PES should always use zero
+            # **HACK** we only support a single modulatory connection 
+            # So index of error connection should always use zero
             spec.write(data = 0)
             spec.write(data = self._pes_decoder_offset)
         # Otherwise, just write a zero

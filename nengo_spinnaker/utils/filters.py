@@ -80,7 +80,6 @@ def _write_region_filters(self, subvertex, spec):
         spec.write(data=fp.bitsk(f))
         spec.write(data=fp.bitsk(1 - f))
         spec.write(data=(0x0 if filter_item.accumulatory else 0xffffffff))
-        spec.write(data=(1 if filter_item.modulatory else 0))
 
 
 @region_post_prepare('FILTER_ROUTING')
@@ -92,7 +91,7 @@ def _post_prepare_routing(self):
     self.__filter_keys = list()
 
     for edge in self.in_edges:
-        if isinstance(edge.conn, global_inhibition.GlobalInhibitionConnection):
+        if not _is_input_edge(edge):
             continue
 
         i = self.__filters[edge.conn]
