@@ -286,9 +286,6 @@ class Simulator(object):
             dt = self.dt if dt is None else dt
             return dt * np.arange(int(self.time_in_seconds/dt))
         else:
-            # XXX: This is horrible, but it beats getting an exception because
-            #      dividing None is invalid.  If the run time wasn't specified
-            #      probing would have been disabled.
             # TODO: Allow some probing for unspecified run time... Will require
             #       writing the final run time back somehow. (When we have
             #       masses of bandwidth we could even probe on
@@ -297,4 +294,5 @@ class Simulator(object):
             #       we probe as best as we can on host when no run time is
             #       specified.  This would require some rearranging of the
             #       Builder.
-            return np.array([])
+            raise NotImplementedError('Cannot provide time steps for '
+                                      'indefinite run time.')
