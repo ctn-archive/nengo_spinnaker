@@ -168,10 +168,35 @@ class Simulator(object):
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
+        # Preparation functions, set the run time for each vertex
+        for vertex in self.dao.vertices:
+            vertex.runtime = time_in_seconds
+            if hasattr(vertex, 'pre_prepare'):
+                vertex.pre_prepare()
+
+        # PACMANify!
+        self.controller.dao = self.dao
+        self.dao.set_hostname(self.machine_name)
+
+        # TODO: Modify Transceiver so that we can manually check for
+        # application termination  i.e., we want to do something during the
+        # simulation time, not pause in the TxRx.
+        self.dao.run_time = None
+
+        self.controller.set_tag_output(1, 17895)  # Only reqd. for Ethernet
+
+        self.controller.map_model()
+
+        # Preparation functions
+        for vertex in self.dao.vertices:
+            if hasattr(vertex, 'post_prepare'):
+                vertex.post_prepare()
+
+        self.controller.generate_output()
+
         try:
-            # Run the PACMAN place/partition, route, data spec tools
-            self.executed = True
-            self._prepare_model_for_execution(time_in_seconds)
+            self.controller.load_targets()
+            self.controller.load_write_mem()
 
             # Start the IO and perform host computation
             with self.io as node_io:

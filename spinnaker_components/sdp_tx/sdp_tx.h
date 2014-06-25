@@ -14,7 +14,7 @@
 #define __SDP_TX_H__
 
 #include "spin1_api.h"
-#include "filtered-input.h"
+#include "input_filter.h"
 
 #include "common-impl.h"
 

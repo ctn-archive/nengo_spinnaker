@@ -170,7 +170,7 @@ def test_get_compressed_decoders_with_indices():
     # Get the combined compressed decoders and check everything is as expected
     headers, cdec = utils.decoders.get_combined_compressed_decoders(
         decoders, indices)
-    
+
     assert(cdec.shape == (n_neurons, len(expected_headers)))
     assert(headers == expected_headers)
 
@@ -210,6 +210,30 @@ def test_get_compressed_decoders_with_headers():
     # Get the combined compressed decoders and check everything is as expected
     headers, cdec = utils.decoders.get_combined_compressed_decoders(
         decoders, indices, headers)
-    
+
     assert(cdec.shape == (n_neurons, len(expected_headers)))
     assert(headers == expected_headers)
+
+
+def test_get_compressed_and_uncompressed_decoders():
+    # Construct 3 decoders
+    d1 = np.random.uniform(.1, 1., (100, 5))
+    d2 = np.zeros((100, 9))
+    d3 = np.random.uniform(.1, 1., (100, 7))
+
+    # Zero some of the elements of d3
+    for d in [0, 5]:
+        for n in range(100):
+            d3[n][d] = 0.
+
+    # Compress the decoders
+    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+        [d1, d2, d3], compress=[True, False, True])
+
+    # d2 should not have been compressed, d3 should have been
+    assert(cdec.shape[1] == 5 + 9 + 5)
+
+
+def test_null_decoders():
+    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+        [], headers=[])

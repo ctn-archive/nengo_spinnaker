@@ -4,7 +4,7 @@
 #include "spin1_api.h"
 #include "common-impl.h"
 
-#include "filtered-input.h"
+#include "input_filter.h"
 
 typedef struct _region_system_t {
   uint timestep;

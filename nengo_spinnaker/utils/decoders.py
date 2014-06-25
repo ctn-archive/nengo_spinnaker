@@ -63,7 +63,7 @@ def get_compressed_decoder(decoder, threshold=0.):
 
 
 def get_combined_compressed_decoders(decoders, indices=None, headers=None,
-                                     threshold=0.):
+                                     threshold=0., compress=True):
     """Create a compressed decoder block, and return a list of tuples
     samples from headers, indices and dimension numbers.
 
@@ -72,17 +72,28 @@ def get_combined_compressed_decoders(decoders, indices=None, headers=None,
     :param headers: A list of headers for the decoders (might be KeySpaces).
     :param threshold: Any columns containing a value greater than the threshold
                       will be retained.
+    :param compress: A boolean or list of booleans describing whether to
+                     compress or otherwise a decoders.
     :returns: A list of tuples of (header, index, dimension) and a combined
               compressed decoder block (NxD).
     """
+    if isinstance(compress, bool):
+        compress = [compress] * len(decoders)
+
     assert(indices is None or len(decoders) == len(indices))
     assert(headers is None or len(decoders) == len(headers))
+    assert(len(compress) == len(decoders))
 
-    # Compress all of the decoders
-    dimsdecs = [get_compressed_decoder(d, threshold) for d in decoders]
+    # Compress all of the decoders, with threshold -1. for those we don't want
+    # to compress
+    dimsdecs = [get_compressed_decoder(d, threshold if c else -1.) for
+                (d, c) in zip(decoders, compress)]
 
     # Combine the final decoder
-    decoder = np.hstack([d[1] for d in dimsdecs])
+    if len(dimsdecs) > 0:
+        decoder = np.hstack([d[1] for d in dimsdecs])
+    else:
+        decoder = np.array([])
 
     # Generate the header (header element, index and dimension)
     final_headers = list()
