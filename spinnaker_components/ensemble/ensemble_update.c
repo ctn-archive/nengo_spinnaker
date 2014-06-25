@@ -28,7 +28,7 @@ void ensemble_update(uint ticks, uint arg1) {
   voltage_t v_delta, v_voltage;
 
   // Filter inputs
-  input_filter_step( );
+  input_filter_step(&g_input);
 
   // Perform neuron updates
   for( uint n = 0; n < g_ensemble.n_neurons; n++ ) {

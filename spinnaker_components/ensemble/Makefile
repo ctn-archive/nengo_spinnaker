@@ -10,6 +10,6 @@
 
 APP = nengo_ensemble
 APP_OUTPUT_DIR = $(PWD)/../../nengo_spinnaker/binaries/
-SOURCES = ensemble-main.c ensemble-data.c ensemble-harness.c ../common/filtered-input.c ensemble-output.c ensemble-update.c recording.c
+SOURCES = ensemble_main.c ensemble_data.c ensemble_harness.c ensemble_output.c ensemble_update.c recording.c ../common/input_filter.c
 OBJECTS = $(SOURCES:.c=.o)
 include ../Makefile.depend

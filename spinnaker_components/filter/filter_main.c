@@ -2,6 +2,7 @@
 
 filter_parameters_t g_filter;
 uint delay_remaining;
+input_filter_t g_input;
 
 void filter_update(uint ticks, uint arg1) {
   use(arg1);
@@ -10,7 +11,7 @@ void filter_update(uint ticks, uint arg1) {
   }
 
   // Update the filters
-  input_filter_step();
+  input_filter_step(&g_input);
 
   // Increment the counter and transmit if necessary
   delay_remaining--;
@@ -35,7 +36,7 @@ bool data_system(address_t addr) {
   delay_remaining = g_filter.transmission_delay;
   io_printf(IO_BUF, "[Filter] transmission delay = %d\n", delay_remaining);
 
-  g_filter.input = initialise_input(g_filter.n_dimensions);
+  g_filter.input = input_filter_initialise(&g_input, g_filter.n_dimensions);
 
   if (g_filter.input == NULL)
     return false;
@@ -55,12 +56,16 @@ bool data_get_output_keys(address_t addr) {
   return true;
 }
 
+void mcpl_callback(uint key, uint payload) {
+  input_filter_mcpl_rx(&g_input, key, payload);
+}
+
 void c_main(void) {
   address_t address = system_load_sram();
   if (!data_system(region_start(1, address)) ||
       !data_get_output_keys(region_start(2, address)) ||
-      !get_filters(&g_input, region_start(3, address)) ||
-      !get_filter_routes(&g_input, region_start(4, address))
+      !input_filter_get_filters(&g_input, region_start(3, address)) ||
+      !input_filter_get_filter_routes(&g_input, region_start(4, address))
   ) {
     io_printf(IO_BUF, "[Filter] Failed to initialise.\n");
     return;
@@ -73,6 +78,7 @@ void c_main(void) {
 
   // Setup timer tick, start
   spin1_set_timer_tick(g_filter.machine_timestep);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
   spin1_callback_on(TIMER_TICK, filter_update, 2);
   spin1_start(SYNC_WAIT);
 }
