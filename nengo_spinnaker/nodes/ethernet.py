@@ -207,6 +207,7 @@ class EthernetCommunicator(object):
         self.output_lock = threading.Lock()
 
         # Tx, Rx timers
+        self.stop_now = False
         self.tx_period = self.input_period
         self.rx_period = 0.0005
         self.rx_timer = threading.Timer(self.rx_period, self.sdp_rx_tick)
@@ -219,14 +220,12 @@ class EthernetCommunicator(object):
         self.rx_timer.start()
 
     def stop(self):
+        self.stop_now = True
+
         self.tx_timer.cancel()
         self.rx_timer.cancel()
         self.in_socket.close()
         self.out_socket.close()
-
-    def node_has_output(self, node):
-        """Return whether the given Node has output"""
-        return node in self._node_out
 
     def get_node_input(self, node):
         """Get the input for the given Node.
@@ -278,9 +277,10 @@ class EthernetCommunicator(object):
                 self.out_socket.sendto(str(packet), (self.machinename, 17893))
 
         # Reschedule the Tx tick
-        self.tx_timer = threading.Timer(self.tx_period, self.sdp_tx_tick)
-        self.tx_timer.name = "EthernetTx"
-        self.tx_timer.start()
+        if not self.stop_now:
+            self.tx_timer = threading.Timer(self.tx_period, self.sdp_tx_tick)
+            self.tx_timer.name = "EthernetTx"
+            self.tx_timer.start()
 
     @stop_on_keyboard_interrupt
     def sdp_rx_tick(self):
@@ -314,6 +314,7 @@ class EthernetCommunicator(object):
             pass
 
         # Reschedule the Rx tick
-        self.rx_timer = threading.Timer(self.rx_period, self.sdp_rx_tick)
-        self.rx_timer.name = "EthernetRx"
-        self.rx_timer.start()
+        if not self.stop_now:
+            self.rx_timer = threading.Timer(self.rx_period, self.sdp_rx_tick)
+            self.rx_timer.name = "EthernetRx"
+            self.rx_timer.start()

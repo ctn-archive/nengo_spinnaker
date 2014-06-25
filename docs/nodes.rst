@@ -147,6 +147,10 @@ A Node Builder is expected to look like the following:
             generally more useful to instantiate any vertices or edges when
             connecting to or from a Node.
 
+    .. py:attribute:: io
+
+        A reference to the Communicator object.
+
     .. py:method:: __enter__(self)
 
         Create and return a Communicator to handle input/output for Nodes.
@@ -173,6 +177,10 @@ A Node Communicator is required to look like the following:
         It is required that the Communicator be thread safe.  Each Node is
         independently responsible for getting its input and setting its output
         and each Node will be executed within its own thread.
+
+    .. py:method:: start(self)
+
+        Start execution of the communicator thread.
 
     .. py:method:: get_node_input(self, node)
 
