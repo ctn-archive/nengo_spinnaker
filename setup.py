@@ -22,7 +22,7 @@ devices such as robots.
 """
 setup(
     name="nengo_spinnaker",
-    version="0.0.1.dev",
+    version="0.1a0",
     author="CNRGlab at UWaterloo and APT Group, University of Manchester",
     author_email="https://github.com/ctn-waterloo/nengo_spinnaker/issues",
     url="https://github.com/ctn-waterloo/nengo_spinnaker",
@@ -34,7 +34,7 @@ setup(
     description=description,
     long_description=long_description,
     requires=[
-        "nengo",
+        "nengo (>=2.0.0)",
         "numpy",
     ],
     extras_require={

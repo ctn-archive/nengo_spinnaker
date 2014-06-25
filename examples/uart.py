@@ -6,8 +6,7 @@ model = nengo.Network("Node -> Node -> Ensemble -> Node")
 
 with model:
     def in_f(t):
-        val = np.sin(t)
-        return val
+        return [np.sin(t)]
 
     def out_f(t, val):
         print("Output %.3f" % val[0])
@@ -21,5 +20,7 @@ with model:
     nengo.Connection(b, c, synapse=0.01)
     nengo.Connection(c, d, synapse=0.01)
 
-sim = nengo_spinnaker.Simulator(model)
+io = nengo_spinnaker.io.UART(nengo_spinnaker.io.SpIOUARTProtocol, port="/dev/ttyUSB0")
+sim = nengo_spinnaker.Simulator(model, io=io)
+#sim = nengo.Simulator(model)
 sim.run(10.)

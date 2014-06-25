@@ -53,9 +53,7 @@ MOCK_MODULES = ['pacman103', 'pacman103.conf',
                 'pacman103.core.spinnman.sdp', 'pacman103.store',
                 'pacman103.lib',
                 'pacman103.lib.machine', 'pacman103.lib.graph',
-                'visualiser', 'nengo', 'nengo.utils', 'nengo.networks',
-                'nengo.utils.compat', 'nengo.utils.builder', 'nengo.builder',
-                'nengo.decoders',]
+                'visualiser',]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 

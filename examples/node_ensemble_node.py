@@ -14,7 +14,7 @@ with model:
         print("Output %.3f" % val[0])
 
     a = nengo.Node(in_f, size_in=0, size_out=1, label="Input")
-    b = nengo.Ensemble(nengo.LIF(100), 1)
+    b = nengo.Ensemble(100, 1)
     c = nengo.Node(out_f, size_in=1, size_out=0, label="Output")
 
     nengo.Connection(a, b, synapse=0.01)

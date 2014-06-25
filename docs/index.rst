@@ -35,10 +35,9 @@ over time.
 * `"PushBot" <https://github.com/ctn-waterloo/nengo_pushbot>`_ - `Neuroscientific System Theory (NST) <http://www.nst.ei.tum.de>`_ 
   
 
-Bandwidth issues between your PC and SpiNNaker can limit the effectiveness of
-``Nodes`` as a modelling device.  To alleviate this issue we recommend
-rewriting complex or particularly important ``Nodes`` as SpiNNaker executables.
-A set of C and Python libraries is made available for this.
+While Ensembles and various other components are simulated directly on the
+SpiNNaker board this is, in general, not possible for Nodes, which may be any
+arbitrary function.
 
 .. toctree::
    :maxdepth: 3

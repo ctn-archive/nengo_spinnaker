@@ -18,7 +18,8 @@ from pacman103.lib import graph
 
 from . import edges
 from . import ensemble_vertex
-from .utils import probes
+from .nodes import value_source_vertex
+import utils
 from . import value_sink_vertex
 
 edge_builders = {}
@@ -31,6 +32,15 @@ def register_build_edge(pre=None, post=None):
         edge_builders[(pre, post)] = f
         return f
     return f_
+
+
+# Register some external edge builders
+register_build_edge(pre=nengo.Ensemble, post=utils.probes.ProbeNode)(
+    utils.probes.build_ensemble_probenode_edge
+)
+register_build_edge(pre=nengo.Node, post=utils.probes.ProbeNode)(
+    utils.probes.build_node_probenode_edge
+)
 
 
 class Builder(object):
@@ -59,7 +69,7 @@ class Builder(object):
         else:
             raise TypeError("Cannot build a '%s' object." % type(obj))
 
-    def __call__(self, model, dt, seed=None, node_builder=None):
+    def __call__(self, model, dt, seed=None, node_builder=None, config=None):
         """Return a PACMAN103 DAO containing a representation of the given
         model, and a list of Nodes and list of Node->Node connections.
 
@@ -68,26 +78,50 @@ class Builder(object):
         :param seed: seed for random number generators
         :param node_builder: a builder for constructing the IO required by
                              Nodes
+        :param config: a Config option for SpiNNaker specific object
+                       configuration
 
         :returns: a 4-tuple of a DAO, list of Nodes, list of Node->Node
                   connections, list of probes
         """
         self.rng = np.random.RandomState(seed)
+        self.dt = dt
 
         # Create a DAO to store PACMAN data and Node list for the simulator
         self.dao = dao.DAO("nengo")
         self.ensemble_vertices = dict()
-        self.nodes = list()
-        self.node_node_connections = list()
+        self.f_of_t_vertices = dict()
         self.probes = list()
 
         # Store a Node Builder
         self.node_builder = node_builder
 
-        # Get a new network structure with passthrough nodes removed
+        # Store the Config (create an empty one if None)
+        if config is None:
+            from .config import Config
+            config = Config()
+        self.config = config
+
+        # Flatten the network
+        (objs, connections) = nengo.utils.builder.objs_and_connections(model)
+
+        # Remove synapses from Probes(PassNode) where the PassNode has incoming
+        # synapses -- provides a RuntimeWarning that this is happening
+        probes = utils.probes.get_corrected_probes(model.probes, connections)
+
+        # Add new Nodes to represent decoded_value probes
+        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(probes)
+        objs.extend(n_objs)
+        connections.extend(n_conns)
+
+        # Remove all the PassNodes
         (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
-            *nengo.utils.builder.objs_and_connections(model)
-        )
+            objs, connections)
+
+        # Generate a version of the network to simulate on the host
+        host_network = utils.nodes.create_host_network(
+            [n for n in objs if isinstance(n, nengo.Node)], connections,
+            node_builder.io, config)
 
         # Create a MultiCastVertex
         self._mc_tx_vertex = None
@@ -101,30 +135,35 @@ class Builder(object):
             self._build(conn)
 
         # Probes
-        for probe in model.probes:
+        for probe in probes:
             if isinstance(probe.target, nengo.Ensemble):
                 vertex = self.ensemble_vertices[probe.target]
 
                 if probe.attr == 'spikes':
                     vertex.record_spikes = True
-                    self.probes.append(probes.SpikeProbe(vertex, probe))
+                    self.probes.append(utils.probes.SpikeProbe(vertex, probe))
                 elif probe.attr == 'decoded_output':
                     postvertex = value_sink_vertex.ValueSinkVertex(
                         probe.size_in)
                     self.add_vertex(postvertex)
                     self.add_edge(
-                        edges.ValueProbeEdge(probe, vertex, postvertex))
+                        edges.ValueProbeEdge(probe, vertex, postvertex,
+                                             size_in=vertex._ens.size_out,
+                                             size_out=vertex._ens.size_out))
                     self.probes.append(
-                        probes.DecodedValueProbe(vertex, postvertex, probe))
+                        utils.probes.DecodedValueProbe(postvertex, probe))
                 else:
                     raise NotImplementedError(
                         "Cannot probe '%s' on Ensembles" % probe.attr)
+            elif isinstance(probe.target, nengo.Node):
+                pass  # This was dealt with previously
             else:
                 raise NotImplementedError(
                     "Cannot probe '%s' objects" % type(probe.target))
 
-        # Return the DAO, Nodes, Node->Node connections and Probes
-        return self.dao, self.nodes, self.node_node_connections, self.probes
+        # Return the DAO, a reduced version of the network to simulate on the
+        # host and a list of probes.
+        return self.dao, host_network, self.probes
 
     def add_vertex(self, vertex):
         self.dao.add_vertex(vertex)
@@ -138,20 +177,16 @@ class Builder(object):
         self.add_vertex(vertex)
         self.ensemble_vertices[ens] = vertex
 
-        # Probes
-        # TODO Add support for probing voltage and decoded output
-        if len(ens.probes['spikes']) > 0:
-            vertex.record_spikes = True
-
-            for p in ens.probes['spikes']:
-                self.probes.append(probes.SpikeProbe(vertex, p))
-
     def _build_node(self, node):
         if hasattr(node, "spinnaker_build"):
             node.spinnaker_build(self)
         else:
-            self.nodes.append(node)
-            self.node_builder.build_node(self, node)
+            if self.config[node].f_of_t:
+                # Node is a function of time to be evaluated in advance
+                pass
+            else:
+                # Nodes to be executed on the host
+                self.node_builder.build_node(self, node)
 
     def _build_connection(self, c):
         # Add appropriate Edges between Vertices
@@ -223,10 +258,30 @@ def _node_to_ensemble(builder, c):
     # for the Ensemble and don't add an edge, otherwise add an
     # edge from the appropriate Rx element to the Ensemble.
     postvertex = builder.ensemble_vertices[c.post]
-    if c.pre.output is not None and not callable(c.pre.output):
-        postvertex.direct_input += np.dot(np.asarray(c.pre.output),
-                                          np.asarray(c.transform).T)
+    if (c.pre.output is not None and
+            not callable(c.pre.output) and c.pre.output.ndim == 1):
+        tr = nengo.utils.builder.full_transform(c)
+
+        output = c.pre.output
+        if c.function is not None:
+            output = c.function(output)
+
+        postvertex.direct_input += np.dot(tr, output)
+
+    elif builder.config[c.pre].f_of_t:
+        # Node is a function of time to be evaluated in advance
+        if c.pre in builder.f_of_t_vertices:
+            prevertex = builder.f_of_t_vertices[c.pre]
+        else:
+            prevertex = value_source_vertex.ValueSourceVertex(
+                c.pre, builder.config[c.pre].f_period, builder.dt)
+            builder.add_vertex(prevertex)
+            builder.f_of_t_vertices[c.pre] = prevertex
+
+        edge = edges.NengoEdge(c, prevertex, postvertex)
+        return edge
     else:
+        # Node is executed on host
         prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)
@@ -235,10 +290,4 @@ def _node_to_ensemble(builder, c):
 
 @register_build_edge(pre=nengo.Node, post=nengo.Node)
 def _node_to_node(builder, c):
-    builder.node_node_connections.append(c)
-
-
-@register_build_edge(post=nengo.Probe)
-def _x_to_probe(builder, c):
-    # Do nothing as we handle Probes elsewhere for the moment
     pass

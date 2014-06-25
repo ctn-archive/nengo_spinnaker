@@ -8,7 +8,8 @@ class FilterVertex(vertices.NengoVertex):
     MODEL_NAME = "nengo_filter"
 
     def __init__(self, dimensions, output_id, dt=0.001, time_step=1000,
-                 output_period=100, constraints=None, label='filter'):
+                 output_period=100, interpacket_pause=1,
+                 constraints=None, label='filter'):
         """Create a new FilterVertex
 
         We only allow ONE output from a Filter vertex at the moment.
@@ -17,10 +18,12 @@ class FilterVertex(vertices.NengoVertex):
         :param output_id: id key to place in packet routing
         :param time_step: Machine timestep (in microseconds)
         :param output_period: Time between output events (in ticks)
+        :param interpacket_pause: Time between output packets (in ticks)
         """
         self.time_step = time_step
         self.output_id = output_id
         self.output_period = output_period
+        self.interpacket_pause = interpacket_pause
         self.dt = dt
 
         self.dimensions = dimensions
@@ -33,14 +36,14 @@ class FilterVertex(vertices.NengoVertex):
     @vertices.region_pre_sizeof('SYSTEM')
     def sizeof_region_system(self, n_atoms):
         """Get the size (in words) of the SYSTEM region."""
-        return 3
+        return 4
 
     @vertices.region_pre_sizeof('OUTPUT_KEYS')
     def sizeof_region_output_keys(self, n_atoms):
         """Get the size (in words) of the OUTPUT_KEYS region."""
         return self.dimensions
 
-    def cpu_usage(self, lo_atom, hi_atom):
+    def cpu_usage(self, n_atoms):
         """Return the CPU utilisation for the specified atoms."""
         # TODO: Calculate this
         return 0
@@ -54,6 +57,7 @@ class FilterVertex(vertices.NengoVertex):
         spec.write(data=self.dimensions)
         spec.write(data=self.time_step)
         spec.write(data=self.output_period)
+        spec.write(data=self.interpacket_pause)
 
     @vertices.region_write('OUTPUT_KEYS')
     def write_region_output_keys(self, subvertex, spec):
