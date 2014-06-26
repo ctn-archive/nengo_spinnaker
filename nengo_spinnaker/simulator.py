@@ -13,7 +13,36 @@ logger = logging.getLogger(__name__)
 
 
 class Simulator(object):
-    """SpiNNaker simulator for Nengo models."""
+    """SpiNNaker simulator for Nengo models.
+
+    In general Probes return data in the same form as Nengo and data can be
+    accessed using the :py:attr:`data` dictionary.
+
+    ::
+
+         output = sim.data[probe]
+
+    Spike probes
+        The one current exception to this rule is spike data.  Spike data from
+        Ensembles is formatted as a list of spike times for each neuron.  This
+        allows it to be used directly with
+        :py:func:`matplotlib.pyplot.eventplot`::
+
+            model = nengo.Network()
+            with model:
+                target = nengo.Ensemble(25, 1)
+                p = nengo.Probe(target, 'spikes')
+
+            sim = nengo_spinnaker.Simulator(model)
+            sim.run(10.)
+
+            plt.eventplot(sim.data[p], colors=[[0, 0, 1]])
+
+    Voltage probes
+        Currently not supported.
+
+    :attr data: A dictionary mapping Probes to the data they probed.
+    """
     def __init__(self, model, machine_name=None, seed=None, io=None,
                  config=None):
         """Initialise the simulator with a model, machine and IO preferences.
@@ -32,6 +61,7 @@ class Simulator(object):
         :param config: Configuration as required for components.
         """
         dt = 0.001
+        self.executed = False
 
         # Get the hostname
         if machine_name is None:
@@ -61,21 +91,50 @@ class Simulator(object):
             self.builder(model, dt, seed, node_builder=io, config=config)
 
         self.host_sim = None
-        if not len(host_network.nodes) == 0:
+        if len(host_network.nodes) > 0:
             self.host_sim = nengo.Simulator(host_network, dt=dt)
-
-        self.dao.writeTextSpecs = True
 
         self.dt = dt
 
     def run(self, time_in_seconds=None, clean=True):
         """Run the model for the specified amount of time.
 
+        .. warning::
+
+            Unlike the reference simulator you may not run the Nengo/SpiNNaker
+            simulator more than once without performing a reset.
+            For example, the second invocation of :py:func:`run` will raise a
+            :py:exc:`NotImplementedError`::
+
+                sim.run(1.)
+                # Do some stuff
+                sim.run(1.)  # Raises NotImplementedError
+
+            If you do want to run the Simulator twice you will have to call
+            :py:func:`~nengo_spinnaker.Simulator.reset`, but this will restart
+            the simulation from the beginning::
+
+                sim.run(1.)
+                # Do some stuff
+                sim.reset()
+                sim.run(1.)  # Will start from t=0
+
         :param float time_in_seconds: The duration for which to simulate.
         :param bool clean: Remove all traces of the simulation from the board
             on completion of the simulation.  If False then you will need to
             execute an `app_stop` manually before running any later simulation.
         """
+        if self.executed:
+            # This is to stop the use case of:
+            # >>> sim.run(10)
+            # >>> # Do stuff..
+            # >>> sim.run(10)
+            # which we currently can't support.  We've implemented the `reset`
+            # function so that scripts can match between reference and
+            # SpiNNaker provided they don't require multiple re-runs.
+            raise NotImplementedError(
+                "You must reset before running this Simulator again.")
+
         self.time_in_seconds = time_in_seconds
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
@@ -112,7 +171,6 @@ class Simulator(object):
 
             # Start the IO and perform host computation
             with self.io as node_io:
-                self.node_io = node_io
                 self.controller.run(self.dao.app_id)
                 node_io.start()
 
@@ -121,15 +179,36 @@ class Simulator(object):
                     if self.host_sim is not None:
                         while (time_in_seconds is None or
                                current_time < time_in_seconds):
+                            # Execute a single step of the host simulator and
+                            # measure how long it takes.
                             s = time.clock()
                             self.host_sim.step()
                             t = time.clock() - s
 
-                            if t < self.dt:
-                                time.sleep(self.dt - t)
-                                t = self.dt
+                            # If it takes less than one time step then sleep
+                            # for the remaining time
+                            if t < self.host_sim.dt:
+                                time.sleep(self.host_sim.dt - t)
+                                t = self.host_sim.dt
+
+                            # TODO: Currently if one step of the simulator
+                            # takes more than one time step we can't do
+                            # anything, so the host lags behind the board.
+                            # We should request that we can modify the time
+                            # step of the reference simulator to stretch the
+                            # time steps on the host so that it stays in
+                            # step with the board, albeit at a lower sample
+                            # rate.
+                            #
+                            # if t > self.host_sim.dt:
+                            #     self.host_sim.dt = t
+
+                            # Keep track of how long we've been running for
                             current_time += t
                     else:
+                        # If there are no Nodes to simulate on the host then we
+                        # either sleep for the specified run time, or we sleep
+                        # in increments of 10s.
                         if time_in_seconds is not None:
                             time.sleep(time_in_seconds)
                         else:
@@ -149,11 +228,42 @@ class Simulator(object):
             try:
                 logger.debug("Stopping the application from executing.")
                 if clean:
+                    # TODO: At some point this will become a clearer call to
+                    # SpiNNaker manager library, at the moment this just says
+                    # "Send signal 2 (meaning stop) to all executables with the
+                    #  app_id we've given them (usually 30)."
                     self.controller.txrx.app_calls.app_signal(
                         self.dao.app_id, 2)
             except Exception:
                 pass
 
+    def reset(self):
+        """Reset the Simulator.
+
+        The next simulation will start from the beginning.
+        """
+        # This is only really here to ensure that the behaviour is consistent
+        # with the reference simulator.  We currently don't allow multiple runs
+        # in sequence, so there must be a reset capability to allow reuse of
+        # the simulator.
+        self.executed = False
+
     def trange(self, dt=None):
-        dt = self.dt if dt is None else dt
-        return dt * np.arange(int(self.time_in_seconds/dt))
+        """Generate a list of time steps for the last simulation.
+
+        :returns: Numpy array of time steps.
+        """
+        if self.time_in_seconds is not None:
+            dt = self.dt if dt is None else dt
+            return dt * np.arange(int(self.time_in_seconds/dt))
+        else:
+            # TODO: Allow some probing for unspecified run time... Will require
+            #       writing the final run time back somehow. (When we have
+            #       masses of bandwidth we could even probe on
+            #       on host)
+            #       The other option is to dynamically switch the model so that
+            #       we probe as best as we can on host when no run time is
+            #       specified.  This would require some rearranging of the
+            #       Builder.
+            raise NotImplementedError('Cannot provide time steps for '
+                                      'indefinite run time.')

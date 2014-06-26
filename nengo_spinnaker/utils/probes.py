@@ -164,7 +164,11 @@ except ImportError:
     # No bitarray, so no spike probing!
     warnings.warn("Cannot import module bitarray: spike probing is disabled",
                   ImportWarning)
-    SpikeProbe = None
+
+    class SpikeProbe(object):
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("Spike probing requires the module "
+                                      "'bitarray' to be installed.")
 
 
 @filters.with_filters(2, 3)

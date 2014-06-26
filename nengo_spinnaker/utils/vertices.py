@@ -96,7 +96,6 @@ class NengoVertex(graph.Vertex):
                 region.post_prepare()
 
     def __pre_sizeof_regions(self, n_atoms):
-        print "pre_sizeof", self, [(r.index, r.pre_sizeof(n_atoms)) for r in self._regions]
         return sum([r.pre_sizeof(n_atoms) for r in self._regions]) * 4
 
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,

@@ -4,7 +4,7 @@ import numpy as np
 
 model = nengo.Network()
 with model:
-    a = nengo.Node(-1.)
+    a = nengo.Node(.6)
     b = nengo.Node(lambda t: 0. if t < 5. else 1.)
 
 
@@ -37,7 +37,7 @@ plt.figure(figsize=(8,5))
 plt.plot(sim_.trange(), sim_.data[pf], label='reference')
 plt.plot(sim.trange(), sim.data[pf], label='SpiNNaker')
 plt.legend()
-plt.ylim((-.1, 0.6))
+plt.ylim((-.1, 0.75))
 plt.xlabel('Time / s')
 plt.ylabel('Decoded Output')
 

@@ -18,7 +18,7 @@ class EnsembleVertex(vertices.NengoVertex):
                                        'DECODERS', 'OUTPUT_KEYS',
                                        **{'INHIB_FILTER': 8,
                                           'INHIB_ROUTING': 9,
-                                          'INHIB_GAIN': 10,
+                                          'GAIN': 10,
                                           'MODULATORY_FILTER': 11,
                                           'MODULATORY_ROUTING': 12,
                                           'PES': 13,
@@ -233,7 +233,7 @@ class EnsembleVertex(vertices.NengoVertex):
     def pre_sizeof_region_inhib_routing(self, n_atoms):
         return 4 * 5
 
-    @vertices.region_pre_sizeof('INHIB_GAIN')
+    @vertices.region_pre_sizeof('GAIN')
     def pre_sizeof_region_inhib_gain(self, n_atoms):
         return n_atoms
 
@@ -403,7 +403,7 @@ class EnsembleVertex(vertices.NengoVertex):
             spec.write(data=route.index)
             spec.write(data=route.dimension_mask)
 
-    @vertices.region_write('INHIB_GAIN')
+    @vertices.region_write('GAIN')
     def write_region_inhib_gain(self, subvertex, spec):
         gains = fp.bitsk(self.gain[subvertex.lo_atom:subvertex.hi_atom+1])
         spec.write_array(gains)

@@ -21,8 +21,9 @@ def test_create_global_inhibition_connection():
         gate = nengo.Connection(a, b.neurons, transform=[[-1]]*100)
         not_gate = nengo.Connection(a, b)
         not_gate2 = nengo.Connection(
-            a, b.neurons, transform=
-            np.random.uniform(-1, 1, (100, 1)))
+            a, b.neurons,
+            transform=np.random.uniform(-1, 1, (100, 1))
+        )
         valid_gate3 = nengo.Connection(c, b.neurons, transform=[[-1, -1]]*100)
 
     with pytest.raises(AssertionError):
@@ -88,7 +89,6 @@ def test_full_transform_connection():
         b = nengo.Ensemble(100, 1)
 
         c = nengo.Connection(a, b.neurons, transform=[[-1]]*100)
-
 
     c_ib = utils.global_inhibition.create_inhibition_connection(c)
 
