@@ -173,10 +173,17 @@ class EnsembleVertex(vertices.NengoVertex):
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver
             ))
 
-        # Compress and merge the decoders
+        # If there is no learning, compress all decoders
+        if self._pes_connection is None:
+            decoders_to_compress = [True for d in decoders]
+        # Otherwise, compress those that don't have learning applied
+        else:
+            decoders_to_compress = [i != tfses[self._pes_connection] 
+                for i in range(len(decoders))]
+
         (self.decoder_headers, self._merged_decoders) = \
             utils.decoders.get_combined_compressed_decoders(
-                decoders, compress=[True for d in decoders])
+                decoders, compress = decoders_to_compress)
 
         self._merged_decoders /= self.dt
         self.n_output_dimensions = len(self.decoder_headers)
@@ -446,7 +453,7 @@ class EnsembleVertex(vertices.NengoVertex):
             raise NotImplementedError("Ensemble vertices can only support PES "
                                       "learning with a single learning rate")
 
-        if (self._pes_connection is None and
+        if (self._pes_connection is not None and
                 id(self._pes_connection) != id(pes_connection)):
             raise NotImplementedError("Ensemble vertices can only support a "
                                       "single, outgoing PES connection")

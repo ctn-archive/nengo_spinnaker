@@ -86,7 +86,8 @@ class ConnectionsWithSolvers(Connections):
         return (np.all(c1.transform == c2.transform) and
                 np.all(c1.eval_points == c2.eval_points) and
                 c1.solver == c2.solver and
-                c1.function == c2.function)
+                c1.function == c2.function and
+                cl.learning_rule is None and c2.learning_rule is None)
 
     def _make_connection_entry(self, connection, transform):
         return TransformFunctionWithSolverEvalPoints(

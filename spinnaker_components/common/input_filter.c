@@ -79,9 +79,9 @@ bool input_filter_get_filter_routes(input_filter_t* input,
 
 
 // Input step
-void input_filter_step(input_filter_t* input, bool accumulate) {
+void input_filter_step(input_filter_t* input, bool allocate_accumulator) {
   // Zero the input accumulator
-  if(accumulate)
+  if(allocate_accumulator)
   {
     for (uint d = 0; d < input->n_dimensions; d++)
     {
@@ -97,7 +97,7 @@ void input_filter_step(input_filter_t* input, bool accumulate) {
 
     // If required, accumulate the value in 
     // The global input accumulator.
-    if(accumulate)
+    if(allocate_accumulator)
     {
       for (uint d = 0; d < input->n_dimensions; d++)
       {
