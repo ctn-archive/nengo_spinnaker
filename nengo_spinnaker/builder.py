@@ -128,15 +128,16 @@ class Builder(object):
         # Build each of the objects
         for obj in objs:
             self._build(obj)
-        
+
         # Filter connections, removing modulatory connections as, on SpiNNaker,
-        # These may actually need to be reconnected to the pre end of modulated 
+        # These may actually need to be reconnected to the pre end of modulated
         # Decoder learning connections as this is where the decoders are!
-        connections = filter(lambda c: c.modulatory == False, connections)
-       
-        # Perform any learning-rule specific rerouting of modulatory connections
+        connections = [c for c in connections if not c.modulatory]
+
+        # Perform any learning-rule specific rerouting of modulatory
+        # connections
         connections = self._reroute_modulatory_connections(connections)
-        
+
         # Build each of the connections
         for conn in connections:
             self._build(conn)
@@ -179,10 +180,10 @@ class Builder(object):
         self.dao.add_edge(edge)
 
     def _reroute_modulatory_connections(self, connections):
-        # Create new connections list, initially just containing 
+        # Create new connections list, initially just containing
         # All the original, non-modulatory connections
         new_connections = connections
-        
+
         # Loop through all connections and learning rules associated with them
         for connection in connections:
             for learning_rule in connection.learning_rule:
@@ -192,37 +193,43 @@ class Builder(object):
                     # If the pre-connection object (where the deocoder is)
                     # Isn't in the ensemble vertices dictionary, throw
                     if connection.pre not in self.ensemble_vertices:
-                        raise TypeError("Object %s, on the pre-side of connection\
-                            %s is not an ensemble so does not support PES" 
-                            % (connection.pre, connection))
-                    
+                        raise TypeError("Object %s, on the pre-side of "
+                                        "connection %s is not an ensemble "
+                                        "so does not support PES"
+                                        % (connection.pre, connection))
+
                     # Cache refence to PES rule in pre-connection ensemble
-                    # **TODO** API probably should look more like add_learning_rule
+                    # TODO API probably should look more like
+                    #      add_learning_rule
                     pre_ensemble = self.ensemble_vertices[connection.pre]
                     pre_ensemble.set_pes(connection, learning_rule)
-                    
-                    # Create copy of error connection, connecting source of error
-                    # To the pre-connection object (where the decoder is)
+
+                    # Create copy of error connection, connecting source of
+                    # error to the pre-connection object (where the decoder is)
                     # **YUCK** is there a nicer way of doing this?
                     error_con = learning_rule.error_connection
-                    pre_error_con = nengo.Connection(error_con.pre, connection.pre, 
-                                                    synapse = error_con.synapse,
-                                                    transform = error_con.transform,
-                                                    solver = error_con.solver,
-                                                    function = error_con.function,
-                                                    modulatory = error_con.modulatory,
-                                                    eval_points = error_con.eval_points,
-                                                    learning_rule = error_con.learning_rule,
-                                                    seed = error_con.seed)
-                                                    
+                    pre_error_con = nengo.Connection(
+                        error_con.pre, connection.pre,
+                        synapse=error_con.synapse,
+                        transform=error_con.transform,
+                        solver=error_con.solver,
+                        function=error_con.function,
+                        modulatory=error_con.modulatory,
+                        eval_points=error_con.eval_points,
+                        learning_rule=error_con.learning_rule,
+                        seed=error_con.seed
+                    )
+
                     new_connections.append(pre_error_con)
                 # Otherwise (unsupported learning rule)
                 else:
                     raise NotImplementedError(
-                        "Learning rules of type %s are not supported" % type(learning_rule))
-        
+                        "Learning rules of type %s are not supported"
+                        % type(learning_rule)
+                    )
+
         return new_connections
-    
+
     def _build_ensemble(self, ens):
         # Add an appropriate Vertex which deals with the Ensemble
         vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
@@ -289,19 +296,20 @@ def _add_modulatory_decoder_edge(edge, postvertex):
     if postvertex.modulatory_edge is not None:
         raise NotImplementedError("Only one modulatory connection may be made "
                                   "to an ensemble.")
-    
+
     postvertex.modulatory_edge = edge
-    
+
+
 @register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
 def _ensemble_to_ensemble(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
     postvertex = builder.ensemble_vertices[c.post]
     edge = edges.DecoderEdge(c, prevertex, postvertex)
-    
+
     # If connection is modulatory, add it to post-vertex
     if c.modulatory:
         _add_modulatory_decoder_edge(edge, postvertex)
-    
+
     return edge
 
 
@@ -360,22 +368,22 @@ def _node_to_ensemble(builder, c):
             builder.f_of_t_vertices[c.pre] = prevertex
 
         edge = edges.NengoEdge(c, prevertex, postvertex)
-        
+
         # If connection is modulatory, add it to post-vertex
         if c.modulatory:
             _add_modulatory_decoder_edge(edge, postvertex)
-        
+
         return edge
     else:
         # Node is executed on host
         prevertex = builder.get_node_out_vertex(c)
         edge = edges.InputEdge(c, prevertex, postvertex,
                                filter_is_accumulatory=False)
-        
+
         # If connection is modulatory, add it to post-vertex
         if c.modulatory:
             _add_modulatory_decoder_edge(edge, postvertex)
-            
+
         return edge
 
 

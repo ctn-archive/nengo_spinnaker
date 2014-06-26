@@ -1,6 +1,5 @@
 import numpy as np
 
-import math
 import nengo
 import nengo.builder
 import nengo.decoders
@@ -40,13 +39,14 @@ class EnsembleVertex(vertices.NengoVertex):
         self.dt = dt
         self.time_step = time_step
         self.record_spikes = False
-        
+
         # **TODO** Each learning rule should probably have it's own region, the
-        # Handling of which should be deferred to a nengo_spinnaker class (somehow)
+        # Handling of which should be deferred to a nengo_spinnaker class
+        # (somehow)
         self._pes_learning_rate = 0.0
         self._pes_connection = None
         self._pes_decoder_offset = None
-        
+
         # Create random number generator
         if ens.seed is None:
             rng = np.random.RandomState(rng.tomaxint())
@@ -120,7 +120,7 @@ class EnsembleVertex(vertices.NengoVertex):
 
         # Modulation
         self.modulatory_edge = None
-        
+
         # For constant value injection
         self.direct_input = np.zeros(self._ens.dimensions)
 
@@ -159,10 +159,12 @@ class EnsembleVertex(vertices.NengoVertex):
         self._edge_decoders = dict([(edge, tfses[edge.conn]) for edge in
                                     self.out_edges])
 
-        # **YUCK** knowing what bit of the decoder they should be modifying should be common for all decoder-learning rules
-        if self._pes_connection != None:
-            self._pes_decoder_offset = tfses.get_connection_offset(self._pes_connection)
-            
+        # **YUCK** knowing what bit of the decoder they should be modifying
+        # should be common for all decoder-learning rules
+        if self._pes_connection is not None:
+            self._pes_decoder_offset = tfses.get_connection_offset(
+                self._pes_connection)
+
         # Generate each decoder in turn
         decoders = list()
         decoder_builder = utils.decoders.DecoderBuilder(self._build_decoder)
@@ -173,7 +175,9 @@ class EnsembleVertex(vertices.NengoVertex):
 
         # Compress and merge the decoders
         (self.decoder_headers, self._merged_decoders) = \
-            utils.decoders.get_combined_compressed_decoders(decoders)
+            utils.decoders.get_combined_compressed_decoders(
+                decoders, compress=[True for d in decoders])
+
         self._merged_decoders /= self.dt
         self.n_output_dimensions = len(self.decoder_headers)
 
@@ -239,12 +243,13 @@ class EnsembleVertex(vertices.NengoVertex):
 
         if self.inhibitory_edge is not None:
             kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
-                    subedge.edge.dimension_mask) for subedge in self.inhibitory_edge.subedges]
+                    subedge.edge.dimension_mask) for subedge in
+                   self.inhibitory_edge.subedges]
 
             self.inhib_filter_keys.extend(
                 [filters.FilterRoute(km[0], km[1], 0, dm) for (km, dm) in
                  kms])
-    
+
     @vertices.region_sizeof('INHIB_ROUTING')
     def sizeof_region_inhib_routing(self, subvertex):
         return 4 * len(self.inhib_filter_keys) + 1
@@ -252,7 +257,7 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_prepare('MODULATORY_FILTER')
     def prepare_region_modulatory_filters(self):
         self.modulatory_dims = (0 if self.modulatory_edge is None else
-                           self.modulatory_edge.transform.size)
+                                self.modulatory_edge.transform.size)
 
     @vertices.region_pre_sizeof('MODULATORY_FILTER')
     def pre_sizeof_region_modulatory_filters(self, n_atoms):
@@ -261,24 +266,24 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_pre_sizeof('MODULATORY_ROUTING')
     def pre_sizeof_region_modulatory_routing(self, n_atoms):
         return 4 * 5
-        
+
     @vertices.region_post_prepare('MODULATORY_ROUTING')
     def post_prepare_modulatory_routing(self):
         self.modulatory_filter_keys = list()
 
         if self.modulatory_edge is not None:
             kms = [(subedge.edge.prevertex.generate_routing_info(subedge),
-                    subedge.edge.dimension_mask) for subedge in self.modulatory_edge.subedges]
+                    subedge.edge.dimension_mask) for subedge in
+                   self.modulatory_edge.subedges]
 
             self.modulatory_filter_keys.extend(
                 [filters.FilterRoute(km[0], km[1], 0, dm) for (km, dm) in
                  kms])
-    
+
     @vertices.region_sizeof('MODULATORY_ROUTING')
     def sizeof_region_modulatory_routing(self, subvertex):
         return 4 * len(self.modulatory_filter_keys) + 1
-    
-    
+
     @vertices.region_pre_sizeof('SPIKES')
     def sizeof_region_recording(self, n_atoms):
         size = 0
@@ -372,7 +377,7 @@ class EnsembleVertex(vertices.NengoVertex):
             spec.write(data=route.mask)
             spec.write(data=route.index)
             spec.write(data=route.dimension_mask)
-    
+
     @vertices.region_write('MODULATORY_FILTER')
     def write_region_modulatory_filter(self, subvertex, spec):
         if self.modulatory_edge is not None:
@@ -397,7 +402,7 @@ class EnsembleVertex(vertices.NengoVertex):
             spec.write(data=route.mask)
             spec.write(data=route.index)
             spec.write(data=route.dimension_mask)
-            
+
     @vertices.region_write('INHIB_GAIN')
     def write_region_inhib_gain(self, subvertex, spec):
         gains = fp.bitsk(self.gain[subvertex.lo_atom:subvertex.hi_atom+1])
@@ -406,39 +411,45 @@ class EnsembleVertex(vertices.NengoVertex):
     @vertices.region_write('PES')
     def write_region_output_pes(self, subvertex, spec):
         # Write PES learning rate, scaled by dt and activity decay to spec
-        spec.write(data = fp.bitsk(self._pes_learning_rate * self.dt))
-        
+        spec.write(data=fp.bitsk(self._pes_learning_rate * self.dt))
+
         # If this ensemble uses PES
         if self._pes_learning_rate > 0.0:
-            if self.modulatory_edge == None:
-                raise TypeError("Ensemble %s uses PES learning, but doesn't have a modulatory input" % self)
-            
-            # **HACK** we only support a single modulatory connection 
+            if self.modulatory_edge is None:
+                raise TypeError("Ensemble %s uses PES learning, but doesn't "
+                                "have a modulatory input" % self)
+
+            # **HACK** we only support a single modulatory connection
             # So index of error connection should always use zero
-            spec.write(data = 0)
-            spec.write(data = self._pes_decoder_offset)
+            spec.write(data=0)
+            spec.write(data=self._pes_decoder_offset)
         # Otherwise, just write a zero
         else:
-            spec.write(data = 0)
-            spec.write(data = 0)
-    
+            spec.write(data=0)
+            spec.write(data=0)
+
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self._edge_decoders[subedge.edge]
 
         return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
-    
+
     # **YUCK** this API is less than ideal
     def set_pes(self, pes_connection, learning_rule):
         if not isinstance(learning_rule, nengo.PES):
-            raise TypeError("Object type %s is not a PES learning rule" % type(learning_rule))
-                
-        if self._pes_learning_rate != 0.0 and self._pes_learning_rate != learning_rule.learning_rate:
-            raise NotImplementedError("Ensemble vertices can only support PES learning with a single learning rate")
-        
-        if self._pes_connection != None and id(self._pes_connection) != id(connection):
-            raise NotImplementedError("Ensemble vertices can only support a single, outgoing PES connection")
-        
+            raise TypeError("Object type %s is not a PES learning rule" %
+                            type(learning_rule))
+
+        if (self._pes_learning_rate != 0.0 and
+                self._pes_learning_rate != learning_rule.learning_rate):
+            raise NotImplementedError("Ensemble vertices can only support PES "
+                                      "learning with a single learning rate")
+
+        if (self._pes_connection is None and
+                id(self._pes_connection) != id(pes_connection)):
+            raise NotImplementedError("Ensemble vertices can only support a "
+                                      "single, outgoing PES connection")
+
         self._pes_learning_rate = learning_rule.learning_rate
         self._pes_connection = pes_connection

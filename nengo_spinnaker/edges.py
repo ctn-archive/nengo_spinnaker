@@ -35,6 +35,7 @@ class DummyConnection(object):
     def modulatory(self):
         return False
 
+
 class Edge(object):
     mask = 0xFFFFFFC0  # Routing mask for this type of edge
     dimension_mask = 0x3F  # Mask to extract the dimension from a key
