@@ -9,13 +9,31 @@ void c_main(void) {
     return;
   }
 
+  // Get data
   data_get_bias(region_start(2, address), g_ensemble.n_neurons);
   data_get_encoders(region_start(3, address), g_ensemble.n_neurons, g_input.n_dimensions);
   data_get_decoders(region_start(4, address), g_ensemble.n_neurons, g_n_output_dimensions);
   data_get_keys(region_start(5, address), g_n_output_dimensions);
 
+  // Get the inhibitory gains
+  g_ensemble.inhib_gain = spin1_malloc(g_ensemble.n_neurons * sizeof(value_t));
+  if (g_ensemble.inhib_gain == NULL) {
+    io_printf(IO_BUF, "[Ensemble] Failed to malloc inhib gains.\n");
+    return;
+  }
+  spin1_memcpy(g_ensemble.inhib_gain, region_start(10, address),
+               g_ensemble.n_neurons * sizeof(value_t));
+  for (uint n = 0; n < g_ensemble.n_neurons; n++) {
+    io_printf(IO_BUF, "Inhib gain[%d] = %k\n", n, g_ensemble.inhib_gain[n]);
+  }
+
+  // Load subcomponents
   if (!input_filter_get_filters(&g_input, region_start(6, address)) ||
-      !input_filter_get_filter_routes(&g_input, region_start(7, address))) {
+      !input_filter_get_filter_routes(&g_input, region_start(7, address)) ||
+      !input_filter_get_filters(&g_input_inhibitory,
+                                region_start(8, address)) ||
+      !input_filter_get_filter_routes(&g_input_inhibitory,
+                                      region_start(9, address))) {
     io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
     return;
   }

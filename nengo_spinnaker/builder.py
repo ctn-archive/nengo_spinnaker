@@ -10,16 +10,15 @@ import numpy as np
 import itertools
 
 import nengo
+import nengo.objects
 import nengo.utils.builder
 
 from pacman103.core import dao
 from pacman103.front import common
 from pacman103.lib import graph
 
-from . import edges
-from . import ensemble_vertex
+from . import edges, ensemble_vertex, utils
 from .nodes import value_source_vertex
-import utils
 from . import value_sink_vertex
 
 edge_builders = {}
@@ -237,6 +236,22 @@ def _ensemble_to_ensemble(builder, c):
     prevertex = builder.ensemble_vertices[c.pre]
     postvertex = builder.ensemble_vertices[c.post]
     edge = edges.DecoderEdge(c, prevertex, postvertex)
+    return edge
+
+
+@register_build_edge(pre=nengo.Ensemble, post=nengo.objects.Neurons)
+def _ensemble_to_neurons(builder, c):
+    # Currently only support inhibitory connections from Ensembles to Neurons,
+    # these are notable by having transforms which are [[k]*d]*n: so we check
+    # for this also!
+    try:
+        postvertex = builder.ensemble_vertices[c.post.ensemble]
+    except KeyError:
+        raise KeyError("Attempt to connect to unknown set of Neurons.")
+
+    prevertex = builder.ensemble_vertices[c.pre]
+    edge = utils.global_inhibition.create_inhibition_edge(
+        c, prevertex, postvertex)
     return edge
 
 

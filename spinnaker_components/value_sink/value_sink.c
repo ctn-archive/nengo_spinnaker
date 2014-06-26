@@ -41,7 +41,7 @@ void c_main(void)
 
   if (!input_filter_get_filters(&g_input, region_start(2, address)) ||
       !input_filter_get_filter_routes(&g_input, region_start(3, address))
- ) {
+  ) {
     io_printf(IO_BUF, "[Value Sink] Failed to start.\n");
     return;
   }
