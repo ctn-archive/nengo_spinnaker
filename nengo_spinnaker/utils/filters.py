@@ -40,8 +40,8 @@ def with_filters(filter_id=14, routing_id=15):
 
 @region_pre_sizeof("FILTERS")
 def _sizeof_region_filters(self, n_atoms):
-    # 4 words per filter + 1 for length
-    return (4 * self.n_filters) + 1
+    # 3 words per filter + 1 for length
+    return (3 * self.n_filters) + 1
 
 
 @region_pre_sizeof("FILTER_ROUTING")
