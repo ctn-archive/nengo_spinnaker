@@ -7,7 +7,7 @@ class FilterVertex(vertices.NengoVertex):
     REGIONS = vertices.ordered_regions('SYSTEM', 'OUTPUT_KEYS')
     MODEL_NAME = "nengo_filter"
 
-    def __init__(self, dimensions, output_id, dt=0.001, time_step=1000,
+    def __init__(self, dimensions, dt=0.001, time_step=1000,
                  output_period=100, interpacket_pause=1,
                  constraints=None, label='filter'):
         """Create a new FilterVertex
@@ -21,7 +21,6 @@ class FilterVertex(vertices.NengoVertex):
         :param interpacket_pause: Time between output packets (in ticks)
         """
         self.time_step = time_step
-        self.output_id = output_id
         self.output_period = output_period
         self.interpacket_pause = interpacket_pause
         self.dt = dt
@@ -66,14 +65,15 @@ class FilterVertex(vertices.NengoVertex):
         i = self.output_id
 
         assert(len(self.out_edges) == 1)
-        key = self.out_edges[0].generate_key(x, y, p, i)
 
         for d in range(self.dimensions):
-            spec.write(data=key | d)
+            spec.write(data=self.out_edges[0].keyspace.key(
+                x=x, y=y, p=p-1, d=d))
 
     def generate_routing_info(self, subedge):
         """Generate a key and mask for the given subedge."""
         x, y, p = subedge.presubvertex.placement.processor.get_coordinates()
         i = self.output_id
 
-        return subedge.edge.generate_key(x, y, p, i), subedge.edge.mask
+        return (subedge.edge.keyspace.key(x=x, y=y, p=p-1),
+                subedge.edge.keyspace.routing_mask)

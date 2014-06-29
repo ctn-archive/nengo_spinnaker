@@ -5,7 +5,10 @@ import numpy as np
 import pytest
 
 import nengo
-from nengo_spinnaker.utils import connections
+from nengo_spinnaker.utils import connections, keyspaces
+
+other_keyspace = keyspaces.create_keyspace(
+    'OtherKs', [('x', 8), ('y', 8), ('p', 4), ('i', 6), ('d', 6)], 'xypi')()
 
 
 def test_equivalent_source():
@@ -300,6 +303,50 @@ def test_connection_offset_with_sharing():
     assert(tc.get_connection_offset(c2) == a_size_in)
     assert(tc.get_connection_offset(c3) == a_size_in)
     assert(tc.get_connection_offset(c4) == a_size_in + b_size_in)
+
+
+def test_with_slicing():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 2)
+        b = nengo.Ensemble(1, 2)
+        c = nengo.Ensemble(1, 2)
+
+        c1 = nengo.Connection(a[0], b[0])
+        c2 = nengo.Connection(a, c, transform=[[1, 0], [0, 0]])
+
+    # c1 and c2 should share an entry
+    tc = connections.Connections([c1])
+    assert(tc.contains_compatible_connection(c2))
+
+
+def test_nonequivalent_keyspaces():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(1, 5)
+        b = nengo.Ensemble(1, 5)
+        c = nengo.Ensemble(1, 5)
+
+        c1 = nengo.Connection(a, b)
+        c2 = nengo.Connection(a, c)
+
+    # Test with manual adding
+    tc1 = connections.Connections()
+    tc1.add_connection(c1)
+    tc1.add_connection(c2, other_keyspace)
+    assert(tc1[c1] != tc1[c2])
+
+    tc2 = connections.ConnectionsWithSolvers()
+    tc2.add_connection(c1)
+    tc2.add_connection(c2, other_keyspace)
+    assert(tc2[c1] != tc2[c2])
+
+    # Test with creation adding
+    tc3 = connections.Connections([c1, (c2, other_keyspace)])
+    assert(tc3[c1] != tc3[c2])
+
+    tc4 = connections.ConnectionsWithSolvers([c1, (c2, other_keyspace)])
+    assert(tc4[c1] != tc4[c2])
 
 
 def test_connection_banks():
