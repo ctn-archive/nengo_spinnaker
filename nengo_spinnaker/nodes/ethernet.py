@@ -7,8 +7,6 @@ import threading
 
 from pacman103.core.spinnman.sdp import sdp_message as sdp
 
-from nengo_spinnaker.nodes.sdp_receive_vertex import SDPReceiveVertex
-from nengo_spinnaker.nodes.sdp_transmit_vertex import SDPTransmitVertex
 from nengo_spinnaker.utils import fp
 
 logger = logging.getLogger(__name__)

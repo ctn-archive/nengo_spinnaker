@@ -4,8 +4,6 @@
 import collections
 import numpy as np
 
-from nengo.utils.builder import full_transform
-
 from . import keyspaces
 default_keyspace = keyspaces.nengo_default()
 
@@ -46,9 +44,8 @@ class Connections(object):
 
         # Get the index of the connection if the same transform and function
         # have already been added, otherwise add the transform/function pair
-        transform = full_transform(connection, allow_scalars=False)
         connection_entry = self._make_connection_entry(
-            connection, transform, keyspace)
+            connection, connection.transform, keyspace)
 
         # For each pre-existing unique connection see if this connection
         # matches
@@ -75,9 +72,8 @@ class Connections(object):
             return False
 
         # Simulate an entry for the given connection
-        transform = full_transform(connection, allow_scalars=False)
         connection_entry = self._make_connection_entry(
-            connection, transform, keyspace)
+            connection, connection.transform, keyspace)
 
         # For each entry in the Connections block is the given connection
         # compatible?
@@ -118,7 +114,7 @@ class Connections(object):
         return self._connection_indices[connection]
 
 
-class ConnectionsWithSolvers(Connections):
+class OutgoingEnsembleConnections(Connections):
     def _are_compatible_connections(self, c1, c2):
         return (np.all(c1.transform == c2.transform) and
                 np.all(c1.eval_points == c2.eval_points) and

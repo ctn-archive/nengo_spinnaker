@@ -1,308 +1,422 @@
-"""Builder for running Nengo models on SpiNNaker
-
-Converts a Nengo model (rather, Network) into the graph based representation
-required by PACMAN.
+"""Build models into intermediate representations which can be simply
+converted into PACMAN problem specifications.
 """
 
-import inspect
-import re
+import math
 import numpy as np
-import itertools
 
-import nengo
-import nengo.objects
 import nengo.utils.builder
+from nengo.utils import distributions as dists
+from nengo.utils.compat import is_integer
+from nengo.utils.inspect import checked_call
 
-from pacman103.core import dao
-from pacman103.front import common
-from pacman103.lib import graph
-
-from . import edges, ensemble_vertex, utils
-from .nodes import value_source_vertex
-from . import value_sink_vertex
-
-edge_builders = {}
-
-
-def register_build_edge(pre=None, post=None):
-    def f_(f):
-        global edge_builders
-
-        edge_builders[(pre, post)] = f
-        return f
-    return f_
-
-
-# Register some external edge builders
-register_build_edge(pre=nengo.Ensemble, post=utils.probes.ProbeNode)(
-    utils.probes.build_ensemble_probenode_edge
-)
-register_build_edge(pre=nengo.Node, post=utils.probes.ProbeNode)(
-    utils.probes.build_node_probenode_edge
-)
+import utils
 
 
 class Builder(object):
-    """Converts a Nengo model into a PACMAN appropriate data structure."""
+    pre_rpn_transforms = list()  # Network transforms which alter connectivity
+    post_rpn_transforms = list()  # Network transforms which alter objects
 
-    def __init__(self):
-        # Build by inspection the dictionary of things we can build
-        builds = filter(lambda m: "_build_" == m[0][0:7],
-                        inspect.getmembers(self, inspect.ismethod))
-        objects = dict(inspect.getmembers(nengo, inspect.isclass))
-        self.builders = dict()
+    @classmethod
+    def register_connectivity_transform(cls, func):
+        """Add a new network transform to the builder."""
+        cls.pre_rpn_transforms.append(func)
 
-        for (s, f) in builds:
-            obj_name = re.sub(
-                r'_(\w)', lambda m: m.group(1).upper(), re.sub('_build', '', s)
-            )
-            if obj_name in objects:
-                self.builders[objects[obj_name]] = f
+    @classmethod
+    def register_object_transform(cls, func):
+        """Add a new network transform to the builder."""
+        cls.post_rpn_transforms.append(func)
 
-    def _build(self, obj):
-        """Call the appropriate build function for the given object."""
-        for obj_class in obj.__class__.__mro__:
-            if obj_class in self.builders:
-                self.builders[obj_class](obj)
-                break
-        else:
-            raise TypeError("Cannot build a '%s' object." % type(obj))
-
-    def __call__(self, model, dt, seed=None, node_builder=None, config=None):
-        """Return a PACMAN103 DAO containing a representation of the given
-        model, and a list of Nodes and list of Node->Node connections.
-
-        :param model: the Nengo model to build
-        :param dt: timestep to use in simulation (e.g., 0.001)
-        :param seed: seed for random number generators
-        :param node_builder: a builder for constructing the IO required by
-                             Nodes
-        :param config: a Config option for SpiNNaker specific object
-                       configuration
-
-        :returns: a 4-tuple of a DAO, list of Nodes, list of Node->Node
-                  connections, list of probes
+    @classmethod
+    def __call__(cls, network, dt, seed):
+        """Build an intermediate representation of a Nengo model which can be
+        assembled to form a PACMAN problem graph.
         """
-        self.rng = np.random.RandomState(seed)
-        self.dt = dt
-
-        # Create a DAO to store PACMAN data and Node list for the simulator
-        self.dao = dao.DAO("nengo")
-        self.ensemble_vertices = dict()
-        self.f_of_t_vertices = dict()
-        self.probes = list()
-
-        # Store a Node Builder
-        self.node_builder = node_builder
-
-        # Store the Config (create an empty one if None)
-        if config is None:
-            from .config import Config
-            config = Config()
-        self.config = config
-
         # Flatten the network
-        (objs, connections) = nengo.utils.builder.objs_and_connections(model)
+        (objs, conns) = nengo.utils.builder.objs_and_connections(network)
 
-        # Remove synapses from Probes(PassNode) where the PassNode has incoming
-        # synapses -- provides a RuntimeWarning that this is happening
-        probes = utils.probes.get_corrected_probes(model.probes, connections)
+        # Generate a RNG
+        rng = np.random.RandomState(seed)
 
-        # Add new Nodes to represent decoded_value probes
-        (n_objs, n_conns) = utils.probes.get_probe_nodes_connections(probes)
-        objs.extend(n_objs)
-        connections.extend(n_conns)
+        # Apply all network transforms which modify connectivity, they should
+        # occur before removing pass through nodes
+        for transform in cls.pre_rpn_transforms:
+            (objs, conns) = transform(objs, conns, network.probes)
 
-        # Remove all the PassNodes
-        (objs, connections) = nengo.utils.builder.remove_passthrough_nodes(
-            objs, connections)
+        # Remove pass through nodes
+        (objs, conns) = nengo.utils.builder.remove_passthrough_nodes(objs,
+                                                                     conns)
 
-        # Generate a version of the network to simulate on the host
-        host_network = utils.nodes.create_host_network(
-            [n for n in objs if isinstance(n, nengo.Node)], connections,
-            node_builder.io, config)
+        # Replace all connections with fully specified equivalents
+        new_conns = list()
+        for c in conns:
+            new_conns.append(IntermediateConnection.from_connection(c))
+        conns = new_conns
 
-        # Create a MultiCastVertex
-        self._mc_tx_vertex = None
+        # Apply all network transforms which modify/replace network objects
+        for transform in cls.post_rpn_transforms:
+            (objs, conns) = transform(objs, conns, network.probes, dt, rng)
 
-        # Build each of the objects
-        for obj in objs:
-            self._build(obj)
+        # Assign an ID to each object
+        object_ids = dict([(o, i) for i, o in enumerate(objs)])
 
-        # Build each of the connections
-        for conn in connections:
-            self._build(conn)
+        # Create the keyspace for the model
+        keyspace = _create_keyspace(conns)
 
-        # Probes
-        for probe in probes:
-            if isinstance(probe.target, nengo.Ensemble):
-                vertex = self.ensemble_vertices[probe.target]
+        # Assign the keyspace the connections, drill down as far as possible
+        connection_ids = _get_outgoing_ids(conns)
+        for c in conns:
+            # Assign the keyspace if one isn't already set
+            if c.keyspace is None:
+                c.keyspace = keyspace()
 
-                if probe.attr == 'spikes':
-                    vertex.record_spikes = True
-                    self.probes.append(utils.probes.SpikeProbe(vertex, probe))
-                elif probe.attr == 'decoded_output':
-                    postvertex = value_sink_vertex.ValueSinkVertex(
-                        probe.size_in)
-                    self.add_vertex(postvertex)
-                    self.add_edge(
-                        edges.ValueProbeEdge(probe, vertex, postvertex,
-                                             size_in=vertex._ens.size_out,
-                                             size_out=vertex._ens.size_out))
-                    self.probes.append(
-                        utils.probes.DecodedValueProbe(postvertex, probe))
-                else:
-                    raise NotImplementedError(
-                        "Cannot probe '%s' on Ensembles" % probe.attr)
-            elif isinstance(probe.target, nengo.Node):
-                pass  # This was dealt with previously
-            else:
-                raise NotImplementedError(
-                    "Cannot probe '%s' objects" % type(probe.target))
+            # Set fields within the keyspace
+            c.keyspace = c.keyspace(o=object_ids[c.pre])
+            if not c.keyspace.is_set_i:
+                c.keyspace = c.keyspace(i=connection_ids[c])
 
-        # Return the DAO, a reduced version of the network to simulate on the
-        # host and a list of probes.
-        return self.dao, host_network, self.probes
+        # Return list of intermediate representation objects and connections
+        return objs, conns
 
-    def add_vertex(self, vertex):
-        self.dao.add_vertex(vertex)
 
-    def add_edge(self, edge):
-        self.dao.add_edge(edge)
+class IntermediateConnection(object):
+    """Intermediate representation of a connection object.
+    """
+    def __init__(self, pre, post, synapse=None, function=None, transform=None,
+                 solver=None, eval_points=None, keyspace=None):
+        self.pre = pre
+        self.post = post
+        self.synapse = synapse
+        self.function = function
+        self.transform = transform
+        self.solver = solver
+        self.eval_points = eval_points
+        self.keyspace = keyspace
+        self.width = pre.size_in
 
-    def _build_ensemble(self, ens):
-        # Add an appropriate Vertex which deals with the Ensemble
-        vertex = ensemble_vertex.EnsembleVertex(ens, self.rng)
-        self.add_vertex(vertex)
-        self.ensemble_vertices[ens] = vertex
-
-    def _build_node(self, node):
-        if hasattr(node, "spinnaker_build"):
-            node.spinnaker_build(self)
-        else:
-            if self.config[node].f_of_t:
-                # Node is a function of time to be evaluated in advance
-                pass
-            else:
-                # Nodes to be executed on the host
-                self.node_builder.build_node(self, node)
-
-    def _build_connection(self, c):
-        # Add appropriate Edges between Vertices
-        # Determine which edge building function to use
-        # TODO Modify to fallback to `isinstance` where possible
-        edge = None
-
-        pre_c = list(c.pre.__class__.__mro__) + [None]
-        post_c = list(c.post.__class__.__mro__) + [None]
-
-        for key in itertools.chain(*[[(a, b) for b in post_c] for a in pre_c]):
-            if key in edge_builders:
-                edge = edge_builders[key](self, c)
-                break
-        else:
-            raise TypeError("Cannot connect '%s' -> '%s'" % (
-                type(c.pre), type(c.post)))
-
-        if edge is not None:
-            self.add_edge(edge)
-
-    def connect_to_multicast_vertex(self, postvertex):
-        """Create a connection from the MultiCastVertex to the given
-        postvertex.
-
-        The postvertex must support the method `get_commands`.
+    @classmethod
+    def from_connection(cls, c):
+        """Return an IntermediateConnection object for any connections which
+        have not already been replaced.  A requirement of any replaced
+        connection type is that it has the attribute keyspace and can have
+        its pre and post ammended by later functions.
         """
-        if self._mc_tx_vertex is None:
-            self._mc_tx_vertex = common.MultiCastSource()
-            self.add_vertex(self._mc_tx_vertex)
+        if isinstance(c, nengo.Connection):
+            # Get the full transform
+            tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
 
-        self.add_edge(graph.Edge(self._mc_tx_vertex, postvertex))
-
-    def get_node_in_vertex(self, c):
-        """Get the Vertex for input to the terminating Node of the given
-        Connection
-        """
-        return self.node_builder.get_node_in_vertex(self, c)
-
-    def get_node_out_vertex(self, c):
-        """Get the Vertex for output from the originating Node of the given
-        Connection"""
-        return self.node_builder.get_node_out_vertex(self, c)
+            # Return a copy of this connection but with less information and
+            # the full transform.
+            keyspace = getattr(c, 'keyspace', None)
+            return cls(c.pre, c.post, c.synapse, c.function, tr, c.solver,
+                       c.eval_points, keyspace)
+        return c
 
 
-@register_build_edge(pre=nengo.Ensemble, post=nengo.Ensemble)
-def _ensemble_to_ensemble(builder, c):
-    prevertex = builder.ensemble_vertices[c.pre]
-    postvertex = builder.ensemble_vertices[c.post]
-    edge = edges.DecoderEdge(c, prevertex, postvertex)
-    return edge
+def _create_keyspace(connections):
+    """Create the minimum keyspace necessary to represent the connection set.
+    """
+    # Get connection IDs
+    max_o = len(set([c.pre for c in connections]))
+    max_i = max([i for i in _get_outgoing_ids(connections).values()])
+    max_d = max([c.width for c in connections])
+
+    # Get the number of bits necessary for these
+    (bits_o, bits_i, bits_d) = [int(math.ceil(math.log(v + 1, 2)))
+                                for v in [max_o, max_i, max_d]]
+
+    # Ensure that these will fit within a 32-bit key
+    padding = 32 - (bits_o + bits_i + bits_d)
+    assert padding >= 0
+    bits_o += padding
+
+    # Create the keyspace
+    return utils.keyspaces.create_keyspace(
+        'NengoDefault', [('o', bits_o), ('i', bits_i), ('d', bits_d)],
+        'oi'
+    )
 
 
-@register_build_edge(pre=nengo.Ensemble, post=nengo.objects.Neurons)
-def _ensemble_to_neurons(builder, c):
-    # Currently only support inhibitory connections from Ensembles to Neurons,
-    # these are notable by having transforms which are [[k]*d]*n: so we check
-    # for this also!
-    try:
-        postvertex = builder.ensemble_vertices[c.post.ensemble]
-    except KeyError:
-        raise KeyError("Attempt to connect to unknown set of Neurons.")
+def _get_outgoing_ids(connections):
+    """Get the outgoing ID of each connection.
+    """
+    output_blocks = dict()
+    connection_ids = dict()
 
-    prevertex = builder.ensemble_vertices[c.pre]
-    edge = utils.global_inhibition.create_inhibition_edge(
-        c, prevertex, postvertex)
-    return edge
+    # Iterate through the connections building connection blocks where
+    # necessary.
+    for c in connections:
+        if c.pre not in output_blocks:
+            output_blocks[c.pre] =\
+                (utils.connections.Connections() if not
+                 isinstance(c.pre, nengo.Ensemble) else
+                 utils.connections.OutgoingEnsembleConnections())
+        output_blocks[c.pre].add_connection(c)
+        connection_ids[c] = output_blocks[c.pre][c]
 
-
-@register_build_edge(pre=nengo.Ensemble, post=nengo.Node)
-def _ensemble_to_node(builder, c):
-    # Get the vertices
-    prevertex = builder.ensemble_vertices[c.pre]
-    postvertex = builder.get_node_in_vertex(c)
-
-    # Create the edge
-    edge = edges.DecoderEdge(c, prevertex, postvertex)
-
-    return edge
+    return connection_ids
 
 
-@register_build_edge(pre=nengo.Node, post=nengo.Ensemble)
-def _node_to_ensemble(builder, c):
-    # If the Node has constant output then add to the direct input
-    # for the Ensemble and don't add an edge, otherwise add an
-    # edge from the appropriate Rx element to the Ensemble.
-    postvertex = builder.ensemble_vertices[c.post]
-    if (c.pre.output is not None and
-            not callable(c.pre.output) and c.pre.output.ndim == 1):
-        tr = nengo.utils.builder.full_transform(c)
+class IntermediateEnsemble(object):
+    def __init__(self, n_neurons, gains, bias, encoders, decoders,
+                 eval_points):
+        self.n_neurons = n_neurons
 
-        output = c.pre.output
-        if c.function is not None:
-            output = c.function(output)
+        # Assert that the number of neurons is reflected in other parameters
+        assert gains.size == n_neurons
+        assert bias.size == n_neurons
+        assert encoders.shape[0] == n_neurons
 
-        postvertex.direct_input += np.dot(tr, output)
+        # Get the number of dimensions represented and store fundamental
+        # parameters
+        self.n_dimensions = encoders.shape[0]
+        self.gains = gains
+        self.bias = bias
+        self.encoders = encoders
+        self.decoders = decoders
 
-    elif builder.config[c.pre].f_of_t:
-        # Node is a function of time to be evaluated in advance
-        if c.pre in builder.f_of_t_vertices:
-            prevertex = builder.f_of_t_vertices[c.pre]
+        # Recording parameters
+        self.record_spikes = False
+        self.record_voltage = False
+
+        # Direct input
+        self.direct_input = np.zeros(self.n_dimensions)
+
+
+class IntermediateLIFEnsemble(IntermediateEnsemble):
+    def __init__(self, n_neurons, gains, bias, encoders, decoders, tau_rc,
+                 tau_ref, eval_points):
+        super(IntermediateLIFEnsemble, self).__init__(n_neurons, gains, bias,
+                                                      encoders, decoders,
+                                                      eval_points)
+        self.tau_rc = tau_rc
+        self.tau_ref = tau_ref
+
+    @classmethod
+    def from_object(cls, ens, out_conns, dt, rng):
+        assert isinstance(ens.neuron_type, nengo.neurons.LIF)
+
+        if ens.seed is None:
+            rng = np.random.RandomState(rng.tomaxint())
         else:
-            prevertex = value_source_vertex.ValueSourceVertex(
-                c.pre, builder.config[c.pre].f_period, builder.dt)
-            builder.add_vertex(prevertex)
-            builder.f_of_t_vertices[c.pre] = prevertex
+            rng = np.random.RandomState(ens.seed)
 
-        edge = edges.NengoEdge(c, prevertex, postvertex)
-        return edge
-    else:
-        # Node is executed on host
-        prevertex = builder.get_node_out_vertex(c)
-        edge = edges.InputEdge(c, prevertex, postvertex,
-                               filter_is_accumulatory=False)
-        return edge
+        # Generate evaluation points
+        if ens.eval_points is None:
+            dims, neurons = ens.dimensions, ens.n_neurons
+            n_points = max(np.clip(500 * dims, 750, 2500), 2*neurons)
+            eval_points = dists.UniformHypersphere(ens.dimensions).sample(
+                n_points, rng=rng) * ens.radius
+        elif is_integer(ens.eval_points):
+            eval_points = dists.UniformHypersphere(ens.dimensions).sample(
+                ens.eval_points, rng=rng) * ens.radius
+        else:
+            eval_points = np.array(ens.eval_points, dtype=np.float64)
+            if eval_points.dim == 1:
+                eval_points.shape = (-1, 1)
+
+        # Generate gains, bias
+        gain = ens.gain
+        bias = ens.bias
+        if gain is None or bias is None:
+            if hasattr(ens.max_rates, 'sample'):
+                ens.max_rates = ens.max_rates.sample(ens.n_neurons, rng)
+            if hasattr(ens.intercepts, 'sample'):
+                ens.intercepts = ens.intercepts.sample(ens.n_neurons, rng)
+            (gain, bias) = ens.neuron_type.gain_bias(ens.max_rates,
+                                                     ens.intercepts)
+
+        # Generate encoders
+        if ens.encoders is None:
+            sphere = dists.UniformHypersphere(ens.dimensions, surface=True)
+            encoders = sphere.sample(ens.n_neurons, rng=rng)
+        else:
+            encoders = np.array(ens.encoders, dtype=np.float64)
+            enc_shape = (ens.n_neurons, ens.n_dimensions)
+
+            if encoders.shape != enc_shape:
+                # TODO Remove this when it is checked by Nengo
+                raise nengo.builder.ShapeMismatch(
+                    'Encoder shape is %s. Should be (n_neurons, dimensions); '
+                    "in this case '%s'." % enc_shape, encoders.shape)
+
+            norm = np.sum(encoders ** 2, axis=1)[:, np.newaxis]
+            encoders /= np.sqrt(norm)
+
+        # Generate decoders for outgoing connections
+        decoders = list()
+        tfses = utils.connections.OutgoingEnsembleConnections(out_conns)
+
+        def build_decoder(function, evals, solver):
+            """Internal function for building a single decoder."""
+            if evals is None:
+                evals = eval_points
+
+            x = np.dot(evals, encoders.T / ens.radius)
+            activities = ens.neuron_type.rates(x, gain, bias)
+
+            if function is None:
+                targets = evals
+            else:
+                (value, _) = checked_call(function, evals[0])
+                function_size = np.asarray(value).size
+                targets = np.zeros((len(evals), function_size))
+
+                for i, ep in enumerate(evals):
+                    targets[i] = ep
+
+            if solver is None:
+                solver = nengo.decoders.LstsqL2()
+
+            return solver(activities, targets, rng)[0]
+
+        decoder_builder = utils.decoders.DecoderBuilder(build_decoder)
+
+        # Build each of the decoders in turn
+        for tfse in tfses.transforms_functions:
+            decoders.append(decoder_builder.get_transformed_decoder(
+                tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
+
+        # Compress and merge the decoders
+        (headers, decoders) = utils.decoders.get_combined_compressed_decoders(
+            decoders)
+        decoders /= dt
+
+        return cls(ens.n_neurons, gain, bias, encoders, decoders,
+                   ens.neuron_type.tau_rc, ens.neuron_type.tau_ref,
+                   eval_points)
 
 
-@register_build_edge(pre=nengo.Node, post=nengo.Node)
-def _node_to_node(builder, c):
-    pass
+def build_ensembles(objects, connections, probes, dt, rng):
+    """Build Ensembles and related connections into intermediate
+    representation form.
+    """
+    new_objects = list()
+    new_connections = list()
+
+    # Create an intermediate representation for each Ensemble
+    for obj in objects:
+        if not isinstance(obj, nengo.Ensemble):
+            new_objects.append(obj)
+            continue
+
+        # Build the appropriate intermediate representation for the Ensemble
+        if isinstance(obj.neuron_type, nengo.neurons.LIF):
+            # Get the set of outgoing connections for this Ensemble so that
+            # decoders can be solved for.
+            out_conns = [c for c in connections if c.pre == obj]
+            new_obj = IntermediateLIFEnsemble.from_object(obj, out_conns,
+                                                          dt, rng)
+            new_objects.append(new_obj)
+        else:
+            raise NotImplementedError("nengo_spinnaker does not currently "
+                                      "support '%s' neurons."
+                                      % obj.neuron_type.__class__.__name__)
+
+        # Modify connections into/out of this ensemble
+        for c in connections:
+            if c.pre == obj:
+                c.pre = new_obj
+            if c.post == obj:
+                c.post = new_obj
+
+        # Mark the Ensemble as recording spikes/voltages if appropriate
+        for p in probes:
+            if p.target == obj:
+                if p.target == 'spikes':
+                    new_obj.record_spikes = True
+                elif p.target == 'attr':
+                    raise NotImplementedError("Voltage probing not currently "
+                                              "supported.")
+                    new_obj.record_voltage = True
+
+    # Add direct inputs
+    for c in connections:
+        if (isinstance(c.post, IntermediateEnsemble) and
+                isinstance(c.pre, nengo.Node) and not callable(c.pre.output)):
+            # This Node just forms direct input, add it to direct input and
+            # don't add the connection to the list of new connections
+            inp = c.pre.output
+            if c.function is not None:
+                inp = c.function(inp)
+            c.post.direct_input += np.dot(c.transform, inp)
+        else:
+            new_connections.append(c)
+
+    return new_objects, connections
+
+Builder.register_object_transform(build_ensembles)
+
+
+class IntermediateGlobalInhibitionConnection(IntermediateConnection):
+    @classmethod
+    def from_connection(cls, c):
+        # Assert that the transform is as we'd expect
+        assert isinstance(c.post, nengo.objects.Neurons)
+        assert np.all([c.transform[0] == t for t in c.transform])
+
+        # Compress the transform to have output dimension of 1
+        tr = c.transform[0]
+
+        # Get the keyspace for the connection
+        keyspace = getattr(c, 'keyspace', None)
+
+        # Create a new instance
+        return cls(c.pre, c.post, c.synapse, c.function, tr, c.solver,
+                   c.eval_points, keyspace)
+
+
+def process_global_inhibition_connections(objs, connections, probes):
+    # Build up a map of neurons to ensembles
+    neurons_ensembles = dict()
+    for obj in objs:
+        if isinstance(obj, nengo.Ensemble):
+            neurons_ensembles[obj.neurons] = obj
+
+    # Go through connections replacing global inhibition connections with
+    # an intermediate representation
+    new_connections = list()
+    for c in connections:
+        if (isinstance(c.post, nengo.objects.Neurons) and
+                np.all([c.transform[0] == t for t in c.transform])):
+            # This is a global inhibition connection, swap out
+            c = IntermediateGlobalInhibitionConnection.from_connection(c)
+        new_connections.append(c)
+
+    return objs, new_connections
+
+
+class IntermediateProbe(object):
+    def __init__(self, size_in, sample_every):
+        self.size_in = size_in
+        self.sample_every = sample_every
+
+
+def insert_decoded_output_probes(objs, connections, probes):
+    """Creates a new object representing decoded output probes and provides
+    appropriate connections.
+    """
+    objs = objs
+    connections = connections
+
+    # Add new objects and connections for 'decoded output' probes
+    for probe in probes:
+        if probe.attr == 'decoded_output':
+            p = IntermediateProbe(probe.size_in, probe.sample_every)
+
+            # Create a new connection for this Node, if there is no transform
+            # on the connection then we can create one on the assumption that
+            # size_in and size_out are equivalent.
+            conn_args = probe.conn_args
+            if 'transform' not in conn_args:
+                assert probe.target.size_in == p.size_in
+                conn_args['transform'] = np.eye(p.size_in)
+            c = IntermediateConnection(probe.target, p, **probe.conn_args)
+
+            # Add the new probe object and connection object
+            objs.append(p)
+            connections.append(c)
+
+    return objs, connections
+
+Builder.register_connectivity_transform(insert_decoded_output_probes)
