@@ -6,8 +6,11 @@ import time
 import nengo
 from pacman103.core import control
 
+from . import assembler
 from . import builder
 from . import nodes
+from .config import Config
+import utils
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +64,9 @@ class Simulator(object):
         :param config: Configuration as required for components.
         """
         dt = 0.001
+        self.dt = dt
         self.executed = False
+        self.config = config if config is not None else Config()
 
         # Get the hostname
         if machine_name is None:
@@ -85,16 +90,8 @@ class Simulator(object):
         self.io = io
 
         # Build the model
-        self.builder = builder.Builder()
-
-        (self.dao, host_network, self.probes) = \
-            self.builder(model, dt, seed, node_builder=io, config=config)
-
-        self.host_sim = None
-        if len(host_network.nodes) > 0:
-            self.host_sim = nengo.Simulator(host_network, dt=dt)
-
-        self.dt = dt
+        (self.objs, self.conns, self.keyspace) =\
+            builder.Builder.build(model, dt, seed)
 
     def run(self, time_in_seconds=None, clean=True):
         """Run the model for the specified amount of time.
@@ -139,30 +136,107 @@ class Simulator(object):
         self.controller = control.Controller(sys.modules[__name__],
                                              self.machine_name)
 
-        # Preparation functions, set the run time for each vertex
-        for vertex in self.dao.vertices:
-            vertex.runtime = time_in_seconds
-            if hasattr(vertex, 'pre_prepare'):
-                vertex.pre_prepare()
+        # Swap out function of time nodes
+        objs = list()
+        conns = list()
+
+        replaced_nodes = dict()
+        for obj in self.objs:
+            if isinstance(obj, nengo.Node):
+                if self.config[obj].f_of_t:
+                    # Get the likely size of this object
+                    out_conns = utils.connections.Connections(
+                        [c for c in self.conns if c.pre == obj])
+                    width = out_conns.width
+
+                    # Get the overall duration of the signal
+                    p_durations = [t for t in [time_in_seconds,
+                                               self.config[obj].f_period] if
+                                   t is not None]
+
+                    if len(p_durations) == 0:
+                        # Indefinite simulation with indefinite function, will
+                        # have to simulate on host.
+                        self.config[obj].f_of_t = False
+                        objs.append(obj)
+                        continue
+
+                    duration = min(p_durations)
+                    periodic = (self.config[obj].f_period is not None and
+                                self.config[obj].f_period == duration)
+
+                    if width * duration > 6 * 1024**2:
+                        # Storing this function (and all its transforms) would
+                        # take up too much memory, will have to simulate on
+                        # host.
+                        # TODO Split up the connections to reduce the memory
+                        #      usage instead of giving up.
+                        self.config[obj].f_of_t = False
+                        objs.append(obj)
+                        continue
+
+                    # It is possible to fit the function (and all its
+                    # transforms) in memory, so replace it with a
+                    # function of time vertex.
+                    new_obj = assembler.ValueSource.from_node(
+                        obj.output, out_conns, duration, periodic, self.dt)
+                    replaced_nodes[obj] = new_obj
+                    objs.append(new_obj)
+                else:
+                    objs.append(obj)
+            else:
+                objs.append(obj)
+
+        for c in self.conns:
+            if c.pre in replaced_nodes:
+                c.pre = replaced_nodes[c.pre]
+            conns.append(c)
+
+        # Set up the host network for simulation
+        host_network = utils.nodes.create_host_network(
+            [c.to_connection() if isinstance(c.pre, nengo.Node) and
+             isinstance(c.post, nengo.Node) else c for c in conns],
+            self.io, self.config)
+
+        # Prepare the network for IO
+        (objs, conns) = self.io.prepare_network(objs, conns, self.dt,
+                                                self.keyspace)
+
+        # Assemble the model for simulation
+        asmblr = assembler.Assembler()
+        vertices, edges = asmblr(
+            objs, conns, time_in_seconds, self.dt)
+
+        # Set up host simulator
+        host_sim = nengo.Simulator(host_network, dt=self.dt)
+
+        # Build the list of probes
+        self.probes = list()
+        for vertex in vertices:
+            if isinstance(vertex, assembler.DecodedValueProbe):
+                self.probes.append(
+                    utils.probes.DecodedValueProbe(vertex, vertex.probe))
+            else:
+                if hasattr(vertex, 'probes'):
+                    for probe in vertex.probes:
+                        if probe.attr == 'spikes':
+                            self.probes.append(
+                                utils.probes.SpikeProbe(vertex, probe))
 
         # PACMANify!
-        self.controller.dao = self.dao
-        self.dao.set_hostname(self.machine_name)
+        for vertex in vertices:
+            self.controller.add_vertex(vertex)
+
+        for edge in edges:
+            self.controller.add_edge(edge)
 
         # TODO: Modify Transceiver so that we can manually check for
         # application termination  i.e., we want to do something during the
         # simulation time, not pause in the TxRx.
-        self.dao.run_time = None
+        self.controller.dao.run_time = None
 
         self.controller.set_tag_output(1, 17895)  # Only reqd. for Ethernet
-
         self.controller.map_model()
-
-        # Preparation functions
-        for vertex in self.dao.vertices:
-            if hasattr(vertex, 'post_prepare'):
-                vertex.post_prepare()
-
         self.controller.generate_output()
 
         try:
@@ -171,25 +245,25 @@ class Simulator(object):
 
             # Start the IO and perform host computation
             with self.io as node_io:
-                self.controller.run(self.dao.app_id)
+                self.controller.run(self.controller.dao.app_id)
                 node_io.start()
 
                 current_time = 0.
                 try:
-                    if self.host_sim is not None:
+                    if host_sim is not None:
                         while (time_in_seconds is None or
                                current_time < time_in_seconds):
                             # Execute a single step of the host simulator and
                             # measure how long it takes.
                             s = time.clock()
-                            self.host_sim.step()
+                            host_sim.step()
                             t = time.clock() - s
 
                             # If it takes less than one time step then sleep
                             # for the remaining time
-                            if t < self.host_sim.dt:
-                                time.sleep(self.host_sim.dt - t)
-                                t = self.host_sim.dt
+                            if t < host_sim.dt:
+                                time.sleep(host_sim.dt - t)
+                                t = host_sim.dt
 
                             # TODO: Currently if one step of the simulator
                             # takes more than one time step we can't do
@@ -200,8 +274,8 @@ class Simulator(object):
                             # step with the board, albeit at a lower sample
                             # rate.
                             #
-                            # if t > self.host_sim.dt:
-                            #     self.host_sim.dt = t
+                            # if t > host_sim.dt:
+                            #     host_sim.dt = t
 
                             # Keep track of how long we've been running for
                             current_time += t
@@ -233,7 +307,7 @@ class Simulator(object):
                     # "Send signal 2 (meaning stop) to all executables with the
                     #  app_id we've given them (usually 30)."
                     self.controller.txrx.app_calls.app_signal(
-                        self.dao.app_id, 2)
+                        self.controller.dao.app_id, 2)
             except Exception:
                 pass
 

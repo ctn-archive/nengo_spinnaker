@@ -2,6 +2,7 @@
 """
 
 import collections
+import nengo
 import numpy as np
 import serial
 import threading
@@ -12,8 +13,7 @@ from pacman103.front import common
 from nengo_spinnaker.utils import fp
 from .ethernet import stop_on_keyboard_interrupt
 import serial_vertex
-from .. import edges, filter_vertex
-from ..utils import connections
+from .. import assembler, builder, utils
 
 
 class UART(object):
@@ -33,80 +33,102 @@ class UART(object):
         self.connected_node_edge = connected_node_edge
 
         # General components
-        self.protocol = protocol(**kwargs)  # Should we instantiate this? TODO
-        # self.connection = connection  # TODO
+        self.protocol = protocol(**kwargs)
         self._serial_vertex = None
-        self.base_key = ((self.virtual_chip_coords["x"] << 24)
-                         | (self.virtual_chip_coords["y"] << 16))
 
-        self.nodes_filters = dict()  # Map of Nodes to FilterVertices
-        self.nodes_inputs = dict()  # Map of Nodes to input
+        self.node_in_keys = dict()  # Map of routing keys to Nodes
+        self.nodes_tfks = dict()  # Map of Nodes to Transforms/Funcs/Keyspaces
 
-    def _get_serial_vertex(self, builder):
-        """Get (or create) the serial vertex."""
-        if self._serial_vertex is None:
-            self._serial_vertex = serial_vertex.SerialVertex(
-                virtual_chip_coords=self.virtual_chip_coords,
-                connected_node_coords=self.connected_node_coords,
-                connected_node_edge=self.connected_node_edge,
-                )
-            builder.add_vertex(self._serial_vertex)
-        return self._serial_vertex
+    def prepare_network(self, objects, connections, dt, keyspace):
+        """Swap out connections to/from Nodes with connections to a Filter
+        vertex to the serial vertex, and from the serial vertex.
+
+        Outgoing (board->serial) connections live in a separate keyspace
+        with the MSB set as 1.  Incoming connections retain their existing
+        keys.
+        """
+        new_objs = list()
+        new_conns = list()
+        filter_index = 0  # Index of filter vertex
+
+        for obj in objects:
+            # For each Node find the outgoing connections, combine and modify
+            # them to originate at the serial vertex. Modify all incoming
+            # connections to go via a filter vertex and add an additional edge
+            # from the filter vertex to the serial vertex.
+            if not isinstance(obj, nengo.Node):
+                # If the object isn't a Node then retain it
+                new_objs.append(obj)
+                continue
+
+            # Get the list of incoming connections, these will all feed to the
+            # given serial vertex. (Except for connections from other Nodes).
+            in_connections = [c for c in connections if c.post == obj and
+                              not isinstance(c.pre, nengo.Node)]
+
+            # Create a filter vertex for this object
+            if len(in_connections) > 0:
+                fv = assembler.FilterVertex(obj.size_in, in_connections, dt)
+                new_objs.append(fv)
+
+                # Create a serial vertex if desired
+                if self._serial_vertex is None:
+                    # Create serial vertex
+                    self._serial_vertex = serial_vertex.SerialVertex(
+                        self.virtual_chip_coords, self.connected_node_coords,
+                        self.connected_node_edge)
+                    new_objs.append(self._serial_vertex)
+
+                # Create a new connection from the filter vertex to the serial
+                # vertex.
+                fvs = builder.IntermediateConnection(
+                    fv, self._serial_vertex,
+                    keyspace=keyspace(x=1, o=filter_index))
+                filter_index += 1
+                self.node_in_keys[fvs.keyspace.routing_key()] = obj
+                new_conns.append(fvs)
+
+                # Swap out the target of each of all these connections and add
+                # them to the list of connections we're keeping
+                for c in in_connections:
+                    c.post = fv
+                    new_conns.append(c)
+
+            # Combine the outgoing connections for the Node so we have some
+            # access to these keys.  Replace the pre of all these connections
+            # with the serial vertex.
+            out_conns = [c for c in connections if c.pre == obj and
+                         not isinstance(c.post, nengo.Node)]
+            if len(out_conns) > 0:
+                self.nodes_tfks[obj] = utils.connections.Connections(
+                    out_conns).transforms_functions
+
+                # Create a serial vertex if desired
+                if self._serial_vertex is None:
+                    # Create serial vertex
+                    self._serial_vertex = serial_vertex.SerialVertex(
+                        self.virtual_chip_coords, self.connected_node_coords,
+                        self.connected_node_edge)
+                    new_objs.append(self._serial_vertex)
+
+                for c in out_conns:
+                    c.pre = self._serial_vertex
+                    new_conns.append(c)
+
+        # Retain all other connections unchanged
+        for c in connections:
+            if not (isinstance(c.pre, nengo.Node) or
+                    isinstance(c.post, nengo.Node)):
+                new_conns.append(c)
+
+        return new_objs, new_conns
 
     @property
     def io(self):
         return self
 
-    def build_node(self, builder, node):
-        # TODO: Probably deprecate and remove this function as it's not used...
-        pass
-
-    def get_node_in_vertex(self, builder, c):
-        """Get the vertex which will accept input on this Connection.
-        """
-        # Create a new FilterVertex for the Node, unless one already exists in
-        # which case return that
-        node = c.post
-
-        if c.post not in self.nodes_filters:
-            # Create the new FilterVertex
-            self.nodes_filters[node] = filter_vertex.FilterVertex(
-                c.post.size_in, output_period=10, interpacket_pause=50)
-            builder.add_vertex(self.nodes_filters[node])
-
-            # Connect it to the SerialVertex
-            edge = edges.NengoEdge(
-                c, self.nodes_filters[node], self._get_serial_vertex(builder))
-            builder.add_edge(edge)
-
-        # Return a reference to the FilterVertex
-        return self.nodes_filters[node]
-
-    def get_node_out_vertex(self, builder, c):
-        """Get the vertex which will transmit output on this Connection.
-        """
-        # Return a reference to the serial vertex
-        return self._get_serial_vertex(builder)
-
     def __enter__(self):
-        # Prepare maps of Nodes->Connections
-        # TODO: Neaten up the connection bank to make this easier!
-        self.outgoing_connections = connections.ConnectionBank(
-            [c for c in self._serial_vertex.out_edges])
-        self.outgoing_ids = dict(
-            [(c, i) for (i, c) in enumerate(self.outgoing_connections)])
-
-        # Map of Keys->Nodes
-        # Prepare buffers for Node inputs
-        self.keys_nodes = dict()
-        for (node, fv) in self.nodes_filters.items():
-            # TODO: Neaten this up with KeySpaces!
-            k = fv.generate_routing_info(
-                fv.subvertices[0].out_subedges[0])[0]
-            self.keys_nodes[k] = node
-
-            self.nodes_inputs[node] = [None]*node.size_in
-
+        self.nodes_inputs = collections.defaultdict(lambda : [None])
         return self
 
     def __exit__(self, *args):
@@ -131,23 +153,22 @@ class UART(object):
         # For each outgoing connection for the Node perform the appropriate
         # functions and transforms, then transmit packets for each dimension in
         # the output.
-        # TODO: Neaten up the connection bank to make this easier!
-        for c in self.outgoing_connections._connections[node]:
+        for tfk in self.nodes_tfks[node]:
             t_output = output
-            if c.function is not None:
-                t_output = c.function(t_output)
-            t_output = np.dot(c.transform, t_output)
+            if tfk.function is not None:
+                t_output = tfk.function(t_output)
+            t_output = np.dot(tfk.transform, t_output)
 
             # Transmit the packets
-            key = self.base_key + (self.outgoing_ids[c] << 6)
             for (d, v) in enumerate(t_output):
-                self.protocol.queue_mc_packet(key | d, fp.bitsk(v))
+                self.protocol.queue_mc_packet(tfk.keyspace.key(d=d),
+                                              fp.bitsk(v))
 
     def receive_mc_packet(self, key, payload):
         """Handle an incoming MC packet, store the received dimension value."""
         # TODO: Deal with this properly rather than with handcoded masks
-        node = self.keys_nodes[key & 0xffffffc0]
-        d = key & 0x3f
+        node = self.keys_nodes[key & self.in_keyspace.routing_mask]
+        d = key & self.in_keyspace.mask_d
         self.nodes_inputs[node][d] = fp.kbits(payload)
 
 

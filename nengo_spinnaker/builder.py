@@ -10,6 +10,7 @@ from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 from nengo.utils.inspect import checked_call
 
+import assembler
 import utils
 
 
@@ -28,7 +29,7 @@ class Builder(object):
         cls.post_rpn_transforms.append(func)
 
     @classmethod
-    def __call__(cls, network, dt, seed):
+    def build(cls, network, dt, seed):
         """Build an intermediate representation of a Nengo model which can be
         assembled to form a PACMAN problem graph.
         """
@@ -46,7 +47,6 @@ class Builder(object):
         # Remove pass through nodes
         (objs, conns) = nengo.utils.builder.remove_passthrough_nodes(objs,
                                                                      conns)
-
         # Replace all connections with fully specified equivalents
         new_conns = list()
         for c in conns:
@@ -63,7 +63,7 @@ class Builder(object):
         # Create the keyspace for the model
         keyspace = _create_keyspace(conns)
 
-        # Assign the keyspace the connections, drill down as far as possible
+        # Assign the keyspace to the connections, drill down as far as possible
         connection_ids = _get_outgoing_ids(conns)
         for c in conns:
             # Assign the keyspace if one isn't already set
@@ -75,15 +75,22 @@ class Builder(object):
             if not c.keyspace.is_set_i:
                 c.keyspace = c.keyspace(i=connection_ids[c])
 
+        # Build the list of output keys for all of the ensemble objects now
+        # that we've assigned IDs and keyspaces.
+        for obj in objs:
+            if isinstance(obj, IntermediateEnsemble):
+                obj.create_output_keys(object_ids[obj], keyspace)
+
         # Return list of intermediate representation objects and connections
-        return objs, conns
+        return objs, conns, keyspace
 
 
 class IntermediateConnection(object):
     """Intermediate representation of a connection object.
     """
     def __init__(self, pre, post, synapse=None, function=None, transform=None,
-                 solver=None, eval_points=None, keyspace=None):
+                 solver=None, eval_points=None, keyspace=None,
+                 is_accumulatory=True):
         self.pre = pre
         self.post = post
         self.synapse = synapse
@@ -92,14 +99,21 @@ class IntermediateConnection(object):
         self.solver = solver
         self.eval_points = eval_points
         self.keyspace = keyspace
-        self.width = pre.size_in
+        self.width = post.size_in
+        self.is_accumulatory = is_accumulatory
+
+        self._preslice = None
+        self._postslice = None
+
+    def _required_transform_shape(self):
+        return self.transform.shape
 
     @classmethod
     def from_connection(cls, c):
         """Return an IntermediateConnection object for any connections which
         have not already been replaced.  A requirement of any replaced
         connection type is that it has the attribute keyspace and can have
-        its pre and post ammended by later functions.
+        its pre and post amended by later functions.
         """
         if isinstance(c, nengo.Connection):
             # Get the full transform
@@ -111,6 +125,15 @@ class IntermediateConnection(object):
             return cls(c.pre, c.post, c.synapse, c.function, tr, c.solver,
                        c.eval_points, keyspace)
         return c
+
+    def to_connection(self):
+        """Create a standard Nengo connection from this object.
+        """
+        return nengo.Connection(self.pre, self.post, synapse=self.synapse,
+                                function=self.function,
+                                transform=self.transform, solver=self.solver,
+                                eval_points=self.eval_points,
+                                add_to_container=False)
 
 
 def _create_keyspace(connections):
@@ -126,14 +149,15 @@ def _create_keyspace(connections):
                                 for v in [max_o, max_i, max_d]]
 
     # Ensure that these will fit within a 32-bit key
-    padding = 32 - (bits_o + bits_i + bits_d)
+    padding = 32 - (1 + bits_o + bits_i + bits_d)
     assert padding >= 0
     bits_o += padding
 
     # Create the keyspace
     return utils.keyspaces.create_keyspace(
-        'NengoDefault', [('o', bits_o), ('i', bits_i), ('d', bits_d)],
-        'oi'
+        'NengoDefault',
+        [('x', 1), ('o', bits_o), ('i', bits_i), ('d', bits_d)],
+        'xoi'
     )
 
 
@@ -149,7 +173,7 @@ def _get_outgoing_ids(connections):
         if c.pre not in output_blocks:
             output_blocks[c.pre] =\
                 (utils.connections.Connections() if not
-                 isinstance(c.pre, nengo.Ensemble) else
+                 isinstance(c.pre, IntermediateEnsemble) else
                  utils.connections.OutgoingEnsembleConnections())
         output_blocks[c.pre].add_connection(c)
         connection_ids[c] = output_blocks[c.pre][c]
@@ -159,7 +183,7 @@ def _get_outgoing_ids(connections):
 
 class IntermediateEnsemble(object):
     def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 eval_points):
+                 eval_points, decoder_headers):
         self.n_neurons = n_neurons
 
         # Assert that the number of neurons is reflected in other parameters
@@ -169,26 +193,38 @@ class IntermediateEnsemble(object):
 
         # Get the number of dimensions represented and store fundamental
         # parameters
-        self.n_dimensions = encoders.shape[0]
+        self.size_in = self.n_dimensions = encoders.shape[1]
         self.gains = gains
         self.bias = bias
         self.encoders = encoders
         self.decoders = decoders
 
+        # Output keys
+        self.decoder_headers = decoder_headers
+        self.output_keys = None
+
         # Recording parameters
         self.record_spikes = False
         self.record_voltage = False
+        self.probes = list()
 
         # Direct input
         self.direct_input = np.zeros(self.n_dimensions)
 
+    def create_output_keys(self, ens_id, keyspace):
+        self.output_keys = list()
+        for header in self.decoder_headers:
+            ks = keyspace if header[0] is None else header[0]
+            ks = ks(o=ens_id, i=header[1], d=header[2])
+            self.output_keys.append(ks.key())
+
 
 class IntermediateLIFEnsemble(IntermediateEnsemble):
     def __init__(self, n_neurons, gains, bias, encoders, decoders, tau_rc,
-                 tau_ref, eval_points):
-        super(IntermediateLIFEnsemble, self).__init__(n_neurons, gains, bias,
-                                                      encoders, decoders,
-                                                      eval_points)
+                 tau_ref, eval_points, decoder_headers):
+        super(IntermediateLIFEnsemble, self).__init__(
+            n_neurons, gains, bias, encoders, decoders, eval_points,
+            decoder_headers)
         self.tau_rc = tau_rc
         self.tau_ref = tau_ref
 
@@ -278,13 +314,13 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
 
         # Compress and merge the decoders
-        (headers, decoders) = utils.decoders.get_combined_compressed_decoders(
-            decoders)
+        (decoder_headers, decoders) =\
+            utils.decoders.get_combined_compressed_decoders(decoders)
         decoders /= dt
 
         return cls(ens.n_neurons, gain, bias, encoders, decoders,
                    ens.neuron_type.tau_rc, ens.neuron_type.tau_ref,
-                   eval_points)
+                   eval_points, decoder_headers)
 
 
 def build_ensembles(objects, connections, probes, dt, rng):
@@ -293,6 +329,10 @@ def build_ensembles(objects, connections, probes, dt, rng):
     """
     new_objects = list()
     new_connections = list()
+
+    # Sort out GlobalInhibitionConnections
+    (objects, connections) = process_global_inhibition_connections(
+        objects, connections, probes)
 
     # Create an intermediate representation for each Ensemble
     for obj in objects:
@@ -323,12 +363,14 @@ def build_ensembles(objects, connections, probes, dt, rng):
         # Mark the Ensemble as recording spikes/voltages if appropriate
         for p in probes:
             if p.target == obj:
-                if p.target == 'spikes':
+                if p.attr == 'spikes':
                     new_obj.record_spikes = True
-                elif p.target == 'attr':
+                    new_obj.probes.append(p)
+                elif p.attr == 'voltage':
                     raise NotImplementedError("Voltage probing not currently "
                                               "supported.")
                     new_obj.record_voltage = True
+                    new_obj.probes.append(p)
 
     # Add direct inputs
     for c in connections:
@@ -343,7 +385,7 @@ def build_ensembles(objects, connections, probes, dt, rng):
         else:
             new_connections.append(c)
 
-    return new_objects, connections
+    return new_objects, new_connections
 
 Builder.register_object_transform(build_ensembles)
 
@@ -356,23 +398,17 @@ class IntermediateGlobalInhibitionConnection(IntermediateConnection):
         assert np.all([c.transform[0] == t for t in c.transform])
 
         # Compress the transform to have output dimension of 1
-        tr = c.transform[0]
+        tr = c.transform[0][0]
 
         # Get the keyspace for the connection
         keyspace = getattr(c, 'keyspace', None)
 
         # Create a new instance
-        return cls(c.pre, c.post, c.synapse, c.function, tr, c.solver,
+        return cls(c.pre, c.post.ensemble, c.synapse, c.function, tr, c.solver,
                    c.eval_points, keyspace)
 
 
 def process_global_inhibition_connections(objs, connections, probes):
-    # Build up a map of neurons to ensembles
-    neurons_ensembles = dict()
-    for obj in objs:
-        if isinstance(obj, nengo.Ensemble):
-            neurons_ensembles[obj.neurons] = obj
-
     # Go through connections replacing global inhibition connections with
     # an intermediate representation
     new_connections = list()
@@ -387,9 +423,10 @@ def process_global_inhibition_connections(objs, connections, probes):
 
 
 class IntermediateProbe(object):
-    def __init__(self, size_in, sample_every):
+    def __init__(self, size_in, sample_every, probe):
         self.size_in = size_in
         self.sample_every = sample_every
+        self.probe = probe
 
 
 def insert_decoded_output_probes(objs, connections, probes):
@@ -401,15 +438,15 @@ def insert_decoded_output_probes(objs, connections, probes):
 
     # Add new objects and connections for 'decoded output' probes
     for probe in probes:
-        if probe.attr == 'decoded_output':
-            p = IntermediateProbe(probe.size_in, probe.sample_every)
+        if probe.attr == 'decoded_output' or probe.attr == 'output':
+            p = IntermediateProbe(probe.size_in, probe.sample_every, probe)
 
             # Create a new connection for this Node, if there is no transform
             # on the connection then we can create one on the assumption that
             # size_in and size_out are equivalent.
             conn_args = probe.conn_args
             if 'transform' not in conn_args:
-                assert probe.target.size_in == p.size_in
+                assert probe.target.size_out == p.size_in
                 conn_args['transform'] = np.eye(p.size_in)
             c = IntermediateConnection(probe.target, p, **probe.conn_args)
 

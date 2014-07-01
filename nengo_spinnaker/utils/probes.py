@@ -7,62 +7,7 @@ import nengo
 import nengo.utils.builder
 
 from . import fixpoint as fp
-from .. import edges
-
-
-def get_probe_nodes_connections(probes):
-    """Return a list of the ProbeNodes and Connections which need to be added
-    to Probe the output of selected Nodes."""
-    new_nodes = list()
-    new_conns = list()
-
-    for p in probes:
-        if isinstance(p.target, nengo.Node):
-            # Create a new ProbeNode, Connection
-            pn = ProbeNode(p, add_to_container=False)
-            pc = nengo.Connection(p.target, pn,
-                                  synapse=p.conn_args.get('synapse', None),
-                                  add_to_container=False)
-
-            new_nodes.append(pn)
-            new_conns.append(pc)
-
-    return new_nodes, new_conns
-
-
-def get_corrected_probes(probes, connections):
-    """Get a modified list of Probes, removing the synapses from Probes which
-    probe PassNodes with synapses on *their* inputs.
-    """
-    ins, _ = nengo.utils.builder.find_all_io(connections)
-
-    for probe in probes:
-        if (isinstance(probe.target, nengo.Node) and
-                probe.target.output is None):
-            # This is a PassNode, modify if required
-            # Get the incoming connections to the target
-            if True in [c.synapse is not None for c in ins[probe.target]]:
-                warnings.warn("Can't currently have synapse on PassNode Probe."
-                              "\n\nDefaulting to synapse=None on %s\n"
-                              "This is because you tried to provide a "
-                              "synapse for a PassNode Probe where inputs to "
-                              "the PassNode already possessed synapses.\n"
-                              % probe, RuntimeWarning)
-                probe.conn_args['synapse'] = None
-    return probes
-
-
-def build_ensemble_probenode_edge(builder, c):
-    prevertex = builder.ensemble_vertices[c.pre]
-    edge = edges.DecoderEdge(c, prevertex, c.post.vertex)
-    return edge
-
-
-def build_node_probenode_edge(builder, c):
-    prevertex = builder.get_node_out_vertex(c)
-    edge = edges.NengoEdge(c, prevertex, c.post.vertex,
-                           filter_is_accumulatory=False)
-    return edge
+from . import vertices
 
 
 class SpiNNakerProbe(object):
@@ -77,20 +22,6 @@ class SpiNNakerProbe(object):
         raise NotImplementedError
 
 
-class ProbeNode(nengo.Node):
-    def __init__(self, probe, output=None):
-        self.output = lambda t, v: t  # NOT None!
-        self.probe = probe
-        self.size_in = probe.target.size_out
-        self.vertex = None
-
-    def spinnaker_build(self, builder):
-        """Add a new ValueSinkVertex and Probe to the Builder."""
-        self.vertex = ValueSinkVertex(self.size_in)
-        builder.add_vertex(self.vertex)
-        builder.probes.append(DecodedValueProbe(self.vertex, self.probe))
-
-
 class DecodedValueProbe(SpiNNakerProbe):
     def __init__(self, recording_vertex, probe):
         super(DecodedValueProbe, self).__init__(probe)
@@ -102,9 +33,13 @@ class DecodedValueProbe(SpiNNakerProbe):
         sv = self.recording_vertex.subvertices[0]
         (x, y, p) = sv.placement.processor.get_coordinates()
 
+        size = self.recording_vertex.regions[
+            self.recording_vertex.recording_region_index-1].sizeof(
+                sv.lo_atom, sv.hi_atom)
+
         sdata = vertices.retrieve_region_data(
-            txrx, x, y, p, self.recording_vertex.REGIONS['VALUES'],
-            self.recording_vertex.sizeof_values(sv.n_atoms)
+            txrx, x, y, p, self.recording_vertex.recording_region_index,
+            size
         )
 
         # Cast as a Numpy array, shape and return
@@ -131,11 +66,13 @@ try:
                 # Get the contents of the "SPIKES" region for each subvertex
                 (x, y, p) = subvertex.placement.processor.get_coordinates()
 
+                size = self.target_vertex.regions[
+                    self.target_vertex.spikes_recording_region-1].sizeof(
+                        subvertex.lo_atom, subvertex.hi_atom)
+
                 sdata = vertices.retrieve_region_data(
-                    txrx, x, y, p, self.target_vertex.REGIONS["SPIKES"],
-                    self.target_vertex.sizeof_region_recording(
-                        subvertex.n_atoms)
-                )
+                    txrx, x, y, p, self.target_vertex.spikes_recording_region,
+                    size)
 
                 # Cast the spikes as a bit array
                 spikes = bitarray()
@@ -145,7 +82,7 @@ try:
                 frame_length = ((subvertex.n_atoms >> 5) +
                                 (1 if subvertex.n_atoms & 0x1f else 0))
 
-                for f in range(n_frames):
+                for f in range(n_frames-1):  # TODO Understand the -1
                     frame = spikes[32*f*frame_length + 32:
                                    32*(f + 1)*frame_length + 32]
                     data[f].extend([n + subvertex.lo_atom for n in

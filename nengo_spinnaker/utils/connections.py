@@ -45,7 +45,7 @@ class Connections(object):
         # Get the index of the connection if the same transform and function
         # have already been added, otherwise add the transform/function pair
         connection_entry = self._make_connection_entry(
-            connection, connection.transform, keyspace)
+            connection, connection.transform, connection.keyspace)
 
         # For each pre-existing unique connection see if this connection
         # matches
@@ -173,10 +173,8 @@ class ConnectionBank(object):
                 yield c
 
 
-ConnectionWithFilter = collections.namedtuple(
-    'ConnectionWithFilter', ['connection', 'accumulatory'])
 FilteredConnection = collections.namedtuple(
-    'FilteredConnection', ['time_constant', 'accumulatory'])
+    'FilteredConnection', ['time_constant', 'is_accumulatory'])
 
 
 class Filters(object):
@@ -188,30 +186,40 @@ class Filters(object):
         for connection in connections_with_filters:
             self.add_connection(connection)
 
-    def add_connection(self, connection_with_filter):
+    def add_connection(self, connection):
         if self._termination is None:
-            self._termination = connection_with_filter.connection.post
-        assert(self._termination == connection_with_filter.connection.post)
+            self._termination = connection.post
+        assert(self._termination == connection.post)
 
         index = None
         for (i, f) in enumerate(self.filters):
-            if (connection_with_filter.accumulatory == f.accumulatory and
-                    connection_with_filter.connection.synapse ==
-                    f.time_constant):
+            if (connection.is_accumulatory == f.is_accumulatory and
+                    connection.synapse == f.time_constant):
                 index = i
                 break
         else:
             new_f = FilteredConnection(
-                connection_with_filter.connection.synapse,
-                connection_with_filter.accumulatory
+                connection.synapse,
+                connection.is_accumulatory
             )
             self.filters.append(new_f)
             index = len(self.filters) - 1
 
-        self._connection_indices[connection_with_filter.connection] = index
+        self._connection_indices[connection] = index
 
     def __getitem__(self, connection):
         return self._connection_indices[connection]
 
     def __len__(self):
         return len(self.filters)
+
+
+def get_output_keys(connections):
+    """Return a list of output keys for the given connection
+    block.
+    """
+    keys = list()
+    for tfk in connections.transforms_functions:
+        for d in range(tfk.transform.shape[0]):
+            keys.append(tfk.keyspace.key(d=d))
+    return keys

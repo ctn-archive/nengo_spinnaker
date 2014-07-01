@@ -21,9 +21,14 @@ except ImportError:
 
 
 class NengoVertex(graph.Vertex):
+    runtime = None
+
     @property
     def model_name(self):
         return self.MODEL_NAME
+
+    def get_maximum_atoms_per_core(self):
+        return self.MAX_ATOMS
 
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
                                 *args):
@@ -33,9 +38,10 @@ class NengoVertex(graph.Vertex):
         if hasattr(self, 'cpu_usage'):
             cpu_usage = self.cpu_usage(lo_atom, hi_atom)
 
-        sdram_usage = sum([r.sizeof(lo_atom, hi_atom) for r in self.regions])
+        sdram_usage = sum([r.sizeof(lo_atom, hi_atom) for r in self.regions if
+                           r is not None])
         dtcm_usage = sum([r.sizeof(lo_atom, hi_atom) for f in self.regions if
-                          r.in_dtcm])
+                          r is not None and r.in_dtcm])
 
         return lib_map.Resources(cpu_usage, dtcm_usage, sdram_usage)
 
@@ -50,11 +56,11 @@ class NengoVertex(graph.Vertex):
 
         # Write the runtime to the core
         x, y, p = processor.get_coordinates()
-        run_ticks = ((1 << 32) - 1 if self.runtime is None else
-                     self.runtime * 1000)  # TODO Deal with timestep scaling
+        self.run_ticks = ((1 << 32) - 1 if self.runtime is None else
+                          int(self.runtime * 1000))  # TODO timestep scaling
 
         addr = 0xe5007000 + 128 * p + 116  # Space reserved for _p_
-        mem_writes = [lib_map.MemWriteTarget(x, y, p, addr, run_ticks)]
+        mem_writes = [lib_map.MemWriteTarget(x, y, p, addr, self.run_ticks)]
 
         # Get the executable
         executable_target = lib_map.ExecutableTarget(
@@ -67,7 +73,7 @@ class NengoVertex(graph.Vertex):
 
     def __reserve_regions(self, subvertex, spec):
         # Reserve a region of memory for each specified region
-        for i, region in enumerate(self.regions):
+        for i, region in enumerate(self.regions, start=1):
             if region is None:
                 continue
 
@@ -80,7 +86,7 @@ class NengoVertex(graph.Vertex):
 
     def __write_regions(self, subvertex, spec):
         # Write each region in turn
-        for i, region in enumerate(self.regions):
+        for i, region in enumerate(self.regions, start=1):
             if region is None:
                 continue
 
@@ -94,12 +100,13 @@ class NengoVertex(graph.Vertex):
                 spec.switchWriteFocus(i)
                 region.write_out(subvertex.lo_atom, subvertex.hi_atom, spec)
 
-    def generate_routing_information(self, subedge):
+    def generate_routing_info(self, subedge):
         # TODO When PACMAN is refactored we can get rid of this because we've
         #      already allocated keys to connections, and there is a map of 1
         #      connection to 1 edge and keys are placement independent (hence
         #      all subedges of an edge share a key).
-        raise NotImplementedError
+        return (subedge.edge.keyspace.routing_key(),
+                subedge.edge.keyspace.routing_mask)
 
 
 def retrieve_region_data(txrx, x, y, p, region_id, region_size):
@@ -130,7 +137,7 @@ def retrieve_region_data(txrx, x, y, p, region_id, region_size):
     return data
 
 
-def make_filter_regions(connections_with_keys, dt):
+def make_filter_regions(conns, dt):
     """Generate the filter and filter routing entries for the given connections
 
     :param connections_with_keys: List of tuples (connection, keyspace)
@@ -138,9 +145,9 @@ def make_filter_regions(connections_with_keys, dt):
     :returns: The filter region and the filter routing region
     """
     # Generate the set of unique filters, fill in the values for this region
-    filter_assigns = connections.Filters([c[0] for c in connections_with_keys])
+    filter_assigns = connections.Filters([c for c in conns])
 
-    filters = list()
+    filters = [len(filter_assigns.filters)]
     for f in filter_assigns.filters:
         fv = fp.bitsk(np.exp(-dt / f.time_constant) if
                       f.time_constant is not None else 0.)
@@ -151,12 +158,13 @@ def make_filter_regions(connections_with_keys, dt):
         filters.append(0x0 if f.is_accumulatory else 0xffffffff)
 
     # Generate the routing entries
-    filter_routes = list()
-    for (c, ks) in connections_with_keys:
-        filter_routes.append(ks.routing_key)
-        filter_routes.append(ks.routing_mask)
+    filter_routes = [len(conns)]
+    for c in conns:
+        assert getattr(c, 'keyspace', None) is not None
+        filter_routes.append(c.keyspace.routing_key())
+        filter_routes.append(c.keyspace.routing_mask)
         filter_routes.append(filter_assigns[c])
-        filter_routes.append(ks.mask_d)
+        filter_routes.append(c.keyspace.mask_d)
 
     # Make the regions and return
     return (UnpartitionedListRegion(filters),
@@ -242,12 +250,54 @@ class MatrixRegionPartitionedByRows(_MatrixRegion):
 class UnpartitionedListRegion(object):
     """A region representing non-homogeneous data which won't be partitioned.
     """
-    def __init__(self, data):
+    def __init__(self, data=None, prepend_length=False, size=None,
+                 in_dtcm=True, unfilled=False, n_atoms_index=None):
+        if data is None:
+            size = 0
+        if data is not None and size is None:
+            size = len(data)
+
         self.data = data
-        self.size = len(data)
+        self.size = size
+        self.in_dtcm = in_dtcm
+        self.unfilled = unfilled
+        self.prepend_length = prepend_length
+        self.n_atoms_index = n_atoms_index
+
+    def sizeof(self, lo_atom, hi_atom):
+        return self.size + (1 if self.prepend_length else 0)
+
+    def write_out(self, lo_atom, hi_atom, spec):
+        if self.prepend_length:
+            spec.write(data=self.size)
+
+        for i, data in enumerate(self.data):
+            if self.n_atoms_index is not None and self.n_atoms_index == i:
+                spec.write(data=hi_atom-lo_atom+1)
+            else:
+                spec.write(data=data)
+
+
+class BitfieldBasedRecordingRegion(object):
+    """A region representing a recorded region.
+    """
+    def __init__(self, n_ticks):
+        self.n_ticks = n_ticks
+        self.in_dtcm = False
+        self.unfilled = True
+
+    def sizeof(self, lo_atom, hi_atom):
+        n_atoms = hi_atom - lo_atom + 1
+        frame_size = (n_atoms >> 5) + (1 if n_atoms & 0x1f else 0)
+        return frame_size * self.n_ticks
+
+
+class FrameBasedRecordingRegion(object):
+    in_dtcm = False
+    unfilled = True
+
+    def __init__(self, width, n_ticks):
+        self.size = width*n_ticks
 
     def sizeof(self, lo_atom, hi_atom):
         return self.size
-
-    def write_out(self, lo_atom, hi_atom, spec):
-        raise NotImplementedError

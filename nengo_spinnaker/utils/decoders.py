@@ -83,6 +83,7 @@ def get_combined_compressed_decoders(decoders, indices=None, headers=None,
     assert(indices is None or len(decoders) == len(indices))
     assert(headers is None or len(decoders) == len(headers))
     assert(len(compress) == len(decoders))
+    assert(np.all(decoders[0].shape[0] == d.shape[0] for d in decoders))
 
     # Compress all of the decoders, with threshold -1. for those we don't want
     # to compress
