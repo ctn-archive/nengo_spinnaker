@@ -10,7 +10,6 @@ from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 from nengo.utils.inspect import checked_call
 
-import assembler
 import utils
 
 
@@ -45,12 +44,13 @@ class Builder(object):
             (objs, conns) = transform(objs, conns, network.probes)
 
         # Remove pass through nodes
-        (objs, conns) = nengo.utils.builder.remove_passthrough_nodes(objs,
-                                                                     conns)
+        (objs, conns) = utils.builder.remove_passthrough_nodes(objs, conns)
+
         # Replace all connections with fully specified equivalents
         new_conns = list()
         for c in conns:
-            new_conns.append(IntermediateConnection.from_connection(c))
+            new_conns.append(
+                utils.builder.IntermediateConnection.from_connection(c))
         conns = new_conns
 
         # Apply all network transforms which modify/replace network objects
@@ -83,57 +83,6 @@ class Builder(object):
 
         # Return list of intermediate representation objects and connections
         return objs, conns, keyspace
-
-
-class IntermediateConnection(object):
-    """Intermediate representation of a connection object.
-    """
-    def __init__(self, pre, post, synapse=None, function=None, transform=None,
-                 solver=None, eval_points=None, keyspace=None,
-                 is_accumulatory=True):
-        self.pre = pre
-        self.post = post
-        self.synapse = synapse
-        self.function = function
-        self.transform = transform
-        self.solver = solver
-        self.eval_points = eval_points
-        self.keyspace = keyspace
-        self.width = post.size_in
-        self.is_accumulatory = is_accumulatory
-
-        self._preslice = None
-        self._postslice = None
-
-    def _required_transform_shape(self):
-        return self.transform.shape
-
-    @classmethod
-    def from_connection(cls, c):
-        """Return an IntermediateConnection object for any connections which
-        have not already been replaced.  A requirement of any replaced
-        connection type is that it has the attribute keyspace and can have
-        its pre and post amended by later functions.
-        """
-        if isinstance(c, nengo.Connection):
-            # Get the full transform
-            tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
-
-            # Return a copy of this connection but with less information and
-            # the full transform.
-            keyspace = getattr(c, 'keyspace', None)
-            return cls(c.pre, c.post, c.synapse, c.function, tr, c.solver,
-                       c.eval_points, keyspace)
-        return c
-
-    def to_connection(self):
-        """Create a standard Nengo connection from this object.
-        """
-        return nengo.Connection(self.pre, self.post, synapse=self.synapse,
-                                function=self.function,
-                                transform=self.transform, solver=self.solver,
-                                eval_points=self.eval_points,
-                                add_to_container=False)
 
 
 def _create_keyspace(connections):
@@ -231,6 +180,7 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
     @classmethod
     def from_object(cls, ens, out_conns, dt, rng):
         assert isinstance(ens.neuron_type, nengo.neurons.LIF)
+        assert isinstance(ens, nengo.Ensemble)
 
         if ens.seed is None:
             rng = np.random.RandomState(rng.tomaxint())
@@ -268,7 +218,7 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
             encoders = sphere.sample(ens.n_neurons, rng=rng)
         else:
             encoders = np.array(ens.encoders, dtype=np.float64)
-            enc_shape = (ens.n_neurons, ens.n_dimensions)
+            enc_shape = (ens.n_neurons, ens.size_in)
 
             if encoders.shape != enc_shape:
                 # TODO Remove this when it is checked by Nengo
@@ -390,7 +340,8 @@ def build_ensembles(objects, connections, probes, dt, rng):
 Builder.register_object_transform(build_ensembles)
 
 
-class IntermediateGlobalInhibitionConnection(IntermediateConnection):
+class IntermediateGlobalInhibitionConnection(
+        utils.builder.IntermediateConnection):
     @classmethod
     def from_connection(cls, c):
         # Assert that the transform is as we'd expect
@@ -448,7 +399,8 @@ def insert_decoded_output_probes(objs, connections, probes):
             if 'transform' not in conn_args:
                 assert probe.target.size_out == p.size_in
                 conn_args['transform'] = np.eye(p.size_in)
-            c = IntermediateConnection(probe.target, p, **probe.conn_args)
+            c = utils.builder.IntermediateConnection(probe.target, p,
+                                                     **probe.conn_args)
 
             # Add the new probe object and connection object
             objs.append(p)
