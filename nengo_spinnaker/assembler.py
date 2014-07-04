@@ -342,4 +342,14 @@ class FilterVertex(utils.vertices.NengoVertex):
 
         return fv
 
+    @classmethod
+    def assemble_from_intermediate(cls, fv, assembler):
+        # Create the vertex, then assemble that and return
+        in_conns = utils.connections.Connections(
+            assembler.get_incoming_connections(fv))
+        return cls.assemble(
+            cls(fv.size_in, in_conns, assembler.dt), assembler)
+
 Assembler.register_object_builder(FilterVertex.assemble, FilterVertex)
+Assembler.register_object_builder(FilterVertex.assemble_from_intermediate,
+                                  builder.IntermediateFilter)

@@ -71,8 +71,8 @@ class Builder(object):
                 c.keyspace = keyspace()
 
             # Set fields within the keyspace
-            c.keyspace = c.keyspace(o=object_ids[c.pre])
             if not c.keyspace.is_set_i:
+                c.keyspace = c.keyspace(o=object_ids[c.pre])
                 c.keyspace = c.keyspace(i=connection_ids[c])
 
         # Build the list of output keys for all of the ensemble objects now
@@ -132,8 +132,9 @@ def _get_outgoing_ids(connections):
 
 class IntermediateEnsemble(object):
     def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 eval_points, decoder_headers):
+                 eval_points, decoder_headers, label=None):
         self.n_neurons = n_neurons
+        self.label = label
 
         # Assert that the number of neurons is reflected in other parameters
         assert gains.size == n_neurons
@@ -374,10 +375,11 @@ def process_global_inhibition_connections(objs, connections, probes):
 
 
 class IntermediateProbe(object):
-    def __init__(self, size_in, sample_every, probe):
+    def __init__(self, size_in, sample_every, probe, label=None):
         self.size_in = size_in
         self.sample_every = sample_every
         self.probe = probe
+        self.label = label
 
 
 def insert_decoded_output_probes(objs, connections, probes):
@@ -409,3 +411,8 @@ def insert_decoded_output_probes(objs, connections, probes):
     return objs, connections
 
 Builder.register_connectivity_transform(insert_decoded_output_probes)
+
+
+class IntermediateFilter(object):
+    def __init__(self, size_in):
+        self.size_in = size_in
