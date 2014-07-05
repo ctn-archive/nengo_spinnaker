@@ -326,9 +326,8 @@ class FilterVertex(utils.vertices.NengoVertex):
         self.regions = [system_region, None, in_filters, in_routing]
 
     @classmethod
-    def assemble(cls, fv, assembler):
-        # Create the output keys region and add it to the instance, then
-        # return.
+    def get_output_keys_region(cls, fv, assembler):
+        # Add output keys to the given fv component
         out_conns = assembler.get_outgoing_connections(fv)
         assert len(out_conns) == 0 or len(out_conns) == 1  # Only one out edge
 
@@ -338,8 +337,13 @@ class FilterVertex(utils.vertices.NengoVertex):
             for d in range(fv.size_in):
                 output_keys.append(c.keyspace.key(d=d))
 
-        fv.regions[1] = utils.vertices.UnpartitionedListRegion(output_keys)
+        return utils.vertices.UnpartitionedListRegion(output_keys)
 
+    @classmethod
+    def assemble(cls, fv, assembler):
+        # Create the output keys region and add it to the instance, then
+        # return.
+        fv.regions[1] = cls.get_output_keys_region(fv, assembler)
         return fv
 
     @classmethod
@@ -347,8 +351,11 @@ class FilterVertex(utils.vertices.NengoVertex):
         # Create the vertex, then assemble that and return
         in_conns = utils.connections.Connections(
             assembler.get_incoming_connections(fv))
-        return cls.assemble(
-            cls(fv.size_in, in_conns, assembler.dt), assembler)
+
+        fv_ = cls(fv.size_in, in_conns, assembler.dt)
+        fv_.regions[1] = cls.get_output_keys_region(fv, assembler)
+
+        return fv_
 
 Assembler.register_object_builder(FilterVertex.assemble, FilterVertex)
 Assembler.register_object_builder(FilterVertex.assemble_from_intermediate,
