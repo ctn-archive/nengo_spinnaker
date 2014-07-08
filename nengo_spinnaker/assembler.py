@@ -379,7 +379,7 @@ class MulticastPlayer(utils.vertices.NengoVertex):
     @classmethod
     def assemble(cls, mcp, assembler):
         # Get all the symbols to transmit prior to and after the simulation
-        sinks = [c.post for c in assembler.get_outgoing_connections(mcp)]
+        sinks = set([c.post for c in assembler.get_outgoing_connections(mcp)])
 
         start_items = list()
         end_items = list()
