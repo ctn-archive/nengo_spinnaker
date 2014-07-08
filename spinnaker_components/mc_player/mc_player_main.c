@@ -41,7 +41,7 @@ bool get_packets(address_t source, uint** dest) {
   dest[0] = dest_;
 
   // Copy those packets across
-  spin1_memcpy(dest_, source, 1 + sizeof(mc_packet_t) * source[0]);
+  spin1_memcpy(dest_, source, sizeof(uint) + sizeof(mc_packet_t) * source[0]);
 
   // Print all packets
   io_printf(IO_BUF, "%d packets:\n", source[0]);
