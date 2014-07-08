@@ -2,6 +2,7 @@ import logging
 import numpy as np
 import sys
 import time
+import platform
 
 import nengo
 from pacman103.core import control
@@ -177,34 +178,55 @@ class Simulator(object):
                 current_time = 0.
                 try:
                     if self.host_sim is not None:
-                        while (time_in_seconds is None or
-                               current_time < time_in_seconds):
-                            # Execute a single step of the host simulator and
-                            # measure how long it takes.
-                            s = time.clock()
-                            self.host_sim.step()
-                            t = time.clock() - s
+                        # TODO: record start time and compute from there
 
-                            # If it takes less than one time step then sleep
-                            # for the remaining time
-                            if t < self.host_sim.dt:
-                                time.sleep(self.host_sim.dt - t)
-                                t = self.host_sim.dt
+                        if platform.system() == 'Windows':
+                            while (time_in_seconds is None or
+                                   current_time < time_in_seconds):
+                                # Execute a single step of the host simulator and
+                                # measure how long it takes.
+                                s = time.clock()
+                                self.host_sim.step()
+                                t = time.clock() - s
 
-                            # TODO: Currently if one step of the simulator
-                            # takes more than one time step we can't do
-                            # anything, so the host lags behind the board.
-                            # We should request that we can modify the time
-                            # step of the reference simulator to stretch the
-                            # time steps on the host so that it stays in
-                            # step with the board, albeit at a lower sample
-                            # rate.
-                            #
-                            # if t > self.host_sim.dt:
-                            #     self.host_sim.dt = t
+                                # If it takes less than one time step then sleep
+                                # for the remaining time
+                                if t < self.host_sim.dt:
+                                    t = time.clock() - s
+                                    # Note: time.sleep() sucks on windows
+                                    #time.sleep(self.host_sim.dt - t)
 
-                            # Keep track of how long we've been running for
-                            current_time += t
+                                current_time += t
+                        else:
+
+                            while (time_in_seconds is None or
+                                   current_time < time_in_seconds):
+                                # Execute a single step of the host simulator and
+                                # measure how long it takes.
+                                s = time.clock()
+                                self.host_sim.step()
+                                t = time.clock() - s
+
+                                # If it takes less than one time step then sleep
+                                # for the remaining time
+                                if t < self.host_sim.dt:
+                                    time.sleep(self.host_sim.dt - t)
+                                    t = self.host_sim.dt
+
+                                # TODO: Currently if one step of the simulator
+                                # takes more than one time step we can't do
+                                # anything, so the host lags behind the board.
+                                # We should request that we can modify the time
+                                # step of the reference simulator to stretch the
+                                # time steps on the host so that it stays in
+                                # step with the board, albeit at a lower sample
+                                # rate.
+                                #
+                                # if t > self.host_sim.dt:
+                                #     self.host_sim.dt = t
+
+                                # Keep track of how long we've been running for
+                                current_time += t
                     else:
                         # If there are no Nodes to simulate on the host then we
                         # either sleep for the specified run time, or we sleep
