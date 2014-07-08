@@ -155,7 +155,7 @@ def _create_replacement_connection(c_in, c_out):
     # check if the transform is 0 (this happens a lot
     #  with things like identity transforms)
     if np.all(transform == 0):
-        pass
+        return None
 
     # Determine the combined keyspace
     if (getattr(c_out, 'keyspace', None) is not None and

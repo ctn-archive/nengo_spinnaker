@@ -306,14 +306,14 @@ def build_ensembles(objects, connections, probes, dt, rng):
 
         # Modify connections into/out of this ensemble
         for c in connections:
-            if c.pre == obj:
+            if c.pre is obj:
                 c.pre = new_obj
-            if c.post == obj:
+            if c.post is obj:
                 c.post = new_obj
 
         # Mark the Ensemble as recording spikes/voltages if appropriate
         for p in probes:
-            if p.target == obj:
+            if p.target is obj:
                 if p.attr == 'spikes':
                     new_obj.record_spikes = True
                     new_obj.probes.append(p)
