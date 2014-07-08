@@ -1,3 +1,4 @@
+import collections
 import itertools
 import numpy as np
 
@@ -196,11 +197,11 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         spikes_region = utils.vertices.BitfieldBasedRecordingRegion(
             assembler.n_ticks)
 
-        vertex =  cls(ens.n_neurons, system_region, bias_region,
-                      encoders_region, decoders_region, output_keys_region,
-                      input_filter_region, input_filter_routing,
-                      inhib_filter_region, inhib_filter_routing, gain_region,
-                      spikes_region)
+        vertex = cls(ens.n_neurons, system_region, bias_region,
+                     encoders_region, decoders_region, output_keys_region,
+                     input_filter_region, input_filter_routing,
+                     inhib_filter_region, inhib_filter_routing, gain_region,
+                     spikes_region)
         vertex.probes = ens.probes
         return vertex
 
@@ -373,3 +374,50 @@ class FilterVertex(utils.vertices.NengoVertex):
 Assembler.register_object_builder(FilterVertex.assemble, FilterVertex)
 Assembler.register_object_builder(FilterVertex.assemble_from_intermediate,
                                   builder.IntermediateFilter)
+
+
+MulticastPacket = collections.namedtuple('MulticastPacket',
+                                         ['timestamp', 'key', 'payload'])
+
+
+class MulticastPlayer(utils.vertices.NengoVertex):
+    # NOTE This is intended to be temporary while PACMAN is refactored
+    MODEL_NAME = 'nengo_mc_player'
+    MAX_ATOMS = 1
+
+    def __init__(self):
+        super(MulticastPlayer, self).__init__(1)
+        self.regions = [None, None, None, None]
+
+    @classmethod
+    def assemble(cls, mcp, assembler):
+        # Get all the symbols to transmit prior to and after the simulation
+        sinks = [c.post for c in assembler.get_outgoing_connections(mcp)]
+
+        start_items = list()
+        end_items = list()
+
+        for sink in sinks:
+            for p in sink.start_packets:
+                start_items.extend([0, p.key,
+                                    0 if p.payload is None else p.payload,
+                                    p.payload is not None])
+
+            for p in sink.end_packets:
+                end_items.extend([0, p.key,
+                                  0 if p.payload is None else p.payload,
+                                  p.payload is not None])
+
+        # Build the regions
+        start_items.insert(0, len(start_items)/4)
+        start_region = utils.vertices.UnpartitionedListRegion(
+            start_items)
+        end_items.insert(0, len(end_items)/4)
+        end_region = utils.vertices.UnpartitionedListRegion(
+            end_items)
+        mcp.regions[1] = start_region
+        mcp.regions[3] = end_region
+
+        return mcp
+
+Assembler.register_object_builder(MulticastPlayer.assemble, MulticastPlayer)

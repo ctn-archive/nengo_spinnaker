@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------
 # Code derived from Andrew Rowley, University of Manchester
 
-APPS = ensemble sdp_tx sdp_rx filter value_sink value_source
+APPS = ensemble sdp_tx sdp_rx filter mc_player value_sink value_source
 APP_OUTPUT_DIR = $(PWD)/../nengo_spinnaker/binaries
 COMPLETE_SOURCE = ./*/*.c ./*/*.h
 

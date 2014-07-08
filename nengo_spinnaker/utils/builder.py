@@ -158,11 +158,17 @@ def _create_replacement_connection(c_in, c_out):
         pass
 
     # Determine the combined keyspace
-    if getattr(c_out, 'keyspace', None) is not None:
-        keyspace = getattr(c_in, 'keyspace', None)
-    elif getattr(c_in, 'keyspace', None) is not None:
+    if (getattr(c_out, 'keyspace', None) is not None and
+            getattr(c_in, 'keyspace', None) is None):
+        # If the out keyspace is specified but the IN isn't, then use the out
+        # keyspace
         keyspace = getattr(c_out, 'keyspace', None)
+    elif (getattr(c_in, 'keyspace', None) is not None and
+            getattr(c_out, 'keyspace', None) is None):
+        # Vice versa
+        keyspace = getattr(c_in, 'keyspace', None)
     elif getattr(c_in, 'keyspace', None) == getattr(c_out, 'keyspace', None):
+        # The keyspaces are equivalent
         keyspace = getattr(c_in, 'keyspace', None)
     else:
         # XXX: The incoming and outcoming connections have assigned
