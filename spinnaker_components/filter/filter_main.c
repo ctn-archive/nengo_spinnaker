@@ -33,6 +33,7 @@ void filter_update(uint ticks, uint arg1) {
       val = bitsk(g_filter.output[d]);
       spin1_send_mc_packet(g_filter.keys[d], val, WITH_PAYLOAD);
       spin1_delay_us(g_filter.interpacket_pause);
+      io_printf(IO_BUF, "Tx %08x %k\n", g_filter.keys[d], val);
     }
   }
 }
@@ -74,6 +75,15 @@ bool data_get_transform(address_t addr) {
 
   spin1_memcpy(g_filter.transform, addr,
                g_filter.size_in * g_filter.size_out * sizeof(uint));
+
+  io_printf(IO_BUF, "Transform = [");
+  for (uint i = 0; i < g_filter.size_out; i++) {
+    for (uint j = 0; j < g_filter.size_in; j++) {
+      io_printf(IO_BUF, "%k ", g_filter.transform[i*g_filter.size_in + j]);
+    }
+    io_printf(IO_BUF, "\n");
+  }
+  io_printf(IO_BUF, "]\n");
 
   return true;
 }

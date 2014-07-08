@@ -331,7 +331,7 @@ class FilterVertex(utils.vertices.NengoVertex):
         output_keys = list()
 
         for c in assembler.get_outgoing_connections(fv):
-            for d in c.width:
+            for d in range(c.width):
                 output_keys.append(c.keyspace.key(d=d))
 
         return utils.vertices.UnpartitionedListRegion(output_keys)
@@ -346,8 +346,8 @@ class FilterVertex(utils.vertices.NengoVertex):
             assert tf.function is None
 
         transforms = np.vstack(t.transform for t in conns.transforms_functions)
-        transform_region = utils.vertices.MatrixRegionPartitionedByRows(
-            transforms)
+        transform_region = utils.vertices.UnpartitionedMatrixRegion(
+            transforms, formatter=utils.fp.bitsk)
 
         return transforms.shape[0], transform_region
 
@@ -365,9 +365,11 @@ class FilterVertex(utils.vertices.NengoVertex):
         in_conns = utils.connections.Connections(
             assembler.get_incoming_connections(fv))
 
-        fv_ = cls(fv.size_in, in_conns, assembler.dt)
+        fv_ = cls(fv.size_in, in_conns, assembler.dt,
+                  output_period=fv.transmission_period)
         fv_.regions[1] = cls.get_output_keys_region(fv, assembler)
-        fv_.regions[0][1], fv_.regions[4] = cls.get_transform(fv, assembler)
+        fv_.regions[0].data[1], fv_.regions[4] =\
+            cls.get_transform(fv, assembler)
 
         return fv_
 
