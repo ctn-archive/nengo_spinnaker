@@ -20,7 +20,7 @@ void filter_update(uint ticks, uint arg1) {
 
     uint val = 0x0000;
     for(uint d = 0; d < g_filter.n_dimensions; d++) {
-      val = bitsk(g_filter.input[d]);
+      val = bitsk(g_filter.input[d] * g_filter.scale);
       spin1_send_mc_packet(g_filter.keys[d], val, WITH_PAYLOAD);
       spin1_delay_us(g_filter.interpacket_pause);
     }
@@ -32,6 +32,7 @@ bool data_system(address_t addr) {
   g_filter.machine_timestep = addr[1];
   g_filter.transmission_delay = addr[2];
   g_filter.interpacket_pause = addr[3];
+  g_filter.interpacket_pause = kbits(addr[4]);
 
   delay_remaining = g_filter.transmission_delay;
   io_printf(IO_BUF, "[Filter] transmission delay = %d\n", delay_remaining);

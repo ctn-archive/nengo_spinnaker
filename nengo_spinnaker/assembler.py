@@ -313,13 +313,13 @@ class FilterVertex(utils.vertices.NengoVertex):
     MAX_ATOMS = 1
 
     def __init__(self, size_in, in_connections, dt, output_period=100,
-                 interpacket_pause=1):
+                 interpacket_pause=1, scale=1.):
         super(FilterVertex, self).__init__(1)
         self.size_in = size_in
 
         # Create the system region
         system_region = utils.vertices.UnpartitionedListRegion([
-            size_in, 1000, output_period, interpacket_pause])
+            size_in, 1000, output_period, interpacket_pause, fp.bitsk(scale)])
 
         # Create the filter regions
         (in_filters, in_routing) = utils.vertices.make_filter_regions(

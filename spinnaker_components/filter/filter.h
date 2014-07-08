@@ -29,6 +29,8 @@ typedef struct filter_parameters {
 
   uint n_dimensions;       //!< Number of dimensions to represent
 
+  value_t scale;           //!< Scaling factor to apply to output
+
   value_t *input;          //!< Input buffer
   uint *keys;              //!< Output keys
 } filter_parameters_t;
