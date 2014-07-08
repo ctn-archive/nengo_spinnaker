@@ -1,5 +1,3 @@
-import collections
-import inspect
 import numpy as np
 import struct
 
@@ -32,8 +30,6 @@ class NengoVertex(graph.Vertex):
 
     def get_resources_for_atoms(self, lo_atom, hi_atom, n_machine_time_steps,
                                 *args):
-        n_atoms = hi_atom - lo_atom + 1
-
         cpu_usage = 0
         if hasattr(self, 'cpu_usage'):
             cpu_usage = self.cpu_usage(lo_atom, hi_atom)
@@ -64,10 +60,9 @@ class NengoVertex(graph.Vertex):
 
         # Get the executable
         executable_target = lib_map.ExecutableTarget(
-            resource_filename("nengo_spinnaker",
+            resource_filename(self.__class__.__module__.split('.')[0],
                               "binaries/%s.aplx" % self.MODEL_NAME),
-            x, y, p
-        )
+            x, y, p)
 
         return (executable_target, list(), mem_writes)
 
@@ -169,6 +164,7 @@ def make_filter_regions(conns, dt):
     # Make the regions and return
     return (UnpartitionedListRegion(filters),
             UnpartitionedListRegion(filter_routes))
+
 
 class _MatrixRegion(object):
     def __init__(self, matrix=None, shape=None, in_dtcm=True, unfilled=False,
@@ -301,6 +297,7 @@ class FrameBasedRecordingRegion(object):
 
     def sizeof(self, lo_atom, hi_atom):
         return self.size
+
 
 class UnpartitionedMatrixRegion(object):
     def __init__(self, matrix=None, shape=None, in_dtcm=True, unfilled=False,
