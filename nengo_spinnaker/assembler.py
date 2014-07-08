@@ -355,7 +355,7 @@ class FilterVertex(utils.vertices.NengoVertex):
     def assemble(cls, fv, assembler):
         # Create the output keys region and add it to the instance, then
         # return.
-        fv.regions[0][1], fv.regions[4] = cls.get_transform(fv, assembler)
+        fv.regions[0].data[1], fv.regions[4] = cls.get_transform(fv, assembler)
         fv.regions[1] = cls.get_output_keys_region(fv, assembler)
         return fv
 

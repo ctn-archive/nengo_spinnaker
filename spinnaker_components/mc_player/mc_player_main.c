@@ -57,6 +57,9 @@ bool get_packets(address_t source, uint** dest) {
 void c_main(void) {
   // Load in all data
   address_t address = system_load_sram();
+  if (leadAp) {
+    system_lead_app_configured();
+  }
   if (!get_packets(region_start(2, address), &start_packets) ||
       !get_packets(region_start(4, address), &end_packets)
   ) {
