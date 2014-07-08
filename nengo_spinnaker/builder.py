@@ -414,5 +414,6 @@ Builder.register_connectivity_transform(insert_decoded_output_probes)
 
 
 class IntermediateFilter(object):
-    def __init__(self, size_in):
+    def __init__(self, size_in, transmission_period=10):
         self.size_in = size_in
+        self.transmission_period = transmission_period

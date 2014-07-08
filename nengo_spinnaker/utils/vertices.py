@@ -301,3 +301,62 @@ class FrameBasedRecordingRegion(object):
 
     def sizeof(self, lo_atom, hi_atom):
         return self.size
+
+class UnpartitionedMatrixRegion(object):
+    def __init__(self, matrix=None, shape=None, in_dtcm=True, unfilled=False,
+                 prepend_length=False, formatter=None):
+        """Create a new MatrixRegion.
+
+        :param matrix: Matrix to represent in this region.
+        :param shape: Shape of the matrix, will be taken from the passed matrix
+                      if not supplied.
+        :param in_dtcm: Whether the region is copied into DTCM
+        :param unfilled: Whether the region has data written to it or otherwise
+        :param prepend_length: Include the length of the array as the first
+                               element.
+        :param formatter: Function to apply to each value before writing.
+        """
+        # Assert that the matrix matches the given shape
+        if matrix is not None:
+            if shape is not None and shape != matrix.shape:
+                raise ValueError
+            if shape is None:
+                shape = matrix.shape
+
+        # Store the matrix and the shape, and various options
+        self.matrix = matrix
+        self.shape = shape
+        self.in_dtcm = in_dtcm
+        self.unfilled = unfilled
+        self.prepend_length = prepend_length
+        self.formatter = formatter
+
+    def sizeof(self, lo_atom, hi_atom):
+        return self.shape[0] * self.shape[1]
+
+    def write_out(self, lo_atom, hi_atom, spec):
+        """Write the given region to the spec file.
+
+        :param lo_atom: Index of the first row/column to write.
+        :param hi_atom: Index of the last row/column to write.
+        :param spec: The spec file to write the array to.
+        """
+        # Get the limited version of the array, flatten and write
+        data = self.matrix
+        flat_data = data.reshape(data.size)
+
+        # Format the data if required
+        if self.formatter is None:
+            formatted_data = np.array(flat_data, dtype=np.uint32)
+        else:
+            formatted_data = np.vectorize(self.formatter)(flat_data)
+
+        # Add the length as the first word if desired
+        if self.prepend_length:
+            final_data = np.array(np.hstack([[data.size], formatted_data]),
+                                  dtype=np.uint32)
+        else:
+            final_data = formatted_data
+
+        # Write to the provided spec
+        spec.write_array(final_data)

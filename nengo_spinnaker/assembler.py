@@ -319,31 +319,43 @@ class FilterVertex(utils.vertices.NengoVertex):
 
         # Create the system region
         system_region = utils.vertices.UnpartitionedListRegion([
-            size_in, 1000, output_period, interpacket_pause])
+            size_in, None, 1000, output_period, interpacket_pause])
 
         # Create the filter regions
         (in_filters, in_routing) = utils.vertices.make_filter_regions(
             in_connections, dt)
-        self.regions = [system_region, None, in_filters, in_routing]
+        self.regions = [system_region, None, in_filters, in_routing, None]
 
     @classmethod
     def get_output_keys_region(cls, fv, assembler):
-        # Add output keys to the given fv component
-        out_conns = assembler.get_outgoing_connections(fv)
-        assert len(out_conns) == 0 or len(out_conns) == 1  # Only one out edge
-
         output_keys = list()
 
-        for c in out_conns:
-            for d in range(fv.size_in):
+        for c in assembler.get_outgoing_connections(fv):
+            for d in range(c.width):
                 output_keys.append(c.keyspace.key(d=d))
 
         return utils.vertices.UnpartitionedListRegion(output_keys)
 
     @classmethod
+    def get_transform(cls, fv, assembler):
+        # Combine the outgoing connections
+        conns = utils.connections.Connections(
+            assembler.get_outgoing_connections(fv))
+
+        for tf in conns.transforms_functions:
+            assert tf.function is None
+
+        transforms = np.vstack(t.transform for t in conns.transforms_functions)
+        transform_region = utils.vertices.UnpartitionedMatrixRegion(
+            transforms, formatter=utils.fp.bitsk)
+
+        return transforms.shape[0], transform_region
+
+    @classmethod
     def assemble(cls, fv, assembler):
         # Create the output keys region and add it to the instance, then
         # return.
+        fv.regions[0][1], fv.regions[4] = cls.get_transform(fv, assembler)
         fv.regions[1] = cls.get_output_keys_region(fv, assembler)
         return fv
 
@@ -353,8 +365,11 @@ class FilterVertex(utils.vertices.NengoVertex):
         in_conns = utils.connections.Connections(
             assembler.get_incoming_connections(fv))
 
-        fv_ = cls(fv.size_in, in_conns, assembler.dt)
+        fv_ = cls(fv.size_in, in_conns, assembler.dt,
+                  output_period=fv.transmission_period)
         fv_.regions[1] = cls.get_output_keys_region(fv, assembler)
+        fv_.regions[0].data[1], fv_.regions[4] =\
+            cls.get_transform(fv, assembler)
 
         return fv_
 

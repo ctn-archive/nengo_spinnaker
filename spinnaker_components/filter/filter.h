@@ -27,9 +27,12 @@ typedef struct filter_parameters {
 
   uint interpacket_pause;  //!< Delay in usecs between transmitting packets
 
-  uint n_dimensions;       //!< Number of dimensions to represent
+  uint size_in, size_out;  //!< The size of data to expect, to output
+
+  value_t *transform;      //!< A size_in-by-size_out transform for the data
 
   value_t *input;          //!< Input buffer
+  value_t *output;         //!< Output buffer
   uint *keys;              //!< Output keys
 } filter_parameters_t;
 extern filter_parameters_t g_filter; //!< Global parameters
