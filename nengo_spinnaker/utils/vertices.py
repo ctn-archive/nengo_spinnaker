@@ -140,7 +140,7 @@ def make_filter_regions(conns, dt):
     :returns: The filter region and the filter routing region
     """
     # Generate the set of unique filters, fill in the values for this region
-    filter_assigns = connections.Filters([c for c in conns])
+    filter_assigns = connections.Filters(set([c for c in conns]))
 
     filters = [len(filter_assigns.filters)]
     for f in filter_assigns.filters:

@@ -207,9 +207,9 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
         bias = ens.bias
         if gain is None or bias is None:
             if hasattr(ens.max_rates, 'sample'):
-                ens.max_rates = ens.max_rates.sample(ens.n_neurons, rng)
+                ens.max_rates = ens.max_rates.sample(ens.n_neurons, rng=rng)
             if hasattr(ens.intercepts, 'sample'):
-                ens.intercepts = ens.intercepts.sample(ens.n_neurons, rng)
+                ens.intercepts = ens.intercepts.sample(ens.n_neurons, rng=rng)
             (gain, bias) = ens.neuron_type.gain_bias(ens.max_rates,
                                                      ens.intercepts)
 
@@ -386,8 +386,8 @@ def insert_decoded_output_probes(objs, connections, probes):
     """Creates a new object representing decoded output probes and provides
     appropriate connections.
     """
-    objs = objs
-    connections = connections
+    objs = list(objs)
+    connections = list(connections)
 
     # Add new objects and connections for 'decoded output' probes
     for probe in probes:

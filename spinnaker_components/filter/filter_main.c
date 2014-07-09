@@ -33,7 +33,6 @@ void filter_update(uint ticks, uint arg1) {
       val = bitsk(g_filter.output[d]);
       spin1_send_mc_packet(g_filter.keys[d], val, WITH_PAYLOAD);
       spin1_delay_us(g_filter.interpacket_pause);
-      io_printf(IO_BUF, "Tx %08x %k\n", g_filter.keys[d], val);
     }
   }
 }
