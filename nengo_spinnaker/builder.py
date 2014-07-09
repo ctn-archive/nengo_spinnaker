@@ -250,7 +250,7 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
                 targets = np.zeros((len(evals), function_size))
 
                 for i, ep in enumerate(evals):
-                    targets[i] = ep
+                    targets[i] = function(ep)
 
             if solver is None:
                 solver = nengo.decoders.LstsqL2()
