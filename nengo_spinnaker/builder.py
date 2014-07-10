@@ -6,9 +6,11 @@ import math
 import numpy as np
 
 import nengo.utils.builder
+import nengo.utils.numpy as npext
 from nengo.utils import distributions as dists
 from nengo.utils.compat import is_integer
 from nengo.utils.inspect import checked_call
+from nengo.builder import pick_eval_points
 
 import utils
 
@@ -102,12 +104,18 @@ def _create_keyspace(connections):
     assert padding >= 0
     bits_o += padding
 
+    """
+    bits_o = 20
+    bits_i = 5
+    bits_d = 6
+    """
+
     # Create the keyspace
     return utils.keyspaces.create_keyspace(
         'NengoDefault',
         [('x', 1), ('o', bits_o), ('i', bits_i), ('d', bits_d)],
         'xoi'
-    )
+    )(x=0)
 
 
 def _get_outgoing_ids(connections):
@@ -189,29 +197,25 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
             rng = np.random.RandomState(ens.seed)
 
         # Generate evaluation points
-        if ens.eval_points is None:
-            dims, neurons = ens.dimensions, ens.n_neurons
-            n_points = max(np.clip(500 * dims, 750, 2500), 2*neurons)
-            eval_points = dists.UniformHypersphere(ens.dimensions).sample(
-                n_points, rng=rng) * ens.radius
-        elif is_integer(ens.eval_points):
-            eval_points = dists.UniformHypersphere(ens.dimensions).sample(
-                ens.eval_points, rng=rng) * ens.radius
+        if ens.eval_points is None or is_integer(ens.eval_points):
+            eval_points = pick_eval_points(ens=ens, n_points=ens.eval_points,
+                                           rng=rng)
         else:
-            eval_points = np.array(ens.eval_points, dtype=np.float64)
-            if eval_points.dim == 1:
-                eval_points.shape = (-1, 1)
+            eval_points = npext.array(ens.eval_points, dtype=np.float64,
+                                      min_dims=2)
+
+        # Determine max_rates and intercepts
+        if isinstance(ens.max_rates, dists.Distribution):
+            max_rates = ens.max_rates.sample(ens.n_neurons, rng=rng)
+        else:
+            max_rates = np.array(max_rates)
+        if isinstance(ens.intercepts, dists.Distribution):
+            intercepts = ens.intercepts.sample(ens.n_neurons, rng=rng)
+        else:
+            intercepts = np.array(intercepts)
 
         # Generate gains, bias
-        gain = ens.gain
-        bias = ens.bias
-        if gain is None or bias is None:
-            if hasattr(ens.max_rates, 'sample'):
-                ens.max_rates = ens.max_rates.sample(ens.n_neurons, rng=rng)
-            if hasattr(ens.intercepts, 'sample'):
-                ens.intercepts = ens.intercepts.sample(ens.n_neurons, rng=rng)
-            (gain, bias) = ens.neuron_type.gain_bias(ens.max_rates,
-                                                     ens.intercepts)
+        gain, bias = ens.neuron_type.gain_bias(max_rates, intercepts)
 
         # Generate encoders
         if ens.encoders is None:
@@ -227,8 +231,7 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
                     'Encoder shape is %s. Should be (n_neurons, dimensions); '
                     "in this case '%s'." % enc_shape, encoders.shape)
 
-            norm = np.sum(encoders ** 2, axis=1)[:, np.newaxis]
-            encoders /= np.sqrt(norm)
+            encoders /= npext.norm(encoders, axis=1, keepdims=True)
 
         # Generate decoders for outgoing connections
         decoders = list()
@@ -238,6 +241,10 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
             """Internal function for building a single decoder."""
             if evals is None:
                 evals = eval_points
+            elif is_integer(evals):
+                evals = pick_eval_points(ens=ens, n_points=evals, rng=rng)
+
+            assert solver is None or not solver.weights
 
             x = np.dot(evals, encoders.T / ens.radius)
             activities = ens.neuron_type.rates(x, gain, bias)
@@ -255,7 +262,7 @@ class IntermediateLIFEnsemble(IntermediateEnsemble):
             if solver is None:
                 solver = nengo.decoders.LstsqL2()
 
-            return solver(activities, targets, rng)[0]
+            return solver(activities, targets, rng=rng)[0]
 
         decoder_builder = utils.decoders.DecoderBuilder(build_decoder)
 

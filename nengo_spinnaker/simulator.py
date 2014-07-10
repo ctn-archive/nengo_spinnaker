@@ -319,12 +319,13 @@ class Simulator(object):
         finally:
             # Stop the application from executing
             try:
-                logger.debug("Stopping the application from executing.")
+                logger.info("Stopping the application from executing.")
                 if clean:
                     # TODO: At some point this will become a clearer call to
                     # SpiNNaker manager library, at the moment this just says
                     # "Send signal 2 (meaning stop) to all executables with the
                     #  app_id we've given them (usually 30)."
+                    time.sleep(0.1)
                     self.controller.txrx.app_calls.app_signal(
                         self.controller.dao.app_id, 2)
             except Exception:

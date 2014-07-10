@@ -46,7 +46,7 @@ class DecoderBuilder(object):
                 None if eval_points is None else totuple(eval_points))
 
             self.built_decoders[key] = decoder
-        return np.dot(decoder, transform.T)
+        return np.dot(transform, decoder.T).T
 
 
 def get_compressed_decoder(decoder, threshold=0.):

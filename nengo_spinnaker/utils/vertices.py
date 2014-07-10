@@ -346,7 +346,8 @@ class UnpartitionedMatrixRegion(object):
         if self.formatter is None:
             formatted_data = np.array(flat_data, dtype=np.uint32)
         else:
-            formatted_data = np.vectorize(self.formatter)(flat_data)
+            formatted_data = np.vectorize(self.formatter)(flat_data).astype(
+                np.uint32)
 
         # Add the length as the first word if desired
         if self.prepend_length:
