@@ -33,6 +33,10 @@ value_t* initialise_output( region_system_t *pars ){
     MALLOC_FAIL_NULL(gp_output_keys,
                      pars->n_output_dimensions * sizeof(uint),
                      "[Ensemble]");
+
+    for (uint n = 0; n < g_n_output_dimensions; n++) {
+      gp_output_values[n] = 0;
+    }
   }
 
   io_printf( IO_BUF, "[Ensemble] n_output_dimensions = %d\n",
