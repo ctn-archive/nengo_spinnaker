@@ -52,3 +52,18 @@ else:
     sim = nengo_spinnaker.Simulator(model, config=config)
 
 sim.run(0.5)
+
+from matplotlib import pyplot as plt
+figure = plt.figure()
+
+p1 = figure.add_subplot(2,1,1)
+p1.plot(sim.trange(), sim.data[pActions])
+p1.set_ylabel('Action')
+p1.set_ylim([-0.1, 1.1])
+
+p2 = figure.add_subplot(2,1,2)
+p2.plot(sim.trange(), sim.data[pUtility])
+p2.set_ylabel('Utility')
+p2.set_ylim([-0.1, 1.1])
+
+plt.show(block=True)
