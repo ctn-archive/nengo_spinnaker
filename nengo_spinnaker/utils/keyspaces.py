@@ -22,6 +22,7 @@ class MetaKeySpace(type):
         new_dct = dict([(k, v) for (k, v) in dct.items() if k != "fields" and
                         k != "routing_fields"])
         new_dct['__fields__'] = [f[0] for f in dct['fields']]
+        new_dct['__fieldsc__'] = dct['fields']
         new_dct['__field_lengths__'] = dict(dct['fields'])
         new_dct['__routing_fields__'] = dct['routing_fields']
         new_dct['__filter_fields__'] = dct['filter_fields']
@@ -78,10 +79,7 @@ class KeySpace(with_metaclass(MetaKeySpace)):
     def _make_key(self, fields, field_values):
         key = 0x0
         b = 32
-        for f in fields:
-            # Get the number of bits and the maximum value
-            bits = self.__field_lengths__[f]
-            v_max = 2**bits - 1
+        for (f, bits) in self.__fieldsc__:
 
             # Get the value for this field -- try from the dict first, then
             # the local values.  That way the value in the KeySpace takes
@@ -93,13 +91,14 @@ class KeySpace(with_metaclass(MetaKeySpace)):
             v_ = field_values.get(f, None)
             v = self._field_values.get(f, v_)
 
-            # Assert that it is within range
+            # Get the maximum value, assert value is in range
+            v_max = 2**bits - 1
             if v is not None and v > v_max:
                 raise ValueError("%d is larger than the maximum value for this"
                                  " field '%s' (%d)" % (v, f, v_max))
 
             # Add this field to the key
-            if v is not None:
+            if v is not None and f in fields:
                 key |= v << (b - bits)
 
             b -= bits
