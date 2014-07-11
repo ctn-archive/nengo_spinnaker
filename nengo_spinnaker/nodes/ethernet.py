@@ -5,17 +5,14 @@ import socket
 import struct
 import threading
 
+import nengo
+
 from pacman103.core.spinnman.sdp import sdp_message as sdp
 
-from nengo_spinnaker.nodes.sdp_receive_vertex import SDPReceiveVertex
-from nengo_spinnaker.nodes.sdp_transmit_vertex import SDPTransmitVertex
 from nengo_spinnaker.utils import fp
+from nengo_spinnaker import assembler, utils
 
 logger = logging.getLogger(__name__)
-
-ConnectionRx = collections.namedtuple('ConnectionRxes', ['rx', 'connection'])
-BufferedConnection = collections.namedtuple(
-    'BufferedConnection', ['rx', 'connection', 'transform', 'buffered_output'])
 
 
 def stop_on_keyboard_interrupt(f):
@@ -25,6 +22,78 @@ def stop_on_keyboard_interrupt(f):
         except KeyboardInterrupt:
             self.stop()
     return f_
+
+
+class TransformFunctionCollection(object):
+    def __init__(self, outkeys):
+        self.outkeys = outkeys
+        self._tfs = list()
+
+    def append(self, transform_function):
+        # Generate the output keys for the transform/function
+        for d in range(transform_function.transform.shape[0]):
+            self.outkeys.append(transform_function.keyspace.key(d=d))
+
+        # Store and reduce the remaining space
+        self._tfs.append(transform_function)
+
+    def __getitem__(self, i):
+        return self._tfs[i]
+
+
+class SDPRxVertex(utils.vertices.NengoVertex):
+    MODEL_NAME = 'nengo_rx'
+    MAX_ATOMS = 1
+
+    def __init__(self):
+        super(SDPRxVertex, self).__init__(1)
+        self.output_keys = list()
+        self.transforms_functions = TransformFunctionCollection(
+            self.output_keys)
+        self.regions = list()
+
+    @property
+    def remaining_dims(self):
+        return 64 - sum(
+            [c.transform.shape[0] for c in self.transforms_functions])
+
+    @classmethod
+    def assemble(cls, rx, assembler):
+        # Create the regions and monkey-patch them into the SDPRxVertex
+        system_items = [1000, 64-rx.remaining_dims]
+        system_region = utils.vertices.UnpartitionedListRegion(system_items)
+        output_keys_region =\
+            utils.vertices.UnpartitionedListRegion(rx.output_keys)
+
+        rx.regions.extend([system_region, output_keys_region])
+
+        return rx
+
+assembler.Assembler.register_object_builder(SDPRxVertex.assemble, SDPRxVertex)
+
+
+class SDPTxVertex(utils.vertices.NengoVertex):
+    MODEL_NAME = 'nengo_tx'
+    MAX_ATOMS = 1
+
+    def __init__(self, size_in, in_connections, dt, output_period=100):
+        super(SDPTxVertex, self).__init__(1)
+        """Create a new SDPTxVertex.
+
+        :param size_in: The number of dimensions to accept.
+        :param in_connections: A list of connections arriving at the Tx vertex.
+        :param dt: Time step of the simulation.
+        :param output_period: Period with which to transmit SDP packets (in
+                              ticks)
+        """
+        # Construct the data to be loaded onto the board
+        system_items = [size_in, 1000, output_period]
+        system_region = utils.vertices.UnpartitionedListRegion(system_items)
+        (input_filters, input_filter_routing) =\
+            utils.vertices.make_filter_regions(in_connections, dt)
+
+        # Create the regions
+        self.regions = [system_region, input_filters, input_filter_routing]
 
 
 class Ethernet(object):
@@ -37,154 +106,85 @@ class Ethernet(object):
         self.input_period = input_period
         self.comms = None
 
-        # Map Node --> Tx
-        self.nodes_txes = dict()
+        self.rx_elements = list()
 
-        # Map Node --> unique Conns
+        # Map Node --> Tx
+        self.nodes_tx = dict()
+
+        # Map Node --> transform, function, buffer index, rx
         self.nodes_connections = collections.defaultdict(list)
 
-        # Map Node --> [Rx]
-        self.nodes_rxes = collections.defaultdict(list)
-
-        # Map unique Connections --> Rx
-        self.connections_rx = dict()
-
-    def build_node(self, builder, node):
-        """Do nothing, we build Node IO when connecting to/from a Node."""
-        pass
-
-    def get_node_in_vertex(self, builder, conn):
-        """Return the Vertex at which to terminate the given x->Node connection
-
-        Nodes receive inputs from Tx vertices, see if a Tx vertex has already
-        been assigned for this Node: if so, then return it, otherwise create
-        a new Tx vertex and return that.
-
-        .. todo::
-            Modify Tx vertices so that they can receive input for multiple
-            Nodes.
-        """
-        # Have we already assigned a Tx vertex for this Node
-        if conn.post in self.nodes_txes:
-            return self.nodes_txes[conn.post]
-
-        # Create a new Tx, add to the map, add to the graph
-        tx = SDPTransmitVertex(conn.post, label="SDP_TX %s" % conn.post)
-        self.nodes_txes[conn.post] = tx
-        builder.add_vertex(tx)
-        return tx
-
-    def get_node_out_vertex(self, builder, conn):
-        """Return the Vertex at which to originate the given Node->x connection
-
-        Nodes transmit output to Rx vertices.  See if an Rx vertex with a
-        compatible connection has already been assigned.  If so, return it,
-        otherwise create a new Rx vertex and return that.  Also generate a
-        list of unique connections (i.e., those not found compatible).
-        """
-        rx = None
-        for _rx in self.nodes_rxes[conn.pre]:
-            # See if we've already assigned a similar connection for this Node
-            if _rx.contains_compatible_connection(conn):
-                rx = _rx
-                break
-        else:
-            # Remember that this is a unique connection
-            self.nodes_connections[conn.pre].append(conn)
-
-            # See if we have space for this connection in any of the existing
-            # Rxes for this Node
-            for _rx in self.nodes_rxes[conn.pre]:
-                if _rx.n_remaining_dimensions >= conn.dimensions:
-                    rx = _rx
-                    break
-            else:
-                rx = SDPReceiveVertex()
-                self.nodes_rxes[conn.pre].insert(0, rx)
-                builder.add_vertex(rx)
-
-            # Record the association between this unique connection and the Rx
-            self.connections_rx[conn] = rx
-
-        # Add the connection to the selected Rx, return it
-        rx.add_connection(conn)
-        return rx
+        # Map Rx --> Fresh
+        self.rx_fresh = dict()
+        self.rx_buffers = collections.defaultdict(list)
 
     @property
     def io(self):
-        if self.comms is None:
-            self.comms = EthernetCommunicator()
-        return self.comms
+        return self
+
+    def prepare_network(self, objects, connections, dt, keyspace):
+        """Swap out each Node with appropriate IO objects."""
+        new_objs = list()
+        new_conns = list()
+
+        for obj in objects:
+            # For each Node, combine outgoing connections
+            if not isinstance(obj, nengo.Node):
+                # If not a Node then retain the object
+                new_objs.append(obj)
+                continue
+
+            out_conns = [c for c in connections if c.pre == obj and
+                         not isinstance(c.post, nengo.Node)]
+            outgoing_conns = utils.connections.Connections(out_conns)
+
+            # Assign each unique combination of transform/function/keyspace to
+            # a SDPRxVertex.
+            for i, tfk in enumerate(outgoing_conns.transforms_functions):
+                assert tfk.keyspace.is_set_i
+                for rx in self.rx_elements:
+                    if rx.remaining_dims >= tfk.transform.shape[0]:
+                        break
+                else:
+                    rx = SDPRxVertex()
+                    self.rx_elements.append(rx)
+                    self.rx_fresh[rx] = False
+                    new_objs.append(rx)
+
+                rx.transforms_functions.append(tfk)
+                buf = np.zeros(tfk.transform.shape[0])
+                self.nodes_connections[obj].append((tfk, buf, rx))
+                self.rx_buffers[rx].append(buf)
+
+                # Replace the pre on all connections from this Node to account
+                # for the change to the SDPRxVertex.
+                for c in out_conns:
+                    if outgoing_conns[c] == i:
+                        c.pre = rx
+                        c.is_accumulatory = False
+                        new_conns.append(c)
+
+            # Provide a Tx element to receive input for the Node
+            in_conns = [c for c in connections if c.post == obj and
+                        not isinstance(c.pre, nengo.Node)]
+            if len(in_conns) > 0:
+                tx = SDPTxVertex(obj.size_in, in_conns, dt)
+                self.nodes_tx[obj] = tx
+                new_objs.append(tx)
+
+                for c in in_conns:
+                    c.post = tx
+                    new_conns.append(c)
+
+        # Retain all other connections unchanged
+        for c in connections:
+            if not (isinstance(c.pre, nengo.Node) or
+                    isinstance(c.post, nengo.Node)):
+                new_conns.append(c)
+
+        return new_objs, new_conns
 
     def __enter__(self):
-        # Generates a map of Nodes --> [(Rx, Connection)]
-        nodes_connections_rxs = collections.defaultdict(list)
-        for (node, connections) in self.nodes_connections.items():
-            for c in connections:
-                nodes_connections_rxs[node].append(
-                    ConnectionRx(rx=self.connections_rx[c], connection=c)
-                )
-
-        self.comms.setup(self.machinename, self.port, self.input_period,
-                         self.nodes_txes, nodes_connections_rxs)
-        return self.comms
-
-    def __exit__(self, exc_type, exc_val, traceback):
-        self.comms.stop()
-
-
-class EthernetCommunicator(object):
-    def __init__(self):
-        """Create the object so that we have reference to it, setup has to be
-        later.
-        """
-        pass
-
-    def setup(self, machinename, port, input_period, nodes_tx,
-              nodes_connections_rxs):
-        """Create a new EthernetCommunicator."""
-        self.machinename = machinename
-        self.port = port
-        self.input_period = input_period
-        self.nodes_tx = nodes_tx
-        self.nodes_connection_rxs = nodes_connections_rxs
-
-        # Generate a list of Rxs, then generate an output buffer for each,
-        # finally slice that buffer and store references with Nodes and
-        # Connections
-        self.rxs = list()
-        self.rx_fresh = dict()
-        self.rx_buffer = dict()
-        self.nodes_connections_buffers = collections.defaultdict(list)
-        self._node_out = list()  # List of Nodes which provide output
-
-        for (node, connections_rxs) in nodes_connections_rxs.items():
-            if node not in self._node_out:
-                self._node_out.append(node)
-
-            for crx in connections_rxs:
-                # If we haven't seen this Rx element before, then add it to the
-                # set of Rx elements, create a fresh mark and a buffer
-                if crx.rx not in self.rxs:
-                    self.rxs.append(crx.rx)
-                    self.rx_fresh[crx.rx] = False
-                    self.rx_buffer[crx.rx] = np.zeros(
-                        crx.rx.n_assigned_dimensions)
-
-                # Offset into the Rx buffer and slice
-                offset = crx.rx.get_connection_offset(crx.connection)
-                cbuffer = self.rx_buffer[crx.rx][
-                    offset:offset + crx.connection.post.size_in]
-
-                # Store the Rx, Connection and Buffer slice
-                i = crx.rx.connections[crx.connection]
-                _transform = \
-                    crx.rx.connections.transforms_functions[i].transform
-                self.nodes_connections_buffers[node].append(
-                    BufferedConnection(crx.rx, crx.connection, _transform,
-                                       cbuffer)
-                )
-
         # Generate a map of x, y, p to Node for received input, a cache of Node
         # input
         self.xyp_nodes = dict()
@@ -215,6 +215,8 @@ class EthernetCommunicator(object):
         self.tx_timer = threading.Timer(self.tx_period, self.sdp_tx_tick)
         self.tx_timer.name = "EthernetTx"
 
+        return self
+
     def start(self):
         self.tx_timer.start()
         self.rx_timer.start()
@@ -226,6 +228,9 @@ class EthernetCommunicator(object):
         self.rx_timer.cancel()
         self.in_socket.close()
         self.out_socket.close()
+
+    def __exit__(self, exc_type, exc_val, traceback):
+        self.stop()
 
     def get_node_input(self, node):
         """Get the input for the given Node.
@@ -242,19 +247,13 @@ class EthernetCommunicator(object):
 
         :raises: :py:exc:`KeyError` if the Node is not recognised.
         """
-        # For each unique connection
-        for crxb in self.nodes_connections_buffers[node]:
-            # Transform the output, store in the buffer and mark the Rx as
-            # being fresh.
-            t_output = output
-            if callable(crxb.connection.function):
-                t_output = crxb.connection.function(output)
-            t_output = np.dot(crxb.transform, t_output)
-
-            if np.any(t_output != crxb.buffered_output):
-                with self.output_lock:
-                    crxb.buffered_output[:] = t_output.reshape(t_output.size)
-                    self.rx_fresh[crxb.rx] = True
+        # For each unique connection compute the output and store in the buffer
+        for (tf, buf, rx) in self.nodes_connections[node]:
+            c_output = output
+            if tf.function is not None:
+                c_output = tf.function(c_output)
+            buf[:] = np.dot(tf.transform, c_output)
+            self.rx_fresh[rx] = True
 
     @stop_on_keyboard_interrupt
     def sdp_tx_tick(self):
@@ -262,16 +261,15 @@ class EthernetCommunicator(object):
         """
         # Look for Rx elements with fresh output, transmit the output and
         # mark as stale.
-        for rx in self.rxs:
+        for rx in self.rx_elements:
             if self.rx_fresh[rx]:
                 xyp = rx.subvertices[0].placement.processor.get_coordinates()
 
                 with self.output_lock:
-                    data = fp.bitsk(self.rx_buffer[rx])
+                    data = fp.bitsk(np.hstack(self.rx_buffers[rx]))
                     self.rx_fresh[rx] = False
 
-                data = struct.pack("H14x%dI" % rx.n_assigned_dimensions, 1,
-                                   *data)
+                data = struct.pack("H14x%dI" % len(data), 1, *data)
                 packet = sdp.SDPMessage(dst_x=xyp[0], dst_y=xyp[1],
                                         dst_cpu=xyp[2], data=data)
                 self.out_socket.sendto(str(packet), (self.machinename, 17893))

@@ -2,6 +2,7 @@ from pacman103.front import common
 
 
 class SerialVertex(common.ExternalDeviceVertex):
+    size_in = None
     def __init__(self,
                  virtual_chip_coords=dict(x=0xFE, y=0xFF),
                  connected_node_coords=dict(x=1, y=0),
@@ -14,14 +15,9 @@ class SerialVertex(common.ExternalDeviceVertex):
         )
 
     def generate_routing_info(self, subedge):
-        # We use the virtual chip co-ordinates to fill in part of the key, the
-        # ID is taken as the index of this edge from the serial vertex.
-        # As a result, there is a limitation to the number of things which may
-        # be fed from a serial vertex (above and beyond the obvious bandwidth
-        # limitations).
-        x = self.virtual_chip_coords['x']
-        y = self.virtual_chip_coords['y']
-        i = self.out_edges.index(subedge.edge)
-
-        key = (x << 24) | (y << 16) | (i << 6)
-        return key, 0xFFFFFFE0
+        # TODO When PACMAN is refactored we can get rid of this because we've
+        #      already allocated keys to connections, and there is a map of 1
+        #      connection to 1 edge and keys are placement independent (hence
+        #      all subedges of an edge share a key).
+        return (subedge.edge.keyspace.routing_key(c=0),
+                subedge.edge.keyspace.routing_mask)

@@ -46,7 +46,7 @@ class DecoderBuilder(object):
                 None if eval_points is None else totuple(eval_points))
 
             self.built_decoders[key] = decoder
-        return np.dot(decoder, transform.T)
+        return np.dot(transform, decoder.T).T
 
 
 def get_compressed_decoder(decoder, threshold=0.):
@@ -83,6 +83,7 @@ def get_combined_compressed_decoders(decoders, indices=None, headers=None,
     assert(indices is None or len(decoders) == len(indices))
     assert(headers is None or len(decoders) == len(headers))
     assert(len(compress) == len(decoders))
+    assert(np.all(decoders[0].shape[0] == d.shape[0] for d in decoders))
 
     # Compress all of the decoders, with threshold -1. for those we don't want
     # to compress

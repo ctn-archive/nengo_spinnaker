@@ -1,11 +1,13 @@
 import nengo
 
+from . import builder
 from . import connections
 from . import decoders
 from . import fixpoint as fp
-from . import global_inhibition
+from . import keyspaces
 from . import nodes
 from . import probes
+from . import vertices
 
 
 def get_connection_width(connection):

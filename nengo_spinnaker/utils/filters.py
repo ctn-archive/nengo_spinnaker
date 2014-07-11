@@ -85,7 +85,7 @@ def _post_prepare_routing(self):
             continue
 
         i = self.__filters[edge.conn]
-        dmask = edge.dimension_mask
+        dmask = edge.keyspace.mask_d
 
         routings = [edge.prevertex.generate_routing_info(se) for se in
                     edge.subedges]
