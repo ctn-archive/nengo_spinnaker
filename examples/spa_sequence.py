@@ -52,24 +52,3 @@ else:
     sim = nengo_spinnaker.Simulator(model, config=config)
 
 sim.run(0.5)
-
-import matplotlib.pyplot as plt
-
-fig = plt.figure(figsize=(12,8))
-p1 = fig.add_subplot(3,1,1)
-
-"""
-p1.plot(spa.similarity(sim.data, pState))
-p1.legend(pState.target.vocab.keys, fontsize='x-small')
-p1.set_ylabel('State')
-"""
-
-p2 = fig.add_subplot(3,1,2)
-p2.plot(sim.data[pActions])
-p2.set_ylabel('Action')
-
-p3 = fig.add_subplot(3,1,3)
-p3.plot(sim.data[pUtility])
-p3.set_ylabel('Utility')
-fig.subplots_adjust(hspace=0.2)
-plt.show()
