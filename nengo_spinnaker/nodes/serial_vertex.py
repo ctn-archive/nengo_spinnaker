@@ -19,5 +19,5 @@ class SerialVertex(common.ExternalDeviceVertex):
         #      already allocated keys to connections, and there is a map of 1
         #      connection to 1 edge and keys are placement independent (hence
         #      all subedges of an edge share a key).
-        return (subedge.edge.keyspace.routing_key(),
+        return (subedge.edge.keyspace.routing_key(c=0),
                 subedge.edge.keyspace.routing_mask)

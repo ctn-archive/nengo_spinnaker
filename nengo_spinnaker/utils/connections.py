@@ -5,7 +5,6 @@ import collections
 import numpy as np
 
 from . import keyspaces
-default_keyspace = keyspaces.nengo_default()
 
 
 TransformFunctionKeyspace = collections.namedtuple(
@@ -35,7 +34,7 @@ class Connections(object):
             else:
                 self.add_connection(connection)
 
-    def add_connection(self, connection, keyspace=default_keyspace):
+    def add_connection(self, connection, keyspace=None):
         # Ensure that this Connection collection is only for connections from
         # the same source object
         if self._source is None:
@@ -64,7 +63,7 @@ class Connections(object):
         self._connection_indices[connection] = index
 
     def contains_compatible_connection(self, connection,
-                                       keyspace=default_keyspace):
+                                       keyspace=None):
         """Does the Connection block already contain an equivalent connection.
         """
         # It doesn't if the connections have different sources
@@ -87,7 +86,7 @@ class Connections(object):
                 c1.function == c2.function and c1.keyspace == c2.keyspace)
 
     def _make_connection_entry(self, connection, transform,
-                               keyspace=default_keyspace):
+                               keyspace=None):
         return TransformFunctionKeyspace(transform, connection.function,
                                          keyspace)
 
@@ -122,7 +121,7 @@ class OutgoingEnsembleConnections(Connections):
                 c1.function == c2.function and c1.keyspace == c2.keyspace)
 
     def _make_connection_entry(self, connection, transform,
-                               keyspace=default_keyspace):
+                               keyspace=None):
         return TransformFunctionWithSolverEvalPoints(
             transform, connection.function, connection.solver,
             connection.eval_points, keyspace)

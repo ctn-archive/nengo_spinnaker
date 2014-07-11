@@ -155,7 +155,7 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         # Prepare the system region
         system_items = [
             ens.n_dimensions,
-            len(ens.output_keys),
+            len(ens.output_keyspaces),
             ens.n_neurons,
             assembler.timestep,
             int(ens.tau_ref / (assembler.timestep * 10**-6)),
@@ -190,8 +190,8 @@ class EnsembleLIF(utils.vertices.NengoVertex):
             encoders_with_gain, formatter=utils.fp.bitsk)
         decoders_region = utils.vertices.MatrixRegionPartitionedByRows(
             ens.decoders, formatter=utils.fp.bitsk)
-        output_keys_region = utils.vertices.UnpartitionedListRegion(
-            ens.output_keys)
+        output_keys_region = utils.vertices.UnpartitionedKeysRegion(
+            ens.output_keyspaces)
         gain_region = utils.vertices.MatrixRegionPartitionedByRows(
             ens.gains, formatter=utils.fp.bitsk)
         spikes_region = utils.vertices.BitfieldBasedRecordingRegion(

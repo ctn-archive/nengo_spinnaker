@@ -77,11 +77,11 @@ class Builder(object):
                 c.keyspace = c.keyspace(o=object_ids[c.pre])
                 c.keyspace = c.keyspace(i=connection_ids[c])
 
-        # Build the list of output keys for all of the ensemble objects now
-        # that we've assigned IDs and keyspaces.
+        # Build the list of output keyspaces for all of the ensemble objects
+        # now that we've assigned IDs and keyspaces.
         for obj in objs:
             if isinstance(obj, IntermediateEnsemble):
-                obj.create_output_keys(object_ids[obj], keyspace)
+                obj.create_output_keyspaces(object_ids[obj], keyspace)
 
         # Return list of intermediate representation objects and connections
         return objs, conns, keyspace
@@ -98,23 +98,18 @@ def _create_keyspace(connections):
     # Get the number of bits necessary for these
     (bits_o, bits_i, bits_d) = [int(math.ceil(math.log(v + 1, 2)))
                                 for v in [max_o, max_i, max_d]]
+    bits_c = 7  # Allow for 128 splits.  TODO Revise this
 
     # Ensure that these will fit within a 32-bit key
-    padding = 32 - (1 + bits_o + bits_i + bits_d)
+    padding = 32 - (1 + bits_o + bits_i + bits_d + bits_c)
     assert padding >= 0
     bits_o += padding
-
-    """
-    bits_o = 20
-    bits_i = 5
-    bits_d = 6
-    """
 
     # Create the keyspace
     return utils.keyspaces.create_keyspace(
         'NengoDefault',
-        [('x', 1), ('o', bits_o), ('i', bits_i), ('d', bits_d)],
-        'xoi'
+        [('x', 1), ('o', bits_o), ('c', bits_c), ('i', bits_i), ('d', bits_d)],
+        'xoci', 'xoi'
     )(x=0)
 
 
@@ -169,12 +164,12 @@ class IntermediateEnsemble(object):
         # Direct input
         self.direct_input = np.zeros(self.n_dimensions)
 
-    def create_output_keys(self, ens_id, keyspace):
-        self.output_keys = list()
+    def create_output_keyspaces(self, ens_id, keyspace):
+        self.output_keyspaces = list()
         for header in self.decoder_headers:
             ks = keyspace if header[0] is None else header[0]
             ks = ks(o=ens_id, i=header[1], d=header[2])
-            self.output_keys.append(ks.key())
+            self.output_keyspaces.append(ks)
 
 
 class IntermediateLIFEnsemble(IntermediateEnsemble):

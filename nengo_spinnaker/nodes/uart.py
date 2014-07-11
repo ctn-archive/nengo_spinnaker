@@ -85,7 +85,7 @@ class UART(object):
                     fv, self._serial_vertex,
                     keyspace=keyspace(x=1, o=filter_index))
                 filter_index += 1
-                self.node_in_keys[fvs.keyspace.routing_key()] = obj
+                self.node_in_keys[fvs.keyspace.filter_key()] = obj
                 new_conns.append(fvs)
 
                 # Swap out the target of each of all these connections and add
@@ -167,7 +167,7 @@ class UART(object):
     def receive_mc_packet(self, key, payload):
         """Handle an incoming MC packet, store the received dimension value."""
         # TODO: Deal with this properly rather than with handcoded masks
-        node = self.keys_nodes[key & self.in_keyspace.routing_mask]
+        node = self.keys_nodes[key & self.in_keyspace.filter_mask]
         d = key & self.in_keyspace.mask_d
         self.nodes_inputs[node][d] = fp.kbits(payload)
 

@@ -24,6 +24,7 @@ class MetaKeySpace(type):
         new_dct['__fields__'] = [f[0] for f in dct['fields']]
         new_dct['__field_lengths__'] = dict(dct['fields'])
         new_dct['__routing_fields__'] = dct['routing_fields']
+        new_dct['__filter_fields__'] = dct['filter_fields']
 
         # First ensure that there aren't more than 32 bits assigned
         if sum([f[1] for f in dct['fields']]) > 32:
@@ -32,16 +33,20 @@ class MetaKeySpace(type):
         # Create properties for each field mask and the routing mask
         b = 32
         r_mask = 0x0
+        f_mask = 0x0
         for (name, bits) in dct['fields']:
             mask = sum([1 << n for n in range(bits)]) << (b - bits)
             b -= bits
 
             if name in dct['routing_fields']:
                 r_mask |= mask
+            if name in dct['filter_fields']:
+                f_mask |= mask
 
             new_dct['mask_%s' % name] = property(_make_mask_getter(mask))
             new_dct['is_set_%s' % name] = property(_make_set_checker(name))
         new_dct['routing_mask'] = property(_make_mask_getter(r_mask))
+        new_dct['filter_mask'] = property(_make_mask_getter(f_mask))
 
         return super(MetaKeySpace, cls).__new__(cls, clsname, bases, new_dct)
 
@@ -49,6 +54,7 @@ class MetaKeySpace(type):
 class KeySpace(with_metaclass(MetaKeySpace)):
     fields = []
     routing_fields = []
+    filter_fields = []
 
     def __init__(self, **field_values):
         self._field_values = dict()
@@ -105,6 +111,9 @@ class KeySpace(with_metaclass(MetaKeySpace)):
     def routing_key(self, **field_values):
         return self._make_key(self.__routing_fields__, field_values)
 
+    def filter_key(self, **field_values):
+        return self._make_key(self.__filter_fields__, field_values)
+
     def __eq__(self, ks2):
         if not self.__field_lengths__ == ks2.__field_lengths__:
             return False
@@ -114,12 +123,9 @@ class KeySpace(with_metaclass(MetaKeySpace)):
         return True
 
 
-def create_keyspace(name, new_fields, new_routing_fields):
+def create_keyspace(name, new_fields, new_routing_fields, new_filter_fields):
+    if new_filter_fields is None:
+        new_filter_fields = new_routing_fields
     return type(name, (KeySpace, ), {'fields': new_fields,
-                                     'routing_fields': new_routing_fields})
-
-nengo_default = create_keyspace(
-    'NengoDefaultKeySpace',
-    [('x', 8), ('y', 8), ('p', 5), ('i', 5), ('d', 6)],
-    "xypi"
-)
+                                     'routing_fields': new_routing_fields,
+                                     'filter_fields': new_filter_fields})

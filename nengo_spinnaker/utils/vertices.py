@@ -93,14 +93,21 @@ class NengoVertex(graph.Vertex):
             # write the region
             if size > 0 and not region.unfilled:
                 spec.switchWriteFocus(i)
-                region.write_out(subvertex.lo_atom, subvertex.hi_atom, spec)
+                if isinstance(region, UnpartitionedKeysRegion):
+                    index = self.subvertices.index(subvertex)
+                    region.write_out(subvertex.lo_atom, subvertex.hi_atom,
+                                     index, spec)
+                else:
+                    region.write_out(subvertex.lo_atom, subvertex.hi_atom,
+                                     spec)
 
     def generate_routing_info(self, subedge):
         # TODO When PACMAN is refactored we can get rid of this because we've
         #      already allocated keys to connections, and there is a map of 1
         #      connection to 1 edge and keys are placement independent (hence
         #      all subedges of an edge share a key).
-        return (subedge.edge.keyspace.routing_key(),
+        c = subedge.edge.prevertex.subvertices.index(subedge.presubvertex)
+        return (subedge.edge.keyspace.routing_key(c=c),
                 subedge.edge.keyspace.routing_mask)
 
 
@@ -156,8 +163,8 @@ def make_filter_regions(conns, dt):
     filter_routes = [len(conns)]
     for c in conns:
         assert getattr(c, 'keyspace', None) is not None
-        filter_routes.append(c.keyspace.routing_key())
-        filter_routes.append(c.keyspace.routing_mask)
+        filter_routes.append(c.keyspace.filter_key())
+        filter_routes.append(c.keyspace.filter_mask)
         filter_routes.append(filter_assigns[c])
         filter_routes.append(c.keyspace.mask_d)
 
@@ -358,3 +365,18 @@ class UnpartitionedMatrixRegion(object):
 
         # Write to the provided spec
         spec.write_array(final_data)
+
+
+class UnpartitionedKeysRegion(object):
+    in_dtcm = True
+    unfilled = False
+
+    def __init__(self, keyspaces):
+        self.keyspaces = keyspaces
+
+    def sizeof(self, lo_atom, hi_atom):
+        return len(self.keyspaces)
+
+    def write_out(self, lo_atom, hi_atom, index, spec):
+        for ks in self.keyspaces:
+            spec.write(data=ks.key(c=index))
