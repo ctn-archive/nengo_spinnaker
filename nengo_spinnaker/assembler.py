@@ -71,7 +71,7 @@ class Assembler(object):
         self.timestep = 1000
         self.dt = dt
         self.time_in_seconds = time_in_seconds
-        self.n_ticks = int(time_in_seconds / dt)
+        self.n_ticks = int(time_in_seconds / dt) if time_in_seconds is not None else 0
 
         # Store for querying
         self.connections = conns
@@ -82,7 +82,8 @@ class Assembler(object):
                          v is not None]
 
         # Construct each connection in turn to produce edges
-        self.edges = [self.build_connection(c) for c in conns]
+        self.edges = filter(lambda x: x is not None, [self.build_connection(c)
+                                                      for c in conns])
 
         return self.vertices, self.edges
 
@@ -109,6 +110,9 @@ def generic_connection_builder(connection, assembler):
     # Get the pre and post objects
     prevertex = assembler.get_object_vertex(connection.pre)
     postvertex = assembler.get_object_vertex(connection.post)
+
+    if prevertex is None or postvertex is None:
+        return
 
     # Ensure that the keyspace is set
     assert connection.keyspace is not None
@@ -237,7 +241,7 @@ class DecodedValueProbe(utils.vertices.NengoVertex):
         system_region = utils.vertices.UnpartitionedListRegion(system_items)
 
         if assembler.time_in_seconds is None:
-            raise NotImplementedError
+            return None
 
         # Build the input filters
         in_conns = assembler.get_incoming_connections(probe)

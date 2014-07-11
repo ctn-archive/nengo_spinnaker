@@ -313,8 +313,9 @@ class Simulator(object):
             # Retrieve any probed values
             logger.debug("Retrieving data from the board.")
             self.data = dict()
-            for p in self.probes:
-                self.data[p.probe] = p.get_data(self.controller.txrx)
+            if time_in_seconds is not None:
+                for p in self.probes:
+                    self.data[p.probe] = p.get_data(self.controller.txrx)
 
         finally:
             # Stop the application from executing
