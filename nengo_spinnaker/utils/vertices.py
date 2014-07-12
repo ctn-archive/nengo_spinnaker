@@ -255,13 +255,15 @@ class UnpartitionedListRegion(object):
     """A region representing non-homogeneous data which won't be partitioned.
     """
     def __init__(self, data=None, prepend_length=False, size=None,
-                 in_dtcm=True, unfilled=False, n_atoms_index=None):
+                 in_dtcm=True, unfilled=False, n_atoms_index=None,
+                 dtype='uint32'):
         if data is None:
             size = 0
         if data is not None and size is None:
             size = len(data)
 
         self.data = data
+        self.dtype = dtype
         self.size = size
         self.in_dtcm = in_dtcm
         self.unfilled = unfilled
@@ -277,9 +279,9 @@ class UnpartitionedListRegion(object):
 
         for i, data in enumerate(self.data):
             if self.n_atoms_index is not None and self.n_atoms_index == i:
-                spec.write(data=hi_atom-lo_atom+1)
+                spec.write(data=hi_atom-lo_atom+1, sizeof=self.dtype)
             else:
-                spec.write(data=data)
+                spec.write(data=data, sizeof=self.dtype)
 
 
 class BitfieldBasedRecordingRegion(object):

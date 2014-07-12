@@ -357,6 +357,8 @@ class FilterVertex(utils.vertices.NengoVertex):
 
     @classmethod
     def assemble(cls, fv, assembler):
+        if len(assembler.get_outgoing_connections(fv)) == 0:
+            return None
         # Create the output keys region and add it to the instance, then
         # return.
         fv.regions[0].data[1], fv.regions[4] = cls.get_transform(fv, assembler)
@@ -365,6 +367,8 @@ class FilterVertex(utils.vertices.NengoVertex):
 
     @classmethod
     def assemble_from_intermediate(cls, fv, assembler):
+        if len(assembler.get_outgoing_connections(fv)) == 0:
+            return None
         # Create the vertex, then assemble that and return
         in_conns = utils.connections.Connections(
             assembler.get_incoming_connections(fv))
