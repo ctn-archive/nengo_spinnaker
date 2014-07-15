@@ -1,138 +1,15 @@
-import collections
 import numpy as np
 
 import nengo
 from nengo.utils.builder import full_transform
 
-
-class IntermediateConnection(object):
-    """Intermediate representation of a connection object.
-    """
-    def __init__(self, pre, post, synapse=None, function=None, transform=1.,
-                 solver=None, eval_points=None, keyspace=None,
-                 is_accumulatory=True):
-        self.pre = pre
-        self.post = post
-        self.synapse = synapse
-        self.function = function
-        self.transform = transform
-        self.solver = solver
-        self.eval_points = eval_points
-        self.keyspace = keyspace
-        self.width = post.size_in
-        self.is_accumulatory = is_accumulatory
-
-        self._preslice = slice(None, None, None)
-        self._postslice = slice(None, None, None)
-
-    def _required_transform_shape(self):
-        return (self.pre.size_out, self.post.size_in)
-
-    @classmethod
-    def from_connection(cls, c):
-        """Return an IntermediateConnection object for any connections which
-        have not already been replaced.  A requirement of any replaced
-        connection type is that it has the attribute keyspace and can have
-        its pre and post amended by later functions.
-        """
-        if isinstance(c, nengo.Connection):
-            # Get the full transform
-            tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
-
-            # Return a copy of this connection but with less information and
-            # the full transform.
-            keyspace = getattr(c, 'keyspace', None)
-            return cls(c.pre, c.post, c.synapse, c.function, tr, c.solver,
-                       c.eval_points, keyspace)
-        return c
-
-    def to_connection(self):
-        """Create a standard Nengo connection from this object.
-        """
-        return nengo.Connection(self.pre, self.post, synapse=self.synapse,
-                                function=self.function,
-                                transform=self.transform, solver=self.solver,
-                                eval_points=self.eval_points,
-                                add_to_container=False)
+from ..connection import IntermediateConnection
 
 
-def remove_passthrough_nodes(objs, connections):  # noqa: C901
-    """Returns a version of the model without passthrough Nodes
-
-    For some backends (such as SpiNNaker), it is useful to remove Nodes that
-    have 'None' as their output.  These nodes simply sum their inputs and
-    use that as their output. These nodes are defined purely for organizational
-    purposes and should not affect the behaviour of the model.  For example,
-    the 'input' and 'output' Nodes in an EnsembleArray, which are just meant to
-    aggregate data.
-
-    Note that removing passthrough nodes can simplify a model and may be useful
-    for other backends as well.  For example, an EnsembleArray connected to
-    another EnsembleArray with an identity matrix as the transform
-    should collapse down to D Connections between the corresponding Ensembles
-    inside the EnsembleArrays.
-
-    Parameters
-    ----------
-    objs : list of Nodes and Ensembles
-        All the objects in the model
-    connections : list of Connections
-        All the Connections in the model
-
-    Returns the objs and connections of the resulting model.  The passthrough
-    Nodes will be removed, and the Connections that interact with those Nodes
-    will be replaced with equivalent Connections that don't interact with those
-    Nodes.
-    """
-
-    inputs, outputs = find_all_io(connections)
-    result_conn = list(connections)
-    result_objs = list(objs)
-
-    # look for passthrough Nodes to remove
-    for obj in objs:
-        if isinstance(obj, nengo.Node) and obj.output is None:
-            result_objs.remove(obj)
-
-            # get rid of the connections to and from this Node
-            for c in inputs[obj]:
-                result_conn.remove(c)
-                outputs[c.pre].remove(c)
-            for c in outputs[obj]:
-                result_conn.remove(c)
-                inputs[c.post].remove(c)
-
-            # replace those connections with equivalent ones
-            for c_in in inputs[obj]:
-                if c_in.pre is obj:
-                    raise Exception('Cannot remove a Node with feedback')
-
-                for c_out in outputs[obj]:
-                    c = _create_replacement_connection(c_in, c_out)
-                    if c is not None:
-                        result_conn.append(c)
-                        # put this in the list, since it might be used
-                        # another time through the loop
-                        outputs[c.pre].append(c)
-                        inputs[c.post].append(c)
-
-    return result_objs, result_conn
-
-
-def find_all_io(connections):
-    """Build up a list of all inputs and outputs for each object"""
-    inputs = collections.defaultdict(list)
-    outputs = collections.defaultdict(list)
-    for c in connections:
-        inputs[c.post].append(c)
-        outputs[c.pre].append(c)
-    return inputs, outputs
-
-
-def _create_replacement_connection(c_in, c_out):
+def create_replacement_connection(c_in, c_out):
     """Generate a new Connection to replace two through a passthrough Node"""
-    assert c_in.post is c_out.pre
-    assert c_in.post.output is None
+    assert c_in.post_obj is c_out.pre_obj
+    assert c_in.post_obj.output is None
 
     # determine the filter for the new Connection
     if c_in.synapse is None:
@@ -193,6 +70,6 @@ def _create_replacement_connection(c_in, c_out):
     if ctype is nengo.Connection:
         ctype = IntermediateConnection
 
-    c = ctype(c_in.pre, c_out.post, synapse=synapse, transform=transform,
-              function=function, keyspace=keyspace)
+    c = ctype(c_in.pre_obj, c_out.post_obj, synapse=synapse,
+              transform=transform, function=function, keyspace=keyspace)
     return c

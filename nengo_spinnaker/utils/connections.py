@@ -4,7 +4,7 @@
 import collections
 import numpy as np
 
-from . import keyspaces
+import nengo
 
 
 TransformFunctionKeyspace = collections.namedtuple(
@@ -38,15 +38,15 @@ class Connections(object):
         # Ensure that this Connection collection is only for connections from
         # the same source object
         if self._source is None:
-            self._source = connection.pre
-        assert(self._source == connection.pre)
+            self._source = connection.pre_obj
+        assert(self._source == connection.pre_obj)
 
         # Get the index of the connection if the same transform and function
         # have already been added, otherwise add the transform/function pair
         connection_entry = self._make_connection_entry(
             connection, connection.transform, connection.keyspace)
 
-        # For each pre-existing unique connection see if this connection
+        # For each pre_obj-existing unique connection see if this connection
         # matches
         for (i, tf) in enumerate(self.transforms_functions):
             if self._are_compatible_connections(tf, connection_entry):
@@ -67,7 +67,7 @@ class Connections(object):
         """Does the Connection block already contain an equivalent connection.
         """
         # It doesn't if the connections have different sources
-        if self._source is None or self._source != connection.pre:
+        if self._source is None or self._source != connection.pre_obj:
             return False
 
         # Simulate an entry for the given connection
@@ -127,51 +127,6 @@ class OutgoingEnsembleConnections(Connections):
             connection.eval_points, keyspace)
 
 
-class ConnectionBank(object):
-    """Represents a set of Connection collections which need not necessarily
-    share the same source object.
-    """
-
-    def __init__(self, connections, collector_type=Connections):
-        self._connections = collections.defaultdict(collector_type)
-
-        for connection in connections:
-            self.add_connection(connection)
-
-    def add_connection(self, connection):
-        self._connections[connection.pre].add_connection(connection)
-
-    def get_connection_offset(self, connection):
-        offset = 0
-        for connections in self._connections.values():
-            if connection in connections:
-                return offset + connections.get_connection_offset(connection)
-            offset += connections.width
-        raise KeyError
-
-    def contains_compatible_connection(self, connection):
-        return self._connections[connection.pre].\
-            contains_compatible_connection(connection)
-
-    @property
-    def width(self):
-        return sum([c.width for c in self._connections.values()])
-
-    def __getitem__(self, connection):
-        index = 0
-        for connections in self._connections.values():
-            if connection in connections:
-                return index + connections[connection]
-            index += len(connections)
-        raise KeyError(connection)
-
-    def __iter__(self):
-        """Iterate through the list of connections."""
-        for connections in self._connections.values():
-            for c in connections:
-                yield c
-
-
 FilteredConnection = collections.namedtuple(
     'FilteredConnection', ['time_constant', 'is_accumulatory'])
 
@@ -187,8 +142,15 @@ class Filters(object):
 
     def add_connection(self, connection):
         if self._termination is None:
-            self._termination = connection.post
-        assert(self._termination == connection.post)
+            self._termination = connection.post_obj
+        assert(self._termination == connection.post_obj)
+
+        if (connection.synapse is not None and
+                not isinstance(connection.synapse, float) and
+                not isinstance(connection.synapse, nengo.synapses.Lowpass)):
+            raise NotImplementedError("Currently only support Lowpass "
+                                      "synapse model. Not '%s'." %
+                                      connection.synapse.__class__.__name__)
 
         index = None
         for (i, f) in enumerate(self.filters):
@@ -197,10 +159,12 @@ class Filters(object):
                 index = i
                 break
         else:
-            new_f = FilteredConnection(
-                connection.synapse,
-                connection.is_accumulatory
-            )
+            if isinstance(connection.synapse, nengo.synapses.Lowpass):
+                syn = connection.synapse.tau
+            else:
+                syn = connection.synapse
+
+            new_f = FilteredConnection(syn, connection.is_accumulatory)
             self.filters.append(new_f)
             index = len(self.filters) - 1
 

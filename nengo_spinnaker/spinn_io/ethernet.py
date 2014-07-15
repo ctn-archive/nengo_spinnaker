@@ -134,8 +134,8 @@ class Ethernet(object):
                 new_objs.append(obj)
                 continue
 
-            out_conns = [c for c in connections if c.pre == obj and
-                         not isinstance(c.post, nengo.Node)]
+            out_conns = [c for c in connections if c.pre_obj == obj and
+                         not isinstance(c.post_obj, nengo.Node)]
             outgoing_conns = utils.connections.Connections(out_conns)
 
             # Assign each unique combination of transform/function/keyspace to
@@ -156,30 +156,30 @@ class Ethernet(object):
                 self.nodes_connections[obj].append((tfk, buf, rx))
                 self.rx_buffers[rx].append(buf)
 
-                # Replace the pre on all connections from this Node to account
+                # Replace the pre_obj on all connections from this Node to account
                 # for the change to the SDPRxVertex.
                 for c in out_conns:
                     if outgoing_conns[c] == i:
-                        c.pre = rx
+                        c.pre_obj = rx
                         c.is_accumulatory = False
                         new_conns.append(c)
 
             # Provide a Tx element to receive input for the Node
-            in_conns = [c for c in connections if c.post == obj and
-                        not isinstance(c.pre, nengo.Node)]
+            in_conns = [c for c in connections if c.post_obj == obj and
+                        not isinstance(c.pre_obj, nengo.Node)]
             if len(in_conns) > 0:
                 tx = SDPTxVertex(obj.size_in, in_conns, dt)
                 self.nodes_tx[obj] = tx
                 new_objs.append(tx)
 
                 for c in in_conns:
-                    c.post = tx
+                    c.post_obj = tx
                     new_conns.append(c)
 
         # Retain all other connections unchanged
         for c in connections:
-            if not (isinstance(c.pre, nengo.Node) or
-                    isinstance(c.post, nengo.Node)):
+            if not (isinstance(c.pre_obj, nengo.Node) or
+                    isinstance(c.post_obj, nengo.Node)):
                 new_conns.append(c)
 
         return new_objs, new_conns
