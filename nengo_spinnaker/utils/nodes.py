@@ -19,8 +19,8 @@ def create_host_network(connections, io, config=None):
     (ns, conns) = replace_x_node_connections(conns, io)
 
     # Remove x -> x connections
-    conns = [c for c in conns if (isinstance(c.pre, nengo.Node) and
-                                  isinstance(c.post, nengo.Node))]
+    conns = [c for c in conns if (isinstance(c.pre_obj, nengo.Node) and
+                                  isinstance(c.post_obj, nengo.Node))]
 
     # Finish up
     new_network.nodes = get_connected_nodes(conns)
@@ -35,10 +35,10 @@ def get_connected_nodes(connections):
     nodes = list()
 
     for c in connections:
-        if c.pre not in nodes and isinstance(c.pre, nengo.Node):
-            nodes.append(c.pre)
-        if c.post not in nodes and isinstance(c.post, nengo.Node):
-            nodes.append(c.post)
+        if c.pre_obj not in nodes and isinstance(c.pre_obj, nengo.Node):
+            nodes.append(c.pre_obj)
+        if c.post_obj not in nodes and isinstance(c.post_obj, nengo.Node):
+            nodes.append(c.post_obj)
 
     return nodes
 
@@ -54,17 +54,17 @@ def replace_node_x_connections(connections, io, config=None):
     new_nodes = list()
 
     for c in connections:
-        if (isinstance(c.pre, nengo.Node) and
-                not isinstance(c.post, nengo.Node)):
+        if (isinstance(c.pre_obj, nengo.Node) and
+                not isinstance(c.post_obj, nengo.Node)):
             # Create a new output node if the output is callable and not a
             # function of time (only).
-            if callable(c.pre.output) and (config is None or
-                                           not config[c.pre].f_of_t):
-                n = create_output_node(c.pre, io)
+            if callable(c.pre_obj.output) and (config is None or
+                                           not config[c.pre_obj].f_of_t):
+                n = create_output_node(c.pre_obj, io)
 
                 # Create a new Connection: transforms, functions and filters
                 # are handled elsewhere
-                c_ = nengo.Connection(c.pre, n, add_to_container=False)
+                c_ = nengo.Connection(c.pre_obj, n, add_to_container=False)
 
                 new_nodes.append(n)
                 new_conns.append(c_)
@@ -84,11 +84,11 @@ def replace_x_node_connections(connections, io):
     new_nodes = list()
 
     for c in connections:
-        if (not isinstance(c.pre, nengo.Node) and
-                isinstance(c.post, nengo.Node)):
+        if (not isinstance(c.pre_obj, nengo.Node) and
+                isinstance(c.post_obj, nengo.Node)):
             # Create a new input node
-            n = create_input_node(c.post, io)
-            c_ = nengo.Connection(n, c.post, add_to_container=False)
+            n = create_input_node(c.post_obj, io)
+            c_ = nengo.Connection(n, c.post_obj, add_to_container=False)
 
             new_nodes.append(n)
             new_conns.append(c_)

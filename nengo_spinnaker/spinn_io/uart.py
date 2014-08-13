@@ -63,8 +63,8 @@ class UART(object):
 
             # Get the list of incoming connections, these will all feed to the
             # given serial vertex. (Except for connections from other Nodes).
-            in_connections = [c for c in connections if c.post == obj and
-                              not isinstance(c.pre, nengo.Node)]
+            in_connections = [c for c in connections if c.post_obj == obj and
+                              not isinstance(c.pre_obj, nengo.Node)]
 
             # Create a filter vertex for this object
             if len(in_connections) > 0:
@@ -91,14 +91,14 @@ class UART(object):
                 # Swap out the target of each of all these connections and add
                 # them to the list of connections we're keeping
                 for c in in_connections:
-                    c.post = fv
+                    c.post_obj = fv
                     new_conns.append(c)
 
             # Combine the outgoing connections for the Node so we have some
-            # access to these keys.  Replace the pre of all these connections
+            # access to these keys.  Replace the pre_obj of all these connections
             # with the serial vertex.
-            out_conns = [c for c in connections if c.pre == obj and
-                         not isinstance(c.post, nengo.Node)]
+            out_conns = [c for c in connections if c.pre_obj == obj and
+                         not isinstance(c.post_obj, nengo.Node)]
             if len(out_conns) > 0:
                 self.nodes_tfks[obj] = utils.connections.Connections(
                     out_conns).transforms_functions
@@ -112,13 +112,13 @@ class UART(object):
                     new_objs.append(self._serial_vertex)
 
                 for c in out_conns:
-                    c.pre = self._serial_vertex
+                    c.pre_obj = self._serial_vertex
                     new_conns.append(c)
 
         # Retain all other connections unchanged
         for c in connections:
-            if not (isinstance(c.pre, nengo.Node) or
-                    isinstance(c.post, nengo.Node)):
+            if not (isinstance(c.pre_obj, nengo.Node) or
+                    isinstance(c.post_obj, nengo.Node)):
                 new_conns.append(c)
 
         return new_objs, new_conns

@@ -1,3 +1,3 @@
 from simulator import Simulator
-import nodes as io
+import spinn_io as io
 from config import Config

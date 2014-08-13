@@ -9,7 +9,9 @@ from pacman103.core import control
 
 from . import assembler
 from . import builder
-from . import nodes
+from . import node
+from . import spinn_io
+from . import probe
 from .config import Config
 import utils
 
@@ -87,7 +89,7 @@ class Simulator(object):
 
         # Set up the IO
         if io is None:
-            io = nodes.Ethernet(self.machine_name)
+            io = spinn_io.Ethernet(self.machine_name)
         self.io = io
 
         # Build the model
@@ -138,65 +140,13 @@ class Simulator(object):
                                              self.machine_name)
 
         # Swap out function of time nodes
-        objs = list()
-        conns = list()
-
-        replaced_nodes = dict()
-        for obj in self.objs:
-            if isinstance(obj, nengo.Node):
-                if self.config[obj].f_of_t:
-                    # Get the likely size of this object
-                    out_conns = utils.connections.Connections(
-                        [c for c in self.conns if c.pre == obj])
-                    width = out_conns.width
-
-                    # Get the overall duration of the signal
-                    p_durations = [t for t in [time_in_seconds,
-                                               self.config[obj].f_period] if
-                                   t is not None]
-
-                    if len(p_durations) == 0:
-                        # Indefinite simulation with indefinite function, will
-                        # have to simulate on host.
-                        self.config[obj].f_of_t = False
-                        objs.append(obj)
-                        continue
-
-                    duration = min(p_durations)
-                    periodic = (self.config[obj].f_period is not None and
-                                self.config[obj].f_period == duration)
-
-                    if width * duration > 6 * 1024**2:
-                        # Storing this function (and all its transforms) would
-                        # take up too much memory, will have to simulate on
-                        # host.
-                        # TODO Split up the connections to reduce the memory
-                        #      usage instead of giving up.
-                        self.config[obj].f_of_t = False
-                        objs.append(obj)
-                        continue
-
-                    # It is possible to fit the function (and all its
-                    # transforms) in memory, so replace it with a
-                    # function of time vertex.
-                    new_obj = assembler.ValueSource.from_node(
-                        obj.output, out_conns, duration, periodic, self.dt)
-                    replaced_nodes[obj] = new_obj
-                    objs.append(new_obj)
-                else:
-                    objs.append(obj)
-            else:
-                objs.append(obj)
-
-        for c in self.conns:
-            if c.pre in replaced_nodes:
-                c.pre = replaced_nodes[c.pre]
-            conns.append(c)
+        objs, conns = node.replace_function_of_time_nodes(
+            self.objs, self.conns, self.config, time_in_seconds, self.dt)
 
         # Set up the host network for simulation
         host_network = utils.nodes.create_host_network(
-            [c.to_connection() if isinstance(c.pre, nengo.Node) and
-             isinstance(c.post, nengo.Node) else c for c in conns],
+            [c.to_connection() if isinstance(c.pre_obj, nengo.Node) and
+             isinstance(c.post_obj, nengo.Node) else c for c in conns],
             self.io, self.config)
 
         # Prepare the network for IO
@@ -214,15 +164,15 @@ class Simulator(object):
         # Build the list of probes
         self.probes = list()
         for vertex in vertices:
-            if isinstance(vertex, assembler.DecodedValueProbe):
+            if isinstance(vertex, probe.DecodedValueProbe):
                 self.probes.append(
                     utils.probes.DecodedValueProbe(vertex, vertex.probe))
             else:
                 if hasattr(vertex, 'probes'):
-                    for probe in vertex.probes:
-                        if probe.attr == 'spikes':
+                    for p in vertex.probes:
+                        if p.attr == 'spikes':
                             self.probes.append(
-                                utils.probes.SpikeProbe(vertex, probe))
+                                utils.probes.SpikeProbe(vertex, p))
 
         # PACMANify!
         for vertex in vertices:

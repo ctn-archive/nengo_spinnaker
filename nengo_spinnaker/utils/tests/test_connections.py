@@ -349,78 +349,6 @@ def test_nonequivalent_keyspaces():
     assert(tc4[c1] != tc4[c2])
 
 
-def test_connection_banks():
-    model = nengo.Network()
-    with model:
-        a = nengo.Ensemble(1, 5)
-        b = nengo.Ensemble(1, 5)
-        c = nengo.Ensemble(1, 5)
-
-        c1 = nengo.Connection(a, c)
-        c2 = nengo.Connection(b, c)
-        c3 = nengo.Connection(a, b)
-
-    tc = connections.ConnectionBank([c1, c2])
-
-    assert(tc[c1] != tc[c2])
-
-    with pytest.raises(KeyError):
-        tc[c3]
-
-
-def test_connection_banks_offset():
-    model = nengo.Network()
-    with model:
-        a = nengo.Ensemble(1, 5)
-        b = nengo.Ensemble(1, 4)
-        c = nengo.Ensemble(1, 5)
-        d = nengo.Ensemble(1, 6)
-        e = nengo.Ensemble(1, 5)
-
-        c1 = nengo.Connection(a, c)
-        c2 = nengo.Connection(a, d, transform=np.zeros((6, 5)))
-        c3 = nengo.Connection(b, c, transform=np.zeros((5, 4)))
-        c4 = nengo.Connection(b, d, transform=np.zeros((6, 4)))
-        c5 = nengo.Connection(a, e)
-        c6 = nengo.Connection(a, b, transform=np.zeros((4, 5)))
-
-    tc = connections.ConnectionBank([c1, c2, c3, c4, c5])
-    assert(tc.width == 5 + 6 + 5 + 6)
-    assert(tc.get_connection_offset(c1) != tc.get_connection_offset(c2))
-    assert(tc.get_connection_offset(c2) != tc.get_connection_offset(c3))
-    assert(tc.get_connection_offset(c3) != tc.get_connection_offset(c4))
-    assert(tc.get_connection_offset(c1) == tc.get_connection_offset(c5))
-
-    with pytest.raises(KeyError):
-        tc.get_connection_offset(c6)
-
-def test_iter_connection_back():
-    model = nengo.Network()
-    with model:
-        a = nengo.Ensemble(1, 5)
-        b = nengo.Ensemble(1, 4)
-        c = nengo.Ensemble(1, 5)
-        d = nengo.Ensemble(1, 6)
-        e = nengo.Ensemble(1, 5)
-
-        c1 = nengo.Connection(a, c)
-        c2 = nengo.Connection(a, d, transform=np.zeros((6, 5)))
-        c3 = nengo.Connection(b, c, transform=np.zeros((5, 4)))
-        c4 = nengo.Connection(b, d, transform=np.zeros((6, 4)))
-        c5 = nengo.Connection(a, e)
-        c6 = nengo.Connection(a, b, transform=np.zeros((4, 5)))
-
-    tc = connections.ConnectionBank([c1, c2, c3, c4, c5])
-
-    seen = []
-    for c in tc:
-        seen.append(c)
-
-    for c in [c1, c2, c3, c4, c5]:
-        assert(c in seen)
-    for c in seen:
-        assert(c in [c1, c2, c3, c4, c5])
-
 def test_contains_equivalent_connection():
     model = nengo.Network()
     with model:
@@ -439,28 +367,6 @@ def test_contains_equivalent_connection():
     assert(cs.contains_compatible_connection(c2))
     assert(not cs.contains_compatible_connection(c3))
     assert(not cs.contains_compatible_connection(c4))
-
-
-def test_bank_contains_equivalent_connection():
-    model = nengo.Network()
-    with model:
-        a = nengo.Ensemble(1, 2)
-        b = nengo.Ensemble(1, 2)
-        c = nengo.Ensemble(1, 3)
-        d = nengo.Ensemble(1, 3)
-
-        c1 = nengo.Connection(a, c, transform=[[1, 0], [0, 0], [0, 1]])
-        c2 = nengo.Connection(a, d, transform=[[0, 0], [0, 0], [0, 0]])
-        c3 = nengo.Connection(a, d, transform=[[1, 0], [0, 0], [0, 1]])
-        c4 = nengo.Connection(a, d, transform=[[1, 0], [0, 0], [0, 1]],
-                              function=lambda v: v**2)
-        c5 = nengo.Connection(b, d, transform=[[1, 0], [0, 0], [0, 1]])
-
-    cs = connections.ConnectionBank([c1])
-    assert(not cs.contains_compatible_connection(c2))
-    assert(cs.contains_compatible_connection(c3))
-    assert(not cs.contains_compatible_connection(c4))
-    assert(not cs.contains_compatible_connection(c5))
 
 
 def test_filter_nonequivalent_terminations():
