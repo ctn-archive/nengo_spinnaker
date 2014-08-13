@@ -81,7 +81,7 @@ def process_global_inhibition_connections(objs, connections, probes):
     # an intermediate representation
     new_connections = list()
     for c in connections:
-        if (isinstance(c.post_obj, nengo.objects.Neurons) and
+        if (isinstance(c.post_obj, nengo.ensemble.Neurons) and
                 np.all([c.transform[0] == t for t in c.transform])):
             # This is a global inhibition connection, swap out
             c = IntermediateGlobalInhibitionConnection.from_connection(c)
@@ -211,7 +211,7 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
                     targets[i] = function(ep)
 
             if solver is None:
-                solver = nengo.decoders.LstsqL2()
+                solver = nengo.solvers.LstsqL2()
 
             return solver(activities, targets, rng=rng)[0]
 
@@ -237,7 +237,7 @@ class IntermediateGlobalInhibitionConnection(
     @classmethod
     def from_connection(cls, c):
         # Assert that the transform is as we'd expect
-        assert isinstance(c.post_obj, nengo.objects.Neurons)
+        assert isinstance(c.post_obj, nengo.ensemble.Neurons)
         assert np.all([c.transform[0] == t for t in c.transform])
 
         # Compress the transform to have output dimension of 1
