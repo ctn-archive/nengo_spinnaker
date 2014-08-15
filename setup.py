@@ -22,11 +22,11 @@ devices such as robots.
 """
 setup(
     name="nengo_spinnaker",
-    version="0.1a0",
+    version="0.1a1",
     author="CNRGlab at UWaterloo and APT Group, University of Manchester",
     author_email="https://github.com/ctn-waterloo/nengo_spinnaker/issues",
     url="https://github.com/ctn-waterloo/nengo_spinnaker",
-    packages=['nengo_spinnaker', 'nengo_spinnaker.nodes',
+    packages=['nengo_spinnaker', 'nengo_spinnaker.spinn_io',
               'nengo_spinnaker.utils'],
     package_data={'nengo_spinnaker': ['binaries/*.aplx']},
     scripts=[],
