@@ -15,23 +15,10 @@
  * @{
  */
 
-#include "ensemble.h"
-#include "common-impl.h"
-
 #ifndef __ENSEMBLE_DATA_H__
 #define __ENSEMBLE_DATA_H__
 
-/** \brief Representation of system region. See ::data_system. */
-typedef struct region_system {
-  uint n_input_dimensions;
-  uint n_output_dimensions;
-  uint n_neurons;
-  uint machine_timestep;
-  uint t_ref;
-  value_t dt_over_t_rc;
-  bool record_spikes;
-  uint n_inhibitory_dimensions;
-} region_system_t;
+#include "ensemble.h"
 
 /**
 * \brief Copy in data pertaining to the system region of the Ensemble.

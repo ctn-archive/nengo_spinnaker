@@ -13,7 +13,7 @@ void sink_update(uint ticks, uint arg1) {
   }
 
   // Filter inputs, write the latest value to SRAM
-  input_filter_step(&g_input);
+  input_filter_step(&g_input, true);
   spin1_memcpy(rec_curr, input, n_dimensions * sizeof(value_t));
   rec_curr = &rec_curr[n_dimensions];
 }
@@ -33,7 +33,7 @@ void c_main(void)
   // Load parameters and filters
   region_system_t *pars = (region_system_t *) region_start(1, address);
   n_dimensions = pars->n_dimensions;
-  input = input_filter_initialise(&g_input, n_dimensions);
+  input = input_filter_initialise(&g_input, n_dimensions, true);
 
   if (input == NULL) {
     return;

@@ -11,7 +11,7 @@ void filter_update(uint ticks, uint arg1) {
   }
 
   // Update the filters
-  input_filter_step(&g_input);
+  input_filter_step(&g_input, true);
 
   // Apply the transform to the input to get the output
   for (uint j = 0; j < g_filter.size_out; j++) {
@@ -47,7 +47,7 @@ bool data_system(address_t addr) {
   delay_remaining = g_filter.transmission_delay;
   io_printf(IO_BUF, "[Filter] transmission delay = %d\n", delay_remaining);
 
-  g_filter.input = input_filter_initialise(&g_input, g_filter.size_in);
+  g_filter.input = input_filter_initialise(&g_input, g_filter.size_in, true);
 
   if (g_filter.input == NULL)
     return false;

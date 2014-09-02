@@ -11,7 +11,7 @@ void sdp_tx_update(uint ticks, uint arg1) {
   }
 
   // Update the filters
-  input_filter_step(&g_input);
+  input_filter_step(&g_input, true);
 
   // Increment the counter and transmit if necessary
   delay_remaining--;
@@ -48,7 +48,7 @@ bool data_system(address_t addr) {
             g_sdp_tx.machine_timestep);
   io_printf(IO_BUF, "[SDP Tx] transmission delay = %d\n", delay_remaining);
 
-  g_sdp_tx.input = input_filter_initialise(&g_input, g_sdp_tx.n_dimensions);
+  g_sdp_tx.input = input_filter_initialise(&g_input, g_sdp_tx.n_dimensions, true);
 
   if (g_sdp_tx.input == NULL)
     return false;

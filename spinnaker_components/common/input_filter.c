@@ -2,13 +2,20 @@
 
 
 value_t* input_filter_initialise(input_filter_t* input,
-                                 uint n_input_dimensions) {
+                                 uint n_input_dimensions,
+                                 bool allocate_accumulator) {
   input->n_dimensions = n_input_dimensions;
 
-  MALLOC_FAIL_NULL(input->input,
-                   input->n_dimensions * sizeof(value_t),
-                   "[Common/Input]");
-
+  if(allocate_accumulator)
+  {
+    MALLOC_FAIL_NULL(input->input,
+                    input->n_dimensions * sizeof(value_t),
+                    "[Common/Input]");
+  }
+  else
+  {
+    input->input = NULL;
+  }
   // Return the input (to the encoders) buffer
   return input->input;
 }
@@ -34,7 +41,7 @@ bool input_filter_get_filters(input_filter_t* input, address_t filter_region) {
       input->filters[f]->n_filter = filters[f].filter_;
       input->filters[f]->mask = filters[f].mask;
       input->filters[f]->mask_ = ~filters[f].mask;
-
+      
       io_printf(IO_BUF, "Filter [%d] = %k/%k Masked: 0x%08x/0x%08x\n",
                 f, filters[f].filter, filters[f].filter_, filters[f].mask,
                 ~filters[f].mask);
@@ -72,23 +79,33 @@ bool input_filter_get_filter_routes(input_filter_t* input,
 
 
 // Input step
-void input_filter_step(input_filter_t* input) {
+void input_filter_step(input_filter_t* input, bool allocate_accumulator) {
   // Zero the input accumulator
-  for (uint d = 0; d < input->n_dimensions; d++) {
-    input->input[d] = 0x00000000;
+  if(allocate_accumulator)
+  {
+    for (uint d = 0; d < input->n_dimensions; d++)
+    {
+      input->input[d] = 0x00000000;
+    }
   }
 
-  // For each filter, apply filtering and accumulate the value in the global
-  // input accumulator.
-  for (uint f = 0; f < input->n_filters; f++) {
+  // For each filter
+  for (uint f = 0; f < input->n_filters; f++)
+  {
+    // Apply filtering
     input_buffer_step(input->filters[f]);
 
-    for (uint d = 0; d < input->n_dimensions; d++) {
-      input->input[d] += input->filters[f]->filtered[d];
+    // If required, accumulate the value in 
+    // The global input accumulator.
+    if(allocate_accumulator)
+    {
+      for (uint d = 0; d < input->n_dimensions; d++)
+      {
+        input->input[d] += input->filters[f]->filtered[d];
+      }
     }
   }
 }
-
 
 // Incoming spike callback
 bool input_filter_mcpl_rx(input_filter_t* input, uint key, uint payload) {

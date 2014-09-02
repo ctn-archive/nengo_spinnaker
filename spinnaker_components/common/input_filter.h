@@ -50,7 +50,8 @@ typedef struct _input_filter_t {
  *  \returns Pointer to the filtered input vector
  */
 value_t* input_filter_initialise(input_filter_t *input,
-                                 uint n_input_dimensions);
+                                 uint n_input_dimensions,
+                                 bool allocate_accumulator);
 
 /*! \brief Malloc sufficient space for filters and copy in filter parameters.
  *  Expects the first word pointed to be the number of filters.
@@ -69,7 +70,7 @@ bool input_filter_get_filter_routes(input_filter_t *input,
  *  Accumulated filtered values will be placed in the input field of the
  *  `input_filter_t` struct.
  */
-void input_filter_step(input_filter_t *input);
+void input_filter_step(input_filter_t *input, bool allocate_accumulator);
 
 /*! \brief Callback handler for a incoming dimensional MC packet.
  *  \returns True if the key routed to a filter within this input_filter

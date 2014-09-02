@@ -12,8 +12,20 @@
  * using *decoders* (again provided by the host). Decoded values are output
  * in an interleaved fashion during the neuron update loop.
  *
+
+ * Number | Region | Description | Handling Function
+ * ------ | ------ | ----------- | -----------------
+ * 1 | System | Global parameters | ::copy_in_system_region
+ * 2 | Bias   | Bias currents | ::copy_in_bias
+ * 3 | Encoders | Neuron encoder matrix | ::copy_in_encoders
+ * 4 | Decoders | Decoder matrix | ::copy_in_decoders
+ * 5 | Decoder Keys | Routing keys for decoded values | ::copy_in_decoder_keys
+ * 13 | PES | Parameters for PES learning rule | ::get_pes
+ *
+
  * \author Andrew Mundy <mundya@cs.man.ac.uk>
  * \author Terry Stewart
+ * \author James Knight <knightj@cs.man.ac.uk>
  * 
  * \copyright Advanced Processor Technologies, School of Computer Science,
  *   University of Manchester
@@ -27,19 +39,30 @@
 
 #include "spin1_api.h"
 #include "stdfix-full-iso.h"
-#include "common-typedefs.h"
+#include "common-impl.h"
 
 #include "nengo_typedefs.h"
 #include "nengo-common.h"
 
+#include "dimensional-io.h"
 #include "recording.h"
-
-#include "ensemble_data.h"
-#include "ensemble_output.h"
-
 #include "input_filter.h"
 
 /* Structs ******************************************************************/
+/** \brief Representation of system region. See ::data_system. */
+typedef struct region_system 
+{
+  uint n_input_dimensions;
+  uint n_output_dimensions;
+  uint n_neurons;
+  uint machine_timestep;
+  uint t_ref;
+  value_t dt_over_t_rc;
+  bool record_spikes;
+  uint n_inhibitory_dimensions;
+  uint n_modulatory_dimensions;
+} region_system_t;
+
 /** \brief Persistent neuron variables.
   */
 typedef struct neuron_status {
@@ -74,8 +97,12 @@ typedef struct ensemble_parameters {
 /* Parameters and Buffers ***************************************************/
 extern ensemble_parameters_t g_ensemble;  //!< Global parameters
 extern uint g_output_period;       //!< Delay in transmitting decoded output
+
+extern uint g_n_output_dimensions;
+
 extern input_filter_t g_input;     //!< Input filters and buffers
 extern input_filter_t g_input_inhibitory;     //!< Input filters and buffers
+extern input_filter_t g_input_modulatory;     //!< Input filters and buffers
 
 /* Functions ****************************************************************/
 /**
@@ -105,6 +132,11 @@ static inline value_t neuron_encoder( uint n, uint d )
 
 static inline value_t neuron_decoder( uint n, uint d )
   { return g_ensemble.decoders[ n * g_n_output_dimensions + d ]; };
+
+static inline value_t *neuron_decoder_vector(uint n)
+{
+  return &g_ensemble.decoders[n * g_n_output_dimensions];
+}
 
 // -- Voltages and refractory periods
 //! Get the membrane voltage for the given neuron
