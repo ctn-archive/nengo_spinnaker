@@ -128,7 +128,7 @@ class OutgoingEnsembleConnections(Connections):
 
 
 FilteredConnection = collections.namedtuple(
-    'FilteredConnection', ['time_constant', 'is_accumulatory'])
+    'FilteredConnection', ['time_constant', 'is_accumulatory', 'modulatory'])
 
 
 class Filters(object):
@@ -152,10 +152,13 @@ class Filters(object):
                                       "synapse model. Not '%s'." %
                                       connection.synapse.__class__.__name__)
 
+        # If this filter isn't modulatory (modulatory signals need to be kept
+        # Seperate, if its parameters match existing filter, use its index
         index = None
         for (i, f) in enumerate(self.filters):
-            if (connection.is_accumulatory == f.is_accumulatory and
-                    connection.synapse == f.time_constant):
+            if (connection.modulatory == False and
+                connection.is_accumulatory == f.is_accumulatory and
+                connection.synapse == f.time_constant):
                 index = i
                 break
         else:
@@ -164,7 +167,8 @@ class Filters(object):
             else:
                 syn = connection.synapse
 
-            new_f = FilteredConnection(syn, connection.is_accumulatory)
+            new_f = FilteredConnection(syn, connection.is_accumulatory, 
+                connection.modulatory)
             self.filters.append(new_f)
             index = len(self.filters) - 1
 
@@ -186,3 +190,14 @@ def get_output_keys(connections):
         for d in range(tfk.transform.shape[0]):
             keys.append(tfk.keyspace.key(d=d))
     return keys
+
+def get_learning_rules(connection):
+    """ Converts all possible forms of connection's learning rule
+    Parameters into things that can be iterated.
+    """ 
+    if nengo.utils.compat.is_iterable(connection.learning_rule):
+        return connection.learning_rule
+    elif connection.learning_rule is not None:
+        return (connection.learning_rule,)
+    else:
+        return ()

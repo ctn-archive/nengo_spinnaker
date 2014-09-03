@@ -9,6 +9,7 @@ import nengo.utils.builder
 
 import connection
 import ensemble
+import pes
 import probe
 import utils
 
@@ -87,6 +88,7 @@ class Builder(object):
 
 Builder.register_object_transform(ensemble.build_ensembles)
 Builder.register_connectivity_transform(probe.insert_decoded_output_probes)
+Builder.register_connectivity_transform(pes.reroute_modulatory_connections)
 
 
 def _create_keyspace(connections):

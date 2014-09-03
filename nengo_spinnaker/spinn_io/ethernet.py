@@ -89,7 +89,7 @@ class SDPTxVertex(utils.vertices.NengoVertex):
         # Construct the data to be loaded onto the board
         system_items = [size_in, 1000, output_period]
         system_region = utils.vertices.UnpartitionedListRegion(system_items)
-        (input_filters, input_filter_routing) =\
+        (input_filters, input_filter_routing, _) =\
             utils.vertices.make_filter_regions(in_connections, dt)
 
         # Create the regions

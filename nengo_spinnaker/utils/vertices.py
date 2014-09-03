@@ -170,7 +170,8 @@ def make_filter_regions(conns, dt):
 
     # Make the regions and return
     return (UnpartitionedListRegion(filters),
-            UnpartitionedListRegion(filter_routes))
+            UnpartitionedListRegion(filter_routes),
+            filter_assigns)
 
 
 class _MatrixRegion(object):

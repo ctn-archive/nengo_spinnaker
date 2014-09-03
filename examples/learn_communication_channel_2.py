@@ -18,7 +18,7 @@ with model:
     post = nengo.Ensemble(60, dimensions=dimensions, label = "post")
     conn = nengo.Connection(pre, post, function=lambda x: np.random.random(dimensions))
     
-    error = nengo.Ensemble(60, dimensions=dimensions)
+    error = nengo.Ensemble(60, dimensions=dimensions, label = "error")
     error_p = nengo.Probe(error, synapse=0.03)
     # Error = pre - post
     nengo.Connection(pre, error)
@@ -35,7 +35,7 @@ with model:
     
     if spinnaker:
         sim = nengo_spinnaker.Simulator(model, config = config)
-        sim.run(10.0, clean=True)
+        sim.run(10.0, clean = True)
     else:
         sim = nengo.Simulator(model)
         sim.run(10.0)

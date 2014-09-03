@@ -26,7 +26,7 @@ with model:
     
     if spinnaker:
         sim = nengo_spinnaker.Simulator(model, config = config)
-        sim.run(10.0, clean = False)
+        sim.run(10.0, clean = True)
     else:
         sim = nengo.Simulator(model)
         sim.run(10.0)
