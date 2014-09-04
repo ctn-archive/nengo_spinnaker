@@ -63,7 +63,8 @@ def build_ensembles(objects, connections, probes, dt, rng):
     # Add direct inputs
     for c in connections:
         if (isinstance(c.post_obj, IntermediateEnsemble) and
-                isinstance(c.pre_obj, nengo.Node) and not callable(c.pre_obj.output)):
+                isinstance(c.pre_obj, nengo.Node) and not
+                callable(c.pre_obj.output)):
             # This Node just forms direct input, add it to direct input and
             # don't add the connection to the list of new connections
             inp = c.pre_obj.output
@@ -92,7 +93,7 @@ def process_global_inhibition_connections(objs, connections, probes):
 
 class IntermediateEnsemble(object):
     def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 eval_points, decoder_headers, label=None):
+                 eval_points, decoder_headers, learning_rules, label=None):
         self.n_neurons = n_neurons
         self.label = label
 
@@ -113,6 +114,9 @@ class IntermediateEnsemble(object):
         self.decoder_headers = decoder_headers
         self.output_keys = None
 
+        # Learning rules
+        self.learning_rules = learning_rules
+
         # Recording parameters
         self.record_spikes = False
         self.record_voltage = False
@@ -131,10 +135,10 @@ class IntermediateEnsemble(object):
 
 class IntermediateEnsembleLIF(IntermediateEnsemble):
     def __init__(self, n_neurons, gains, bias, encoders, decoders, tau_rc,
-                 tau_ref, eval_points, decoder_headers):
+                 tau_ref, eval_points, decoder_headers, learning_rules):
         super(IntermediateEnsembleLIF, self).__init__(
             n_neurons, gains, bias, encoders, decoders, eval_points,
-            decoder_headers)
+            decoder_headers, learning_rules)
         self.tau_rc = tau_rc
         self.tau_ref = tau_ref
 
@@ -222,14 +226,28 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
             decoders.append(decoder_builder.get_transformed_decoder(
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
 
+        # Build list of learning rule, connection-index tuples
+        learning_rules = list()
+        for c in tfses:
+            for l in utils.connections.get_learning_rules(c):
+                learning_rules.append((l, tfses[c]))
+
+        # By default compress all decoders
+        decoders_to_compress = [True for d in decoders]
+
+        # Turn off compression for all decoders associated with learning rules
+        for l in learning_rules:
+            decoders_to_compress[l[1]] = False
+
         # Compress and merge the decoders
         (decoder_headers, decoders) =\
-            utils.decoders.get_combined_compressed_decoders(decoders)
+            utils.decoders.get_combined_compressed_decoders(
+                decoders, compress=decoders_to_compress)
         decoders /= dt
 
         return cls(ens.n_neurons, gain, bias, encoders, decoders,
                    ens.neuron_type.tau_rc, ens.neuron_type.tau_ref,
-                   eval_points, decoder_headers)
+                   eval_points, decoder_headers, learning_rules)
 
 
 class IntermediateGlobalInhibitionConnection(
@@ -247,8 +265,8 @@ class IntermediateGlobalInhibitionConnection(
         keyspace = getattr(c, 'keyspace', None)
 
         # Create a new instance
-        return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr, c.solver,
-                   c.eval_points, keyspace)
+        return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr,
+                   c.solver, c.eval_points, keyspace)
 
 
 class EnsembleLIF(utils.vertices.NengoVertex):
@@ -259,8 +277,10 @@ class EnsembleLIF(utils.vertices.NengoVertex):
     def __init__(self, n_neurons, system_region, bias_region, encoders_region,
                  decoders_region, output_keys_region, input_filter_region,
                  input_filter_routing, inhib_filter_region,
-                 inhib_filter_routing, gain_region, spikes_region):
+                 inhib_filter_routing, gain_region, modulatory_filter_region,
+                 modulatory_filter_routing, pes_region, spikes_region):
         super(EnsembleLIF, self).__init__(n_neurons)
+
         # Create regions
         self.regions = [None]*16
         self.regions[0] = system_region
@@ -273,6 +293,9 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         self.regions[7] = inhib_filter_region
         self.regions[8] = inhib_filter_routing
         self.regions[9] = gain_region
+        self.regions[10] = modulatory_filter_region
+        self.regions[11] = modulatory_filter_routing
+        self.regions[12] = pes_region
         self.regions[14] = spikes_region
         self.probes = list()
 
@@ -296,12 +319,38 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         inhib_conns =\
             [c for c in in_conns if
              isinstance(c, IntermediateGlobalInhibitionConnection)]
-        input_conns = [c for c in in_conns if c not in inhib_conns]
+        modul_conns = [c for c in in_conns if c.modulatory]
+        input_conns = [c for c in in_conns
+                       if c not in inhib_conns and c not in modul_conns]
 
-        (input_filter_region, input_filter_routing) =\
+        (input_filter_region, input_filter_routing, _) =\
             utils.vertices.make_filter_regions(input_conns, assembler.dt)
-        (inhib_filter_region, inhib_filter_routing) =\
+        (inhib_filter_region, inhib_filter_routing, _) =\
             utils.vertices.make_filter_regions(inhib_conns, assembler.dt)
+        (modul_filter_region, modul_filter_routing, modul_filter_assign) =\
+            utils.vertices.make_filter_regions(modul_conns, assembler.dt)
+
+        # From list of learning rules, extract list of PES learning rules
+        pes_learning_rules = [l for l in ens.learning_rules
+                              if isinstance(l[0], nengo.PES)]
+
+        # Check no non-supported learning rules were present in original list
+        if len(pes_learning_rules) != len(ens.learning_rules):
+            raise NotImplementedError("Only PES learning rules currently "
+                                      "supported.")
+
+        # Begin PES items with number of learning rules
+        pes_items = [len(pes_learning_rules)]
+        for p in pes_learning_rules:
+            # Generate block of data for this learning rule
+            data = [
+                utils.fp.bitsk(p[0].learning_rate * assembler.dt),
+                modul_filter_assign[p[0].error_connection],
+                p[1]
+            ]
+
+            # Add to PES items
+            pes_items.extend(data)
 
         # Generate all the regions in turn, then return a new vertex
         # instance.
@@ -320,6 +369,7 @@ class EnsembleLIF(utils.vertices.NengoVertex):
             ens.output_keyspaces)
         gain_region = utils.vertices.MatrixRegionPartitionedByRows(
             ens.gains, formatter=utils.fp.bitsk)
+        pes_region = utils.vertices.UnpartitionedListRegion(pes_items)
         spikes_region = utils.vertices.BitfieldBasedRecordingRegion(
             assembler.n_ticks)
 
@@ -327,6 +377,7 @@ class EnsembleLIF(utils.vertices.NengoVertex):
                      encoders_region, decoders_region, output_keys_region,
                      input_filter_region, input_filter_routing,
                      inhib_filter_region, inhib_filter_routing, gain_region,
-                     spikes_region)
+                     modul_filter_region, modul_filter_routing,
+                     pes_region, spikes_region)
         vertex.probes = ens.probes
         return vertex

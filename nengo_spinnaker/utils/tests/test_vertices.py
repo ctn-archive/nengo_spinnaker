@@ -204,7 +204,7 @@ class TestMakeFilterRegions(object):
         c2k = ks(o=0, i=1)
 
         # Try to build the filter regions
-        (filters, routings) = utils.vertices.make_filter_regions(
+        (filters, routings, _) = utils.vertices.make_filter_regions(
             [(c1, c1k), (c2, c2k)], 0.001)
 
         # The filter region should be a unpartitioned list region which

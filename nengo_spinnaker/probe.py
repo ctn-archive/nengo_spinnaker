@@ -66,7 +66,7 @@ class DecodedValueProbe(utils.vertices.NengoVertex):
 
         # Build the input filters
         in_conns = assembler.get_incoming_connections(probe)
-        (input_filter_region, input_filter_routing) =\
+        (input_filter_region, input_filter_routing, _) =\
             utils.vertices.make_filter_regions(in_conns, assembler.dt)
 
         # Prepare the recording region

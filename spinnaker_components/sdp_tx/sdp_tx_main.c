@@ -11,7 +11,7 @@ void sdp_tx_update(uint ticks, uint arg1) {
   }
 
   // Update the filters
-  input_filter_step(&g_input);
+  input_filter_step(&g_input, true);
 
   // Increment the counter and transmit if necessary
   delay_remaining--;

@@ -24,7 +24,7 @@ typedef struct _input_filter_bank_t {
  *  \param widths pointer to a region of memory containing (1) the number of
  *         inputs to allocate, (2) the dimensionality of each input in turn.
  */
-bool input_filter_bank_initialise(input_filter_bank_t *bank, address_t widths);
+bool input_filter_bank_initialise(input_filter_bank_t *bank, address_t widths, bool allocate_accumulator);
 
 /*! \brief Initialise filter parameters for a input bank.
  *  \param filter_data pointer to a region of memory containing filter data

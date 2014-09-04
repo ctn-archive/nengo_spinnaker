@@ -1,5 +1,4 @@
 import collections
-import numpy as np
 
 
 def bitsk(value, n_bits=32, n_frac=15, signed=True):
@@ -14,10 +13,10 @@ def bitsk(value, n_bits=32, n_frac=15, signed=True):
     """
 
     if signed:
-        v = 1 << (n_bits-1)
-        max_value = kbits(v-1,
+        high_bit_value = 1 << (n_bits-1)
+        max_value = kbits(high_bit_value - 1,
                           n_bits=n_bits, n_frac=n_frac, signed=signed)
-        min_value = kbits(v,
+        min_value = kbits(high_bit_value,
                           n_bits=n_bits, n_frac=n_frac, signed=signed)
     else:
         max_value = kbits((1 << n_bits)-1,

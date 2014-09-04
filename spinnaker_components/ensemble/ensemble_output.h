@@ -17,10 +17,10 @@
  * @{
  */
 
-#include "ensemble.h"
-
 #ifndef __ENSEMBLE_OUTPUT_H__
 #define __ENSEMBLE_OUTPUT_H__
+
+#include "ensemble.h"
 
 /* Buffers and parameters ****************************************************/
 extern uint g_n_output_dimensions; //!< Number of output dimensions \f$D_{out}\f$

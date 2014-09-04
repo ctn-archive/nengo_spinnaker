@@ -13,18 +13,26 @@
  */
 
 #include "ensemble.h"
+#include "ensemble_output.h"
+#include "ensemble_pes.h"
 
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;
 input_filter_t g_input;
 input_filter_t g_input_inhibitory;
+input_filter_t g_input_modulatory;
 
 /* Multicast Wrapper ********************************************************/
-void mcpl_rx(uint key, uint payload) {
-  if (!input_filter_mcpl_rx(&g_input, key, payload)) {
-    if (!input_filter_mcpl_rx(&g_input_inhibitory, key, payload)) {
+void mcpl_rx(uint key, uint payload) 
+{
+  bool handled = false;
+  handled |= input_filter_mcpl_rx(&g_input, key, payload);
+  handled |= input_filter_mcpl_rx(&g_input_inhibitory, key, payload);
+  handled |= input_filter_mcpl_rx(&g_input_modulatory, key, payload);
+
+  if(!handled)
+  {
       io_printf(IO_BUF, "[MCPL Rx] Unknown key %08x\n", key);
-    }
   }
 }
 
@@ -36,7 +44,6 @@ bool initialise_ensemble(region_system_t *pars) {
   g_ensemble.t_ref = pars->t_ref;
   g_ensemble.dt_over_t_rc = pars->dt_over_t_rc;
   g_ensemble.recd.record = pars->record_spikes;
-  g_ensemble.n_inhib_dims = pars->n_inhibitory_dimensions;
 
   io_printf(IO_BUF, "[Ensemble] INITIALISE_ENSEMBLE n_neurons = %d," \
             "timestep = %d, t_ref = %d, dt_over_t_rc = 0x%08x\n",
@@ -83,6 +90,8 @@ bool initialise_ensemble(region_system_t *pars) {
           &g_input_inhibitory, pars->n_inhibitory_dimensions))
       return false;
   }
+  io_printf(IO_BUF, "@\n");
+  input_filter_initialise_no_accumulator(&g_input_modulatory);
   io_printf(IO_BUF, "@\n");
 
   g_ensemble.output = initialise_output(pars);
