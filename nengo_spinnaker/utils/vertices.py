@@ -158,6 +158,7 @@ def make_filter_regions(conns, dt):
         filters.append(fv)
         filters.append(fv_)
         filters.append(0x0 if f.is_accumulatory else 0xffffffff)
+        filters.append(f.width)
 
     # Generate the routing entries
     filter_routes = [len(conns)]

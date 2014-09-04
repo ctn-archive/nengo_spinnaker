@@ -1,21 +1,22 @@
 #include "input_filter.h"
 
 
+void input_filter_initialise_no_accumulator(input_filter_t* input) 
+{
+  // Invalidate accumulator and number of dimensions
+  input->n_dimensions = 0;
+  input->input = NULL;
+}
+
 value_t* input_filter_initialise(input_filter_t* input,
-                                 uint n_input_dimensions,
-                                 bool allocate_accumulator) {
+                                 uint n_input_dimensions) 
+{
   input->n_dimensions = n_input_dimensions;
 
-  if(allocate_accumulator)
-  {
-    MALLOC_FAIL_NULL(input->input,
-                    input->n_dimensions * sizeof(value_t),
-                    "[Common/Input]");
-  }
-  else
-  {
-    input->input = NULL;
-  }
+  MALLOC_FAIL_NULL(input->input,
+                  input->n_dimensions * sizeof(value_t),
+                  "[Common/Input]");
+
   // Return the input (to the encoders) buffer
   return input->input;
 }
@@ -35,16 +36,17 @@ bool input_filter_get_filters(input_filter_t* input, address_t filter_region) {
 
     input_filter_data_t* filters = (input_filter_data_t*) (filter_region + 1);
 
-    for (uint f = 0; f < input->n_filters; f++) {
-      input->filters[f] = input_buffer_initialise(input->n_dimensions);
+    for (uint f = 0; f < input->n_filters; f++) 
+    {
+      input->filters[f] = input_buffer_initialise(filters[f].dimensions);
       input->filters[f]->filter = filters[f].filter;
       input->filters[f]->n_filter = filters[f].filter_;
       input->filters[f]->mask = filters[f].mask;
       input->filters[f]->mask_ = ~filters[f].mask;
       
-      io_printf(IO_BUF, "Filter [%d] = %k/%k Masked: 0x%08x/0x%08x\n",
+      io_printf(IO_BUF, "Filter [%u] = %k/%k Masked: 0x%08x/0x%08x Dimensions:%u\n",
                 f, filters[f].filter, filters[f].filter_, filters[f].mask,
-                ~filters[f].mask);
+                ~filters[f].mask, filters[f].dimensions);
     };
   }
 

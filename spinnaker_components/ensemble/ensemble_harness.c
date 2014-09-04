@@ -23,7 +23,7 @@ input_filter_t g_input_inhibitory;
 input_filter_t g_input_modulatory;
 
 /* Multicast Wrapper ********************************************************/
-void mcpl_rx(uint key, uint payload) {
+void mcpl_rx(uint key, uint payload) 
   bool handled = false;
   handled |= input_filter_mcpl_rx(&g_input, key, payload);
   handled |= input_filter_mcpl_rx(&g_input_inhibitory, key, payload);
@@ -43,7 +43,6 @@ bool initialise_ensemble(region_system_t *pars) {
   g_ensemble.t_ref = pars->t_ref;
   g_ensemble.dt_over_t_rc = pars->dt_over_t_rc;
   g_ensemble.recd.record = pars->record_spikes;
-  g_ensemble.n_inhib_dims = pars->n_inhibitory_dimensions;
 
   io_printf(IO_BUF, "[Ensemble] INITIALISE_ENSEMBLE n_neurons = %d," \
             "timestep = %d, t_ref = %d, dt_over_t_rc = 0x%08x\n",
@@ -80,26 +79,18 @@ bool initialise_ensemble(region_system_t *pars) {
                     "[Ensemble]");
 
   // Setup subcomponents
-  g_ensemble.input = input_filter_initialise(&g_input, pars->n_input_dimensions, true);
+  g_ensemble.input = input_filter_initialise(&g_input, pars->n_input_dimensions);
   if (g_ensemble.input == NULL)
     return false;
 
   io_printf(IO_BUF, "@\n");
   if (pars->n_inhibitory_dimensions > 0) {
     if (NULL == input_filter_initialise(
-          &g_input_inhibitory, pars->n_inhibitory_dimensions, true))
+          &g_input_inhibitory, pars->n_inhibitory_dimensions))
       return false;
   }
   io_printf(IO_BUF, "@\n");
-  if (pars->n_modulatory_dimensions > 0) 
-  {
-    if(pars->n_modulatory_dimensions != pars->n_output_dimensions)
-    {
-      io_printf(IO_BUF, "ERROR: Number of modulatory dimensions (%u) must match number of output dimensions (%u)\n", 
-                pars->n_modulatory_dimensions, pars->n_output_dimensions);
-    }
-    input_filter_initialise(&g_input_modulatory, pars->n_modulatory_dimensions, false);
-  }
+  input_filter_initialise_no_accumulator(&g_input_modulatory);
   io_printf(IO_BUF, "@\n");
 
   g_ensemble.output = initialise_output(pars);

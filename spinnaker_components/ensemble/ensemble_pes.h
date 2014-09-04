@@ -35,10 +35,10 @@ typedef struct pes_parameters_t
   value_t learning_rate;
   
   // Index of the input signal filter that contains error signal
-  uint error_signal_filter_index;
+  uint32_t error_signal_filter_index;
   
   // Offset into decoder to apply PES
-  uint decoder_output_offset;
+  uint32_t decoder_output_offset;
 } pes_parameters_t;
 
 //----------------------------------
@@ -57,13 +57,14 @@ static inline void pes_neuron_spiked(uint n)
   if(g_pes.learning_rate > 0.0k)
   {
     // Extract error signal vector from 
-    const value_t *filtered_error_signal = g_input_modulatory.filters[g_pes.error_signal_filter_index]->filtered;
+    const filtered_input_buffer_t *filtered_input = g_input_modulatory.filters[g_pes.error_signal_filter_index];
+    const value_t *filtered_error_signal = filtered_input->filtered;
     
     // Get filtered activity of this neuron and it's decoder vector
     value_t *decoder_vector = neuron_decoder_vector(n);
     
     // Loop through output dimensions and apply PES to decoder values offset by output offset
-    for(uint d = 0; d < g_input.n_dimensions; d++) 
+    for(uint d = 0; d < filtered_input->d_in; d++) 
     {
       decoder_vector[d + g_pes.decoder_output_offset] += (g_pes.learning_rate * filtered_error_signal[d]);
     }

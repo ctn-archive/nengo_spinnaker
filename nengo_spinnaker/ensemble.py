@@ -312,7 +312,6 @@ class EnsembleLIF(utils.vertices.NengoVertex):
             utils.fp.bitsk(assembler.dt / ens.tau_rc),
             0x1 if ens.record_spikes else 0x0,
             1,
-            3
         ]
 
         # Prepare the input filtering regions

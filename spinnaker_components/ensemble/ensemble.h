@@ -60,7 +60,6 @@ typedef struct region_system
   value_t dt_over_t_rc;
   bool record_spikes;
   uint n_inhibitory_dimensions;
-  uint n_modulatory_dimensions;
 } region_system_t;
 
 /** \brief Persistent neuron variables.

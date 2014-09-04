@@ -48,7 +48,7 @@ bool data_system(address_t addr) {
             g_sdp_tx.machine_timestep);
   io_printf(IO_BUF, "[SDP Tx] transmission delay = %d\n", delay_remaining);
 
-  g_sdp_tx.input = input_filter_initialise(&g_input, g_sdp_tx.n_dimensions, true);
+  g_sdp_tx.input = input_filter_initialise(&g_input, g_sdp_tx.n_dimensions);
 
   if (g_sdp_tx.input == NULL)
     return false;

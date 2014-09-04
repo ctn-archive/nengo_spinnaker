@@ -128,7 +128,7 @@ class OutgoingEnsembleConnections(Connections):
 
 
 FilteredConnection = collections.namedtuple(
-    'FilteredConnection', ['time_constant', 'is_accumulatory', 'modulatory'])
+    'FilteredConnection', ['time_constant', 'is_accumulatory', 'modulatory', 'width'])
 
 
 class Filters(object):
@@ -168,7 +168,7 @@ class Filters(object):
                 syn = connection.synapse
 
             new_f = FilteredConnection(syn, connection.is_accumulatory, 
-                connection.modulatory)
+                connection.modulatory, connection.width)
             self.filters.append(new_f)
             index = len(self.filters) - 1
 

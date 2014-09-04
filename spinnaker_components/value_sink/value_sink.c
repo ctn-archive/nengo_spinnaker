@@ -33,7 +33,7 @@ void c_main(void)
   // Load parameters and filters
   region_system_t *pars = (region_system_t *) region_start(1, address);
   n_dimensions = pars->n_dimensions;
-  input = input_filter_initialise(&g_input, n_dimensions, true);
+  input = input_filter_initialise(&g_input, n_dimensions);
 
   if (input == NULL) {
     return;

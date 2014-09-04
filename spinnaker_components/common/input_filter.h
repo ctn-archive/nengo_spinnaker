@@ -28,9 +28,10 @@ typedef struct input_filter_key {
 } input_filter_key_t;
 
 typedef struct input_filter_data {
-  value_t filter;   //!< Filter value
-  value_t filter_;  //!< 1.0 - filter value
-  uint mask;        //!< Filter accumulator mask
+  value_t filter;       //!< Filter value
+  value_t filter_;      //!< 1.0 - filter value
+  uint32_t mask;        //!< Filter accumulator mask
+  uint32_t dimensions;  //!< Dimensions of filter
 } input_filter_data_t;
 
 /*! \brief Input filter collection.
@@ -50,8 +51,12 @@ typedef struct _input_filter_t {
  *  \returns Pointer to the filtered input vector
  */
 value_t* input_filter_initialise(input_filter_t *input,
-                                 uint n_input_dimensions,
-                                 bool allocate_accumulator);
+                                 uint n_input_dimensions);
+
+/*! \brief Initialise a input filter collection without allocating accumulator
+ *  \returns Pointer to the filtered input vector
+ */
+void input_filter_initialise_no_accumulator(input_filter_t *input);
 
 /*! \brief Malloc sufficient space for filters and copy in filter parameters.
  *  Expects the first word pointed to be the number of filters.
