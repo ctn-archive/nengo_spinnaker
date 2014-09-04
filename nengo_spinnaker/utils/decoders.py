@@ -43,7 +43,8 @@ class DecoderBuilder(object):
             decoder = self.decoder_builder(function, eval_points, solver)
 
             key = FunctionSolverEvals(function, solver,
-                None if eval_points is None else totuple(eval_points))
+                                      None if eval_points is None
+                                      else totuple(eval_points))
 
             self.built_decoders[key] = decoder
         return np.dot(transform, decoder.T).T

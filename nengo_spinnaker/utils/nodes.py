@@ -58,8 +58,8 @@ def replace_node_x_connections(connections, io, config=None):
                 not isinstance(c.post_obj, nengo.Node)):
             # Create a new output node if the output is callable and not a
             # function of time (only).
-            if callable(c.pre_obj.output) and (config is None or
-                                           not config[c.pre_obj].f_of_t):
+            if callable(c.pre_obj.output) and (
+                    config is None or not config[c.pre_obj].f_of_t):
                 n = create_output_node(c.pre_obj, io)
 
                 # Create a new Connection: transforms, functions and filters

@@ -2,18 +2,23 @@
 
 
 bool input_filter_bank_initialise(input_filter_bank_t *bank,
-                                  address_t widths) {
+                                  address_t widths, 
+                                  bool allocate_accumulator) {
   // Malloc sufficient space for the filters, then initialise each
   bank->n_inputs = widths[0];
   MALLOC_FAIL_FALSE(bank->inputs, bank->n_inputs * sizeof(input_filter_t));
 
-  value_t *input;
-  for (uint d = 0; d < bank->n_inputs; d++) {
-    input = input_filter_initialise(widths[d]);
+  for (uint d = 0; d < bank->n_inputs; d++) 
+  {
+    value_t *accumulator = input_filter_initialise(bank->inputs[d], 
+        widths[d], allocate_accumulator);
 
-    // If the input cannot be initialised then return false
-    if (input == NULL)
+    // If we required one and the accululator
+    // Cannot be initialised then return false
+    if (allocate_accumulator && accumulator == NULL)
+    {
       return false;
+    }
   }
 
   return true;
@@ -40,9 +45,9 @@ bool input_filter_bank_get_routes(input_filter_bank_t *bank,
 }
 
 
-void input_filter_bank_step(input_filter_bank_t *bank) {
+void input_filter_bank_step(input_filter_bank_t *bank, bool accumulate) {
   for (uint i = 0; i < bank->n_inputs; i++) {
-    input_filter_step(bank->inputs + i);
+    input_filter_step(bank->inputs + i, accumulate);
   }
 }
 

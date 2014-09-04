@@ -11,7 +11,7 @@ void filter_update(uint ticks, uint arg1) {
   }
 
   // Update the filters
-  input_filter_step(&g_input);
+  input_filter_step(&g_input, true);
 
   // Apply the transform to the input to get the output
   for (uint j = 0; j < g_filter.size_out; j++) {

@@ -87,7 +87,7 @@ class FilterVertex(utils.vertices.NengoVertex):
             size_in, None, 1000, output_period, interpacket_pause])
 
         # Create the filter regions
-        (in_filters, in_routing) = utils.vertices.make_filter_regions(
+        (in_filters, in_routing, _) = utils.vertices.make_filter_regions(
             in_connections, dt)
         self.regions = [system_region, None, in_filters, in_routing, None]
 

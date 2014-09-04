@@ -11,6 +11,8 @@
  */
 
 #include "ensemble.h"
+#include "ensemble_output.h"
+#include "ensemble_pes.h"
 
 uint lfsr = 1;                   //!< LFSR for spike perturbation
 
@@ -28,9 +30,10 @@ void ensemble_update(uint ticks, uint arg1) {
   voltage_t v_delta, v_voltage;
   value_t inhibitory_input = 0;
 
-  // Filter inputs
-  input_filter_step(&g_input);
-  input_filter_step(&g_input_inhibitory);
+  // Filter inputs, updating accumulator for excitary and inhibitary inputs
+  input_filter_step(&g_input, true);
+  input_filter_step(&g_input_inhibitory, true);
+  input_filter_step(&g_input_modulatory, false);
 
   // Compute the inhibition
   for (uint d = 0; d < g_ensemble.n_inhib_dims; d++) {
@@ -95,9 +98,12 @@ void ensemble_update(uint ticks, uint arg1) {
 
       // Record that the spike occurred
       record_spike(&g_ensemble.recd, n);
+      
+      // Notify PES that neuron has spiked
+      pes_neuron_spiked(n);
     }
   }
-
+  
   // Transmit decoded Ensemble representation
   for (uint output_index = 0; output_index < g_n_output_dimensions;
        output_index++) {

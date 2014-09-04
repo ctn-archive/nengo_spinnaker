@@ -1,4 +1,6 @@
 #include "ensemble.h"
+#include "ensemble_data.h"
+#include "ensemble_pes.h"
 
 void c_main(void) {
   // Set the system up
@@ -30,10 +32,17 @@ void c_main(void) {
   // Load subcomponents
   if (!input_filter_get_filters(&g_input, region_start(6, address)) ||
       !input_filter_get_filter_routes(&g_input, region_start(7, address)) ||
-      !input_filter_get_filters(&g_input_inhibitory,
-                                region_start(8, address)) ||
-      !input_filter_get_filter_routes(&g_input_inhibitory,
-                                      region_start(9, address))) {
+      !input_filter_get_filters(&g_input_inhibitory, region_start(8, address)) ||
+      !input_filter_get_filter_routes(&g_input_inhibitory, region_start(9, address)) ||
+      !input_filter_get_filters(&g_input_modulatory, region_start(11, address)) ||
+      !input_filter_get_filter_routes(&g_input_modulatory, region_start(12, address))) 
+  {
+    io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
+    return;
+  }
+  
+  if(!get_pes(region_start(13, address)))
+  {
     io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
     return;
   }
