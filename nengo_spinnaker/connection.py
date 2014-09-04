@@ -20,7 +20,7 @@ class IntermediateConnection(object):
         self.is_accumulatory = is_accumulatory
         self.learning_rule = learning_rule
         self.modulatory = modulatory
-        
+
         self.pre_slice = slice(None, None, None)
         self.post_slice = slice(None, None, None)
 
@@ -41,19 +41,19 @@ class IntermediateConnection(object):
             # Return a copy of this connection but with less information and
             # the full transform.
             keyspace = getattr(c, 'keyspace', None)
-            return cls(c.pre_obj, c.post_obj, synapse=c.synapse, 
-                function=c.function, transform=tr, solver=c.solver,
-                eval_points=c.eval_points, keyspace=keyspace,
-                learning_rule=c.learning_rule, modulatory=c.modulatory)
+            return cls(c.pre_obj, c.post_obj, synapse=c.synapse,
+                       function=c.function, transform=tr, solver=c.solver,
+                       eval_points=c.eval_points, keyspace=keyspace,
+                       learning_rule=c.learning_rule, modulatory=c.modulatory)
         return c
 
     def to_connection(self):
         """Create a standard Nengo connection from this object.
         """
-        return nengo.Connection(self.pre_obj, self.post_obj, synapse=self.synapse,
-                                function=self.function,
+        return nengo.Connection(self.pre_obj, self.post_obj,
+                                synapse=self.synapse, function=self.function,
                                 transform=self.transform, solver=self.solver,
-                                eval_points=self.eval_points, 
+                                eval_points=self.eval_points,
                                 learning_rule=self.learning_rule,
                                 modulatory=self.modulatory,
                                 add_to_container=False)

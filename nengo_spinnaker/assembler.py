@@ -17,8 +17,11 @@ class Assembler(object):
     and converts them into PACMAN vertices and edges, and returns the portion
     of the network to be simulated on host.
     """
-    object_builders = dict()  # Map of classes to functions
-    connection_builders = dict()  # Map of (pre_obj, post_obj) tuples to functions
+    # Map of classes to functions
+    object_builders = dict()
+
+    # Map of (pre_obj, post_obj) tuples to functions
+    connection_builders = dict()
 
     @classmethod
     def register_object_builder(cls, func, nengo_class):
