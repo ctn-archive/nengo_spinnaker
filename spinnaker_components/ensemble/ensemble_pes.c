@@ -19,35 +19,51 @@
 //----------------------------------
 // Structs
 //----------------------------------
-// Structure defining structure of PES region
-// **TODO** this could be an opaque type here
-struct region_pes_t
+struct pes_learning_rule_t
 {
   // Scalar learning rate (scaled by dt) used in PES decoder delta calculation
   value_t learning_rate;
   
   // Index of the input signal filter that contains error signal
-  uint error_signal_filter_index;
+  uint32_t error_signal_filter_index;
   
   // Offset into decoder to apply PES
-  uint decoder_output_offset;
+  uint32_t decoder_output_offset;
 };
 
 //----------------------------------
 // Global variables
 //----------------------------------
-pes_parameters_t g_pes;
+uint32_t g_num_pes_learning_rules = 0;
+pes_parameters_t *g_pes_learning_rules = NULL;
 
 //----------------------------------
 // Global functions
 //----------------------------------
-void get_pes(struct region_pes_t *pars)
+bool get_pes(address_t address)
 {
-  // Setup global PES state from region
-  g_pes.learning_rate = pars->learning_rate;
-  g_pes.error_signal_filter_index = pars->error_signal_filter_index;
-  g_pes.decoder_output_offset = pars->decoder_output_offset;
+  // Read number of PES learning rules that are configured
+  g_num_pes_learning_rules = address[0];
   
-  io_printf(IO_BUF, "PES learning: Learning rate:%k, Error signal filter index:%u, Decoder output offset:%u\n", 
-            g_pes.learning_rate, g_pes.error_signal_filter_index, g_pes.decoder_output_offset);
+  io_printf(IO_BUF, "PES learning: Num rules:%u\n", g_num_pes_learning_rules);
+  
+  if(g_num_pes_learning_rules > 0)
+  {
+    // Allocate memory
+    MALLOC_FAIL_FALSE(g_pes_learning_rules,
+                      g_num_pes_learning_rules * sizeof(pes_parameters_t),
+                      "[PES]");
+    
+    // Copy learning rules from region into new array
+    memcpy(g_pes_learning_rules, &address[1], g_num_pes_learning_rules * sizeof(pes_parameters_t));
+    
+    // Display debug
+    for(uint32_t l = 0; l < g_num_pes_learning_rules; l++)
+    {
+      const pes_parameters_t *parameters = &g_pes_learning_rules[l];
+      io_printf(IO_BUF, "\tRule %u, Learning rate:%k, Error signal filter index:%u, Decoder output offset:%u\n", 
+               l, parameters->learning_rate, parameters->error_signal_filter_index, parameters->decoder_output_offset);
+    }
+  }
+  return true;
 }

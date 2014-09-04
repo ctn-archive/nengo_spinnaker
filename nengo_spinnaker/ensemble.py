@@ -113,9 +113,7 @@ class IntermediateEnsemble(object):
         self.decoder_headers = decoder_headers
         self.output_keys = None
 
-        # Assert that there is only one learning rule
-        # **TEMP**
-        assert len(learning_rules) <= 1, "Num learning rules %u" % len(learning_rules)
+        # Learning rules
         self.learning_rules = learning_rules
         
         # Recording parameters
@@ -331,22 +329,27 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         (modul_filter_region, modul_filter_routing, modul_filter_assign) =\
             utils.vertices.make_filter_regions(modul_conns, assembler.dt)
         
-        # If the ensemble has a single PES learning rule, use it to write a PES region
-        # **TEMP**
-        if len(ens.learning_rules) == 1 and isinstance(ens.learning_rules[0][0], nengo.PES):
-            l = ens.learning_rules[0]
-            pes_items = [
-                utils.fp.bitsk(l[0].learning_rate * assembler.dt),
-                modul_filter_assign[l[0].error_connection],
-                l[1],
+        # From list of learning rules, extract list of PES learning rules
+        pes_learning_rules = [l for l in ens.learning_rules 
+            if isinstance(l[0], nengo.PES)]
+        
+        # Check no non-supported learning rules were present in original list
+        if len(pes_learning_rules) != len(ens.learning_rules):
+            raise NotImplementedError("Only PES learning rules currently " 
+                "supported.")
+        
+        # Begin PES items with number of learning rules
+        pes_items = [len(pes_learning_rules)]
+        for p in pes_learning_rules:
+            # Generate block of data for this learning rule
+            data = [
+                utils.fp.bitsk(p[0].learning_rate * assembler.dt),
+                modul_filter_assign[p[0].error_connection],
+                p[1]
             ]
-        # Otherwise, write blank PES region
-        else:
-            pes_items = [
-                0,
-                0,
-                0,
-            ]
+            
+            # Add to PES items
+            pes_items.extend(data)
             
         # Generate all the regions in turn, then return a new vertex
         # instance.

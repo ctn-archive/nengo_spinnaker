@@ -41,7 +41,11 @@ void c_main(void) {
     return;
   }
   
-  get_pes((struct region_pes_t*)region_start(13, address));
+  if(!get_pes(region_start(13, address)))
+  {
+    io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
+    return;
+  }
 
   // Set up recording
   if (!record_buffer_initialise(&g_ensemble.recd, region_start(15, address),

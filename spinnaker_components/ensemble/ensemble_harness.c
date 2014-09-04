@@ -24,6 +24,7 @@ input_filter_t g_input_modulatory;
 
 /* Multicast Wrapper ********************************************************/
 void mcpl_rx(uint key, uint payload) 
+{
   bool handled = false;
   handled |= input_filter_mcpl_rx(&g_input, key, payload);
   handled |= input_filter_mcpl_rx(&g_input_inhibitory, key, payload);
