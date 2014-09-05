@@ -18,12 +18,23 @@ except ImportError:
         return os.path.join(os.path.dirname(mod.__file__), filename)
 
 
+class IntermediateObject(object):
+    def __init__(self, nengo_object):
+        self.nengo_object = nengo_object
+
+
 class NengoVertex(graph.Vertex):
     runtime = None
 
+    def __init__(self, *args, **kwargs):
+        self.nengo_object = kwargs.pop('nengo_object', None)
+        self.profiled = kwargs.pop('profiled', False)
+
+        super(NengoVertex, self).__init__(*args, **kwargs)
+
     @property
     def model_name(self):
-        return self.MODEL_NAME
+        return self.MODEL_NAME + ('_profiled' if self.profiled else '')
 
     def get_maximum_atoms_per_core(self):
         return self.MAX_ATOMS
@@ -61,7 +72,7 @@ class NengoVertex(graph.Vertex):
         # Get the executable
         executable_target = lib_map.ExecutableTarget(
             resource_filename(self.__class__.__module__.split('.')[0],
-                              "binaries/%s.aplx" % self.MODEL_NAME),
+                              "binaries/%s.aplx" % self.model_name),
             x, y, p)
 
         return (executable_target, list(), mem_writes)
