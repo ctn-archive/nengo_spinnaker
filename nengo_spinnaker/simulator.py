@@ -1,3 +1,4 @@
+import collections
 import logging
 import numpy as np
 import sys
@@ -158,6 +159,17 @@ class Simulator(object):
         vertices, edges = asmblr(
             objs, conns, time_in_seconds, self.dt)
 
+        # Enable profiling on any vertices whose Nengo objects are tagged as
+        # requiring it, build a dictionary of profiled objects to their
+        # profiled vertices.
+        profiled_vertices = collections.defaultdict(list)
+        for v in vertices:
+            if v.nengo_object is not None:
+                v.profiled = self.config[v.nengo_object].profiled
+
+                if v.profiled:
+                    profiled_vertices[v.nengo_object].append(v)
+
         # Set up host simulator
         host_sim = nengo.Simulator(host_network, dt=self.dt)
 
@@ -266,6 +278,11 @@ class Simulator(object):
             if time_in_seconds is not None:
                 for p in self.probes:
                     self.data[p.probe] = p.get_data(self.controller.txrx)
+
+            # Retrieve all profiling data
+            logger.debug("Retrieving profiling data from the board.")
+            self.profile_data = utils.profiling.get_profile_data(
+                self.controller.txrx, profiled_vertices)
 
         finally:
             # Stop the application from executing

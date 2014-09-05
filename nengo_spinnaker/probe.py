@@ -32,8 +32,10 @@ def insert_decoded_output_probes(objs, connections, probes):
     return objs, connections
 
 
-class IntermediateProbe(object):
+class IntermediateProbe(utils.vertices.IntermediateObject):
     def __init__(self, size_in, sample_every, probe, label=None):
+        super(IntermediateProbe, self).__init__(probe)
+
         self.size_in = size_in
         self.sample_every = sample_every
         self.probe = probe

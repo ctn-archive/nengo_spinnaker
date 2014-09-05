@@ -91,9 +91,10 @@ def process_global_inhibition_connections(objs, connections, probes):
     return objs, new_connections
 
 
-class IntermediateEnsemble(object):
-    def __init__(self, n_neurons, gains, bias, encoders, decoders,
+class IntermediateEnsemble(utils.vertices.IntermediateObject):
+    def __init__(self, nengo_obj, n_neurons, gains, bias, encoders, decoders,
                  eval_points, decoder_headers, learning_rules, label=None):
+        super(IntermediateEnsemble, self).__init__(nengo_obj)
         self.n_neurons = n_neurons
         self.label = label
 
@@ -134,10 +135,11 @@ class IntermediateEnsemble(object):
 
 
 class IntermediateEnsembleLIF(IntermediateEnsemble):
-    def __init__(self, n_neurons, gains, bias, encoders, decoders, tau_rc,
-                 tau_ref, eval_points, decoder_headers, learning_rules):
+    def __init__(self, nengo_obj, n_neurons, gains, bias, encoders, decoders,
+                 tau_rc, tau_ref, eval_points, decoder_headers,
+                 learning_rules):
         super(IntermediateEnsembleLIF, self).__init__(
-            n_neurons, gains, bias, encoders, decoders, eval_points,
+            nengo_obj, n_neurons, gains, bias, encoders, decoders, eval_points,
             decoder_headers, learning_rules)
         self.tau_rc = tau_rc
         self.tau_ref = tau_ref
@@ -245,7 +247,7 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
                 decoders, compress=decoders_to_compress)
         decoders /= dt
 
-        return cls(ens.n_neurons, gain, bias, encoders, decoders,
+        return cls(ens, ens.n_neurons, gain, bias, encoders, decoders,
                    ens.neuron_type.tau_rc, ens.neuron_type.tau_ref,
                    eval_points, decoder_headers, learning_rules)
 
@@ -274,12 +276,13 @@ class EnsembleLIF(utils.vertices.NengoVertex):
     MAX_ATOMS = 128
     spikes_recording_region = 15
 
-    def __init__(self, n_neurons, system_region, bias_region, encoders_region,
-                 decoders_region, output_keys_region, input_filter_region,
-                 input_filter_routing, inhib_filter_region,
-                 inhib_filter_routing, gain_region, modulatory_filter_region,
-                 modulatory_filter_routing, pes_region, spikes_region):
-        super(EnsembleLIF, self).__init__(n_neurons)
+    def __init__(self, n_neurons, system_region, bias_region,
+                 encoders_region, decoders_region, output_keys_region,
+                 input_filter_region, input_filter_routing,
+                 inhib_filter_region, inhib_filter_routing, gain_region,
+                 modulatory_filter_region, modulatory_filter_routing,
+                 pes_region, spikes_region, **kwargs):
+        super(EnsembleLIF, self).__init__(n_neurons, **kwargs)
 
         # Create regions
         self.regions = [None]*16
@@ -377,7 +380,7 @@ class EnsembleLIF(utils.vertices.NengoVertex):
                      encoders_region, decoders_region, output_keys_region,
                      input_filter_region, input_filter_routing,
                      inhib_filter_region, inhib_filter_routing, gain_region,
-                     modul_filter_region, modul_filter_routing,
-                     pes_region, spikes_region)
+                     modul_filter_region, modul_filter_routing, pes_region,
+                     spikes_region, nengo_object=ens.nengo_object)
         vertex.probes = ens.probes
         return vertex
