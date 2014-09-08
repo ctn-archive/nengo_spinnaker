@@ -15,4 +15,5 @@ class Config(nengo.config.Config):
 
         # By default no objects are profiled
         for t in self.params.keys():
-            self[t].set_param('profiled', nengo.params.Parameter(False))
+            self[t].set_param('profiler_num_samples', 
+                nengo.params.Parameter(0))

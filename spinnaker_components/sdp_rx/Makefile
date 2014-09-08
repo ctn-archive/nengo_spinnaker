@@ -8,7 +8,7 @@
 # February 2014
 # ----------------------------------------------------------------------------
 
-APP = nengo_rx
+NENGO_APP = nengo_rx
 APP_OUTPUT_DIR = $(PWD)/../../nengo_spinnaker/binaries/
 SOURCES = sdp-rx-main.c
 OBJECTS = $(SOURCES:.c=.o)

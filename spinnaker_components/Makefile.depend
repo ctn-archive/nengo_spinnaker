@@ -1,6 +1,17 @@
 # Get the SpiNNaker install directory, Neuron Modelling
 SPINN_NM_DIRS=${SPINN_DIRS}/../neural_modelling
 
+
+ifdef PROFILER_ENABLED
+	BUILDDIR = build_profiled
+	CFLAGS += -DPROFILER_ENABLED
+	APP = $(NENGO_APP)_profiled
+	OBJECTS += ../common/profiler.o
+else
+	BUILDDIR = build
+	APP = $(NENGO_APP)
+endif
+
 OBJECTS += ${SPINN_NM_DIRS}/common/configuration.o ${SPINN_NM_DIRS}/common/spin1-api-configuration.o
 CFLAGS += -I ${SPINN_NM_DIRS}/common/ -I ../common/
 CFLAGS += -Wall -Wextra -Ofast

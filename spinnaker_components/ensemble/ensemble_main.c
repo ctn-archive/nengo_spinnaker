@@ -1,8 +1,10 @@
 #include "ensemble.h"
 #include "ensemble_data.h"
 #include "ensemble_pes.h"
+#include "ensemble_profiler.h"
 
-void c_main(void) {
+void c_main(void) 
+{
   // Set the system up
   io_printf(IO_BUF, "[Ensemble] C_MAIN\n");
   address_t address = system_load_sram();
@@ -46,6 +48,9 @@ void c_main(void) {
     io_printf(IO_BUF, "[Ensemble] Failed to start.\n");
     return;
   }
+  
+  // Set up profiler
+  profiler_read_region(region_start(14, address));
 
   // Set up recording
   if (!record_buffer_initialise(&g_ensemble.recd, region_start(15, address),

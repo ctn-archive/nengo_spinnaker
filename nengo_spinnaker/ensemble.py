@@ -122,7 +122,7 @@ class IntermediateEnsemble(utils.vertices.IntermediateObject):
         self.record_spikes = False
         self.record_voltage = False
         self.probes = list()
-
+        
         # Direct input
         self.direct_input = np.zeros(self.n_dimensions)
 
@@ -135,8 +135,8 @@ class IntermediateEnsemble(utils.vertices.IntermediateObject):
 
 
 class IntermediateEnsembleLIF(IntermediateEnsemble):
-    def __init__(self, nengo_obj, n_neurons, gains, bias, encoders, decoders,
-                 tau_rc, tau_ref, eval_points, decoder_headers,
+    def __init__(self, nengo_obj, n_neurons, gains, bias, encoders, decoders, 
+                 tau_rc, tau_ref, eval_points, decoder_headers, 
                  learning_rules):
         super(IntermediateEnsembleLIF, self).__init__(
             nengo_obj, n_neurons, gains, bias, encoders, decoders, eval_points,
@@ -276,12 +276,12 @@ class EnsembleLIF(utils.vertices.NengoVertex):
     MAX_ATOMS = 128
     spikes_recording_region = 15
 
-    def __init__(self, n_neurons, system_region, bias_region,
-                 encoders_region, decoders_region, output_keys_region,
-                 input_filter_region, input_filter_routing,
-                 inhib_filter_region, inhib_filter_routing, gain_region,
-                 modulatory_filter_region, modulatory_filter_routing,
-                 pes_region, spikes_region, **kwargs):
+    def __init__(self, n_neurons, system_region, bias_region, encoders_region,
+                 decoders_region, output_keys_region, input_filter_region,
+                 input_filter_routing, inhib_filter_region,
+                 inhib_filter_routing, gain_region, modulatory_filter_region,
+                 modulatory_filter_routing, pes_region, 
+                 profiler_region, spikes_region, **kwargs):
         super(EnsembleLIF, self).__init__(n_neurons, **kwargs)
 
         # Create regions
@@ -299,11 +299,17 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         self.regions[10] = modulatory_filter_region
         self.regions[11] = modulatory_filter_routing
         self.regions[12] = pes_region
+        self.regions[13] = profiler_region
         self.regions[14] = spikes_region
         self.probes = list()
 
     @classmethod
     def assemble(cls, ens, assembler):
+        # **YUCK** extract the number of profiler samples from config
+        profiler_num_samples =\
+            assembler.config[ens.nengo_object].profiler_num_samples
+        print "Num samples %u %s" % (profiler_num_samples, ens.nengo_object)
+        
         # Prepare the system region
         system_items = [
             ens.n_dimensions,
@@ -313,7 +319,8 @@ class EnsembleLIF(utils.vertices.NengoVertex):
             int(ens.tau_ref / (assembler.timestep * 10**-6)),
             utils.fp.bitsk(assembler.dt / ens.tau_rc),
             0x1 if ens.record_spikes else 0x0,
-            1
+            1,
+            profiler_num_samples,
         ]
 
         # Prepare the input filtering regions
@@ -373,6 +380,8 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         gain_region = utils.vertices.MatrixRegionPartitionedByRows(
             ens.gains, formatter=utils.fp.bitsk)
         pes_region = utils.vertices.UnpartitionedListRegion(pes_items)
+        profiler_region = utils.vertices.FixedSizeRecordingRegion(
+            1 + (profiler_num_samples * 2))
         spikes_region = utils.vertices.BitfieldBasedRecordingRegion(
             assembler.n_ticks)
 
@@ -381,6 +390,6 @@ class EnsembleLIF(utils.vertices.NengoVertex):
                      input_filter_region, input_filter_routing,
                      inhib_filter_region, inhib_filter_routing, gain_region,
                      modul_filter_region, modul_filter_routing, pes_region,
-                     spikes_region, nengo_object=ens.nengo_object)
+                     spikes_region, profiler_region, nengo_object=ens.nengo_object)
         vertex.probes = ens.probes
         return vertex

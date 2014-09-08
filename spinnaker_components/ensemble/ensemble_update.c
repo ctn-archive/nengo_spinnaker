@@ -13,12 +13,18 @@
 #include "ensemble.h"
 #include "ensemble_output.h"
 #include "ensemble_pes.h"
+#include "ensemble_profiler.h"
 
 uint lfsr = 1;                   //!< LFSR for spike perturbation
 
-void ensemble_update(uint ticks, uint arg1) {
+void ensemble_update(uint ticks, uint arg1) 
+{
   use(arg1);
-  if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
+  profiler_write_entry(PROFILER_ENTER | PROFILER_TIMER);
+  
+  if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) 
+  {
+    profiler_finalise();
     spin1_exit(0);
   }
 
@@ -31,19 +37,25 @@ void ensemble_update(uint ticks, uint arg1) {
   value_t inhibitory_input = 0;
 
   // Filter inputs, updating accumulator for excitary and inhibitary inputs
+  profiler_write_entry(PROFILER_ENTER | PROFILER_TIMER_FILTER);
   input_filter_step(&g_input, true);
   input_filter_step(&g_input_inhibitory, true);
   input_filter_step(&g_input_modulatory, false);
+  profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER_FILTER);
 
   // Compute the inhibition
-  for (uint d = 0; d < g_ensemble.n_inhib_dims; d++) {
+  for (uint d = 0; d < g_ensemble.n_inhib_dims; d++) 
+  {
     inhibitory_input += g_input_inhibitory.input[d];
   }
 
   // Perform neuron updates
-  for( uint n = 0; n < g_ensemble.n_neurons; n++ ) {
+  profiler_write_entry(PROFILER_ENTER | PROFILER_TIMER_NEURON);
+  for( uint n = 0; n < g_ensemble.n_neurons; n++ ) 
+  {
     // If this neuron is refractory then skip any further processing
-    if( neuron_refractory( n ) != 0 ) {
+    if( neuron_refractory( n ) != 0 ) 
+    {
       decrement_neuron_refractory( n );
       continue;
     }
@@ -53,7 +65,8 @@ void ensemble_update(uint ticks, uint arg1) {
                   inhibitory_input * g_ensemble.inhib_gain[n]);
 
     // Encode the input and add to the membrane current
-    for( uchar d = 0; d < g_input.n_dimensions; d++ ) {
+    for( uint32_t d = 0; d < g_input.n_dimensions; d++ ) 
+    {
       i_membrane += neuron_encoder(n, d) * g_ensemble.input[d];
     }
 
@@ -103,10 +116,13 @@ void ensemble_update(uint ticks, uint arg1) {
       pes_neuron_spiked(n);
     }
   }
+  profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER_NEURON);
 
   // Transmit decoded Ensemble representation
+  profiler_write_entry(PROFILER_ENTER | PROFILER_TIMER_OUTPUT);
   for (uint output_index = 0; output_index < g_n_output_dimensions;
-       output_index++) {
+       output_index++) 
+  {
     spin1_send_mc_packet(
       gp_output_keys[output_index],
       bitsk(gp_output_values[output_index]),
@@ -116,7 +132,10 @@ void ensemble_update(uint ticks, uint arg1) {
 
     spin1_delay_us(1);
   }
-
+  profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER_OUTPUT);
+  
   // Flush the recording buffer
   record_buffer_flush(&g_ensemble.recd);
+  
+  profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER);
 }

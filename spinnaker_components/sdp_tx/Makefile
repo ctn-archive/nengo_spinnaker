@@ -8,7 +8,7 @@
 # February 2014
 # ----------------------------------------------------------------------------
 
-APP = nengo_tx
+NENGO_APP = nengo_tx
 APP_OUTPUT_DIR = $(PWD)/../../nengo_spinnaker/binaries/
 SOURCES = sdp_tx_main.c ../common/input_filter.c
 OBJECTS = $(SOURCES:.c=.o)

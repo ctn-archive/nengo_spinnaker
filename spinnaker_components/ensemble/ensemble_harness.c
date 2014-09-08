@@ -15,6 +15,7 @@
 #include "ensemble.h"
 #include "ensemble_output.h"
 #include "ensemble_pes.h"
+#include "ensemble_profiler.h"
 
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;
@@ -37,7 +38,8 @@ void mcpl_rx(uint key, uint payload)
 }
 
 /* Initialisation ***********************************************************/
-bool initialise_ensemble(region_system_t *pars) {
+bool initialise_ensemble(region_system_t *pars) 
+{
   // Save constants
   g_ensemble.n_neurons = pars->n_neurons;
   g_ensemble.machine_timestep = pars->machine_timestep;
@@ -97,7 +99,11 @@ bool initialise_ensemble(region_system_t *pars) {
   g_ensemble.output = initialise_output(pars);
   if (g_ensemble.output == NULL && g_n_output_dimensions > 0)
     return false;
-
+  
+  // Initialize the profiler with the number of 
+  // Samples passed from the system region
+  profiler_init(pars->profiler_region_num_samples);
+  
   // Register the update function
   spin1_callback_on(TIMER_TICK, ensemble_update, 2);
   spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_rx, -1);

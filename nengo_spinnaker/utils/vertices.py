@@ -28,10 +28,14 @@ class NengoVertex(graph.Vertex):
 
     def __init__(self, *args, **kwargs):
         self.nengo_object = kwargs.pop('nengo_object', None)
-        self.profiled = kwargs.pop('profiled', False)
+        self.profiler_num_samples = kwargs.pop('profiler_num_samples', 0)
 
         super(NengoVertex, self).__init__(*args, **kwargs)
-
+    
+    @property
+    def profiled(self):
+        return (self.profiler_num_samples > 0)
+    
     @property
     def model_name(self):
         return self.MODEL_NAME + ('_profiled' if self.profiled else '')
@@ -321,6 +325,15 @@ class FrameBasedRecordingRegion(object):
     def sizeof(self, lo_atom, hi_atom):
         return self.size
 
+class FixedSizeRecordingRegion(object):
+    in_dtcm = False
+    unfilled = True
+    
+    def __init__(self, size):
+        self.size = size
+
+    def sizeof(self, lo_atom, hi_atom):
+        return self.size
 
 class UnpartitionedMatrixRegion(object):
     def __init__(self, matrix=None, shape=None, in_dtcm=True, unfilled=False,

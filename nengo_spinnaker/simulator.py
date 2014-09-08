@@ -156,8 +156,8 @@ class Simulator(object):
 
         # Assemble the model for simulation
         asmblr = assembler.Assembler()
-        vertices, edges = asmblr(
-            objs, conns, time_in_seconds, self.dt)
+        vertices, edges = asmblr(objs, conns, time_in_seconds, 
+            self.dt, config=self.config)
 
         # Enable profiling on any vertices whose Nengo objects are tagged as
         # requiring it, build a dictionary of profiled objects to their
@@ -165,7 +165,8 @@ class Simulator(object):
         profiled_vertices = collections.defaultdict(list)
         for v in vertices:
             if v.nengo_object is not None:
-                v.profiled = self.config[v.nengo_object].profiled
+                v.profiler_num_samples =\
+                    self.config[v.nengo_object].profiler_num_samples
 
                 if v.profiled:
                     profiled_vertices[v.nengo_object].append(v)
