@@ -56,8 +56,7 @@ bool data_system(address_t addr) {
 
 bool data_get_output_keys(address_t addr) {
   MALLOC_FAIL_FALSE(g_filter.keys,
-                    g_filter.size_out * sizeof(uint),
-                    "[Filter]");
+                    g_filter.size_out * sizeof(uint));
   spin1_memcpy(
     g_filter.keys, addr, g_filter.size_out * sizeof(uint));
 
@@ -69,8 +68,7 @@ bool data_get_output_keys(address_t addr) {
 
 bool data_get_transform(address_t addr) {
   MALLOC_FAIL_FALSE(g_filter.transform,
-                    sizeof(value_t) * g_filter.size_in * g_filter.size_out,
-                    "[Filter]");
+                    sizeof(value_t) * g_filter.size_in * g_filter.size_out);
 
   spin1_memcpy(g_filter.transform, addr,
                g_filter.size_in * g_filter.size_out * sizeof(uint));

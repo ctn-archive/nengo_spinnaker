@@ -37,7 +37,7 @@ bool get_packets(address_t source, uint** dest) {
   // Allocate some space for the packets list
   uint* dest_;
 
-  MALLOC_FAIL_FALSE(dest_, source[0] * sizeof(mc_packet_t) + 1, "");
+  MALLOC_FAIL_FALSE(dest_, source[0] * sizeof(mc_packet_t) + 1);
   dest[0] = dest_;
 
   // Copy those packets across

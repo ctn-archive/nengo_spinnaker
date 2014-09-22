@@ -11,8 +11,7 @@ bool record_buffer_initialise(recording_buffer_t *buffer, address_t region,
   buffer->current_frame = UINT32_MAX;  // To cause overflow on first tick
 
   // Create the local buffer
-  MALLOC_FAIL_FALSE(buffer->buffer, buffer->frame_length * sizeof(uint),
-                    "[Recording]");
+  MALLOC_FAIL_FALSE(buffer->buffer, buffer->frame_length * sizeof(uint));
 
   // Zero the local buffers
   for (uint i = 0; i < buffer->frame_length; i++) {

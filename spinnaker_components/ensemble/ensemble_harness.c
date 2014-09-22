@@ -55,13 +55,11 @@ bool initialise_ensemble(region_system_t *pars) {
 
   // Holder for bias currents
   MALLOC_FAIL_FALSE(g_ensemble.i_bias,
-                    g_ensemble.n_neurons * sizeof(current_t),
-                    "[Ensemble]");
+                    g_ensemble.n_neurons * sizeof(current_t));
 
   // Holder for refractory period and voltages
   MALLOC_FAIL_FALSE(g_ensemble.status,
-                    g_ensemble.n_neurons * sizeof(neuron_status_t),
-                    "[Ensemble]");
+                    g_ensemble.n_neurons * sizeof(neuron_status_t));
 
   for (uint n = 0; n < g_ensemble.n_neurons; n++) {
     g_ensemble.status[n].refractory_time = 0;
@@ -71,13 +69,11 @@ bool initialise_ensemble(region_system_t *pars) {
   // Initialise some buffers
   MALLOC_FAIL_FALSE(g_ensemble.encoders,
                     g_ensemble.n_neurons * pars->n_input_dimensions *
-                      sizeof(value_t),
-                    "[Ensemble]");
+                      sizeof(value_t));
 
   MALLOC_FAIL_FALSE(g_ensemble.decoders,
                     g_ensemble.n_neurons * pars->n_output_dimensions *
-                      sizeof(value_t),
-                    "[Ensemble]");
+                      sizeof(value_t));
 
   // Setup subcomponents
   g_ensemble.input = input_filter_initialise(&g_input, pars->n_input_dimensions);

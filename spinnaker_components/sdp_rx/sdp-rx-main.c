@@ -48,15 +48,9 @@ bool data_system(address_t addr) {
             g_sdp_rx.transmission_period);
   io_printf(IO_BUF, "[SDP Rx] %d dimensions.\n", g_sdp_rx.n_dimensions);
 
-  MALLOC_FAIL_FALSE(g_sdp_rx.output,
-                    g_sdp_rx.n_dimensions * sizeof(value_t),
-                    "[Rx]");
-  MALLOC_FAIL_FALSE(g_sdp_rx.fresh,
-                    g_sdp_rx.n_dimensions * sizeof(bool),
-                    "[Rx]");
-  MALLOC_FAIL_FALSE(g_sdp_rx.keys,
-                    g_sdp_rx.n_dimensions * sizeof(uint),
-                    "[Rx]");
+  MALLOC_FAIL_FALSE(g_sdp_rx.output, g_sdp_rx.n_dimensions * sizeof(value_t));
+  MALLOC_FAIL_FALSE(g_sdp_rx.fresh, g_sdp_rx.n_dimensions * sizeof(bool));
+  MALLOC_FAIL_FALSE(g_sdp_rx.keys, g_sdp_rx.n_dimensions * sizeof(uint));
 
   return true;
 }
