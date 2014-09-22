@@ -73,7 +73,7 @@ bool data_get_transform(address_t addr) {
                     "[Filter]");
 
   spin1_memcpy(g_filter.transform, addr,
-               g_filter.size_in * g_filter.size_out * sizeof(uint));
+               g_filter.size_in * g_filter.size_out * sizeof(value_t));
 
   io_printf(IO_BUF, "Transform = [");
   for (uint i = 0; i < g_filter.size_out; i++) {
@@ -88,7 +88,11 @@ bool data_get_transform(address_t addr) {
 }
 
 void mcpl_callback(uint key, uint payload) {
-  input_filter_mcpl_rx(&g_input, key, payload);
+  if (!input_filter_mcpl_rx(&g_input, key, payload))
+  {
+    debug("Failed to route packet with key 0x%08x", key);
+  }
+  debug("MCPL %08x.%k", key, payload);
 }
 
 void c_main(void) {

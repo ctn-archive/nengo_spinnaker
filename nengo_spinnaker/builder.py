@@ -73,8 +73,10 @@ class Builder(object):
                 c.keyspace = keyspace()
 
             # Set fields within the keyspace
-            if not c.keyspace.is_set_i:
+            if not c.keyspace.is_set_o:
                 c.keyspace = c.keyspace(o=object_ids[c.pre_obj])
+
+            if not c.keyspace.is_set_i:
                 c.keyspace = c.keyspace(i=connection_ids[c])
 
         # Build the list of output keyspaces for all of the ensemble objects
@@ -82,6 +84,8 @@ class Builder(object):
         for obj in objs:
             if isinstance(obj, ensemble.IntermediateEnsemble):
                 obj.create_output_keyspaces(object_ids[obj], keyspace)
+            if hasattr(obj, 'object_id'):
+                obj.object_id = object_ids[obj]
 
         # Return list of intermediate representation objects and connections
         return objs, conns, keyspace

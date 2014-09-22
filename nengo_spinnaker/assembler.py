@@ -148,12 +148,12 @@ class MulticastPlayer(utils.vertices.NengoVertex):
 
         for sink in sinks:
             for p in sink.start_packets:
-                start_items.extend([0, p.key,
+                start_items.extend([0, p.key.key(o=mcp.object_id),
                                     0 if p.payload is None else p.payload,
                                     p.payload is not None])
 
             for p in sink.end_packets:
-                end_items.extend([0, p.key,
+                end_items.extend([0, p.key.key(o=mcp.object_id),
                                   0 if p.payload is None else p.payload,
                                   p.payload is not None])
 

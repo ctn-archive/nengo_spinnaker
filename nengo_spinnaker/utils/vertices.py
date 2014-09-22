@@ -21,6 +21,10 @@ except ImportError:
 class NengoVertex(graph.Vertex):
     runtime = None
 
+    def __init__(self, *args, **kwargs):
+        self.object_id = None
+        super(NengoVertex, self).__init__(*args, **kwargs)
+
     @property
     def model_name(self):
         return self.MODEL_NAME
