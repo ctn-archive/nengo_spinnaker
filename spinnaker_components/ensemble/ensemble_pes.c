@@ -51,8 +51,7 @@ bool get_pes(address_t address)
   {
     // Allocate memory
     MALLOC_FAIL_FALSE(g_pes_learning_rules,
-                      g_num_pes_learning_rules * sizeof(pes_parameters_t),
-                      "[PES]");
+                      g_num_pes_learning_rules * sizeof(pes_parameters_t));
     
     // Copy learning rules from region into new array
     memcpy(g_pes_learning_rules, &address[1], g_num_pes_learning_rules * sizeof(pes_parameters_t));

@@ -14,8 +14,7 @@ value_t* input_filter_initialise(input_filter_t* input,
   input->n_dimensions = n_input_dimensions;
 
   MALLOC_FAIL_NULL(input->input,
-                  input->n_dimensions * sizeof(value_t),
-                  "[Common/Input]");
+                  input->n_dimensions * sizeof(value_t));
 
   // Return the input (to the encoders) buffer
   return input->input;
@@ -31,8 +30,7 @@ bool input_filter_get_filters(input_filter_t* input, address_t filter_region) {
 
   if (input->n_filters > 0) {
     MALLOC_FAIL_FALSE(input->filters,
-                      input->n_filters * sizeof(filtered_input_buffer_t*),
-                      "[Common/Input]");
+                      input->n_filters * sizeof(filtered_input_buffer_t*));
 
     input_filter_data_t* filters = (input_filter_data_t*) (filter_region + 1);
 
@@ -63,8 +61,7 @@ bool input_filter_get_filter_routes(input_filter_t* input,
 
   if (input->n_filters > 0 && input->n_routes > 0) {
     MALLOC_FAIL_FALSE(input->routes,
-                      input->n_routes * sizeof(input_filter_key_t),
-                      "[Common/Input]");
+                      input->n_routes * sizeof(input_filter_key_t));
     spin1_memcpy(input->routes, routing_region + 1, 
                  input->n_routes * sizeof(input_filter_key_t));
 

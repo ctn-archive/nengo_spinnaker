@@ -17,7 +17,7 @@ typedef struct _slots_t {
 static inline bool initialise_slots(slots_t* slots, uint size) {
   // Initialise the slots with the given size
   for (uint i = 0; i < 2; i++) {
-    MALLOC_FAIL_FALSE(slots->slots[i].data, size, "[Slots]");
+    MALLOC_FAIL_FALSE(slots->slots[i].data, size);
     slots->slots[i].current_pos = 0;
     slots->slots[i].length = 0;
   }

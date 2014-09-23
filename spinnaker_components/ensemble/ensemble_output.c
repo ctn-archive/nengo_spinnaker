@@ -28,11 +28,9 @@ value_t* initialise_output( region_system_t *pars ){
 
   if (g_n_output_dimensions > 0) {
     MALLOC_FAIL_NULL(gp_output_values,
-                     pars->n_output_dimensions * sizeof(value_t),
-                     "[Ensemble]");
+                     pars->n_output_dimensions * sizeof(value_t));
     MALLOC_FAIL_NULL(gp_output_keys,
-                     pars->n_output_dimensions * sizeof(uint),
-                     "[Ensemble]");
+                     pars->n_output_dimensions * sizeof(uint));
 
     for (uint n = 0; n < g_n_output_dimensions; n++) {
       gp_output_values[n] = 0;

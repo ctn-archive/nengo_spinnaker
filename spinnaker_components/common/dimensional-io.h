@@ -51,18 +51,13 @@ typedef struct filtered_input_buffer {
 static inline filtered_input_buffer_t* input_buffer_initialise( uint d_in ) {
   // Create the buffer on the heap
   filtered_input_buffer_t *buffer;
-  MALLOC_FAIL_NULL(buffer, sizeof(filtered_input_buffer_t),
-                   "[Common/Filters]");
+  MALLOC_FAIL_NULL(buffer, sizeof(filtered_input_buffer_t));
 
   buffer->d_in = d_in;
 
   // Initialise the buffer accumulator and values
-  MALLOC_FAIL_NULL(buffer->accumulator,
-                   d_in * sizeof(value_t),
-                   "[Common/Filters]");
-  MALLOC_FAIL_NULL(buffer->filtered,
-                   d_in * sizeof(value_t),
-                   "[Common/Filters]");
+  MALLOC_FAIL_NULL(buffer->accumulator, d_in * sizeof(value_t));
+  MALLOC_FAIL_NULL(buffer->filtered, d_in * sizeof(value_t));
 
   for (uint d = 0; d < d_in; d++) {
     buffer->accumulator[d] = 0.0k;
