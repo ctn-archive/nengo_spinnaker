@@ -187,9 +187,12 @@ def test_generate_data_for_placements(tmpdir):
     ds = [np.array([1, 2, 3], dtype=np.uint32),
           np.zeros(100, dtype=np.uint32),
           np.array([5, 6], dtype=np.uint32), ]
-    sv = vertices.NengoPlacedVertex(
-        [regions.Subregion(d, d.size, False) for d in ds], 1000)
-    placements = [Placement(sv, 0, 0, i) for i in range(17)]
+    svs = [
+        vertices.NengoPlacedVertex(0, 0, i, None,
+                                   [regions.Subregion(d, d.size, False) for d
+                                    in ds], 1000
+        ) for i in range(17)
+    ]
 
     # Get the word and region writes for these placements
     r_getter_base = 0xEFEF
@@ -197,7 +200,7 @@ def test_generate_data_for_placements(tmpdir):
     register_getter = mock.Mock()
     register_getter.side_effect = r_getter_func
     word_writes, region_writes = output_generator.generate_data_for_placements(
-        placements, 128 * 1024**2, 0, register_getter, tmpdir)
+        svs, 128 * 1024**2, 0, register_getter, tmpdir)
 
     # Ensure that these are all sensible
     # Ensure that we have the correct number of writes
@@ -239,7 +242,7 @@ def test_generate_data_for_placements(tmpdir):
         assert 0 <= i <= 17
 
         # ***YUCK***
-        mem = output_generator.get_total_bytes_used(sv.subregions)
+        mem = output_generator.get_total_bytes_used(svs[0].subregions)
         app_ptr_table_mem = 7
         expected_value = 128*1024**2 - (i+1)*(mem + app_ptr_table_mem*4)
         assert ww.value == expected_value
@@ -254,11 +257,11 @@ def test_generate_data_for_placements_multiple_chips(tmpdir):
 def test_empty_memory_exception(tmpdir):
     """Test that an exception is thrown if there is insufficient memory."""
     sv = vertices.NengoPlacedVertex(
+        0, 0, 1, None,
         [regions.Subregion(np.zeros(100, dtype=np.uint32), 100, False)], 1000)
-    p = Placement(sv, 0, 0, 1)
     register_getter = lambda x: 0xEFEF
 
     # Subvertex requires more memory than we have made available.
     with pytest.raises(output_generator.InsufficientMemoryError):
         output_generator.generate_data_for_placements(
-            [p], 0, 0x10, register_getter, tmpdir)
+            [sv], 0, 0x10, register_getter, tmpdir)

@@ -7,8 +7,14 @@ from pacman.model.resources.dtcm_resource import DTCMResource
 from pacman.model.resources.sdram_resource import SDRAMResource
 
 
+NengoPlacedVertex = collections.namedtuple(
+    'NengoPlacedVertex', 'x y p executable subregions timer_period')
+
+
 class NengoVertex(object):
     """Helper for constructing Vertices for PACMAN."""
+    executable_path = None  # Path for the executable
+
     def __init__(self, n_atoms, label, regions=list(), constraints=None):
         """Create a new NengoVertex object.
 
@@ -75,7 +81,3 @@ class NengoVertex(object):
         """Get the CPU usage (in ticks per step) for the given vertex slice.
         """
         raise NotImplementedError
-
-
-NengoPlacedVertex = collections.namedtuple(
-    'NengoPlacedVertex', 'subregions timer_period')

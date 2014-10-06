@@ -90,33 +90,35 @@ def write_core_region_files(x, y, p, subregions, base_addr, tmpdir):
     return writes
 
 
-def generate_data_for_placements(placements, sdram_empty_mem, sdram_base,
+def generate_data_for_placements(placed_vertices, sdram_empty_mem, sdram_base,
                                  get_user_0_register_from_core_func, tmpdir):
     """Generates the data files and writes required to load data for the given
     placements.
+
+    :param placed_vertices: Placed vertex objects.
     """
     # Store all the regions and words to write
     region_writes = list()
     word_writes = list()
 
     # Sort the placements by chip and core number
-    placements = sorted(placements, key=lambda p: (p.x*256 + p.y)*18 + p.p)
+    placements = sorted(placed_vertices, key=lambda p: (p.x*256 + p.y)*18 + p.p)
 
     # Split by core number
-    grouped_ps = itertools.groupby(placements, key=lambda p: (p.x, p.y))
+    grouped_ps = itertools.groupby(placed_vertices, key=lambda p: (p.x, p.y))
     for ((x, y), ps) in grouped_ps:
         # Keep track of the amount of memory we've used
         memory = sdram_empty_mem
 
         # Iterate through the placements for this (x, y) and generate all data
         # as required.
-        for placement in ps:
+        for placed_vertex in ps:
             # Generate the complete list of regions for this subvertex
             regions = [create_app_pointer_table_region(
-                placement.subvertex.subregions,
-                timer_period=placement.subvertex.timer_period
-            )]
-            regions.extend(list(placement.subvertex.subregions))
+                placed_vertex.subregions,
+                timer_period=placed_vertex.timer_period)
+            ]
+            regions.extend(list(placed_vertex.subregions))
 
             # Get the number of bytes used by the subregions
             mem_used = get_total_bytes_used(regions)
@@ -129,14 +131,15 @@ def generate_data_for_placements(placements, sdram_empty_mem, sdram_base,
 
             # Generate the set of region writes for these regions
             region_writes.extend(
-                write_core_region_files(placement.x, placement.y, placement.p,
-                                        regions, base, tmpdir)
+                write_core_region_files(placed_vertex.x, placed_vertex.y,
+                                        placed_vertex.p, regions, base, tmpdir)
             )
 
             # Add a write to indicate the starting address of the app_ptr table
-            ba = get_user_0_register_from_core_func(placement.x, placement.y,
-                                                    placement.p)
-            word_writes.append(MemoryWordWrite(placement.x, placement.y, ba, 4,
-                                               base))
+            ba = get_user_0_register_from_core_func(placed_vertex.x,
+                                                    placed_vertex.y,
+                                                    placed_vertex.p)
+            word_writes.append(MemoryWordWrite(placed_vertex.x,
+                                               placed_vertex.y, ba, 4, base))
 
     return word_writes, region_writes
