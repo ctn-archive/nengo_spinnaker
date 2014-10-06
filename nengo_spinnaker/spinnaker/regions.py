@@ -159,14 +159,19 @@ class KeysRegion(Region):
             in_dtcm=in_dtcm, prepend_n_atoms=prepend_n_atoms,
             prepend_full_length=prepend_full_length)
 
-        self.fill_in_field = fill_in_field
         self.keys = keys
-        self.extra_fields = extra_fields
+
+        if fill_in_field is None:
+            self.fields = [lambda k, i: k.key()]
+        else:
+            self.fields = [lambda k, i: k.key(**{fill_in_field: i})]
+
+        self.fields.extend(extra_fields)
 
     def sizeof(self, vertex_slice):
         """The size of the region in WORDS.
         """
-        return (len(self.keys) * (len(self.extra_fields) + 1) +
+        return (len(self.keys) * (len(self.fields)) +
                 (1 if self.prepend_n_atoms else 0) +
                 (1 if self.prepend_full_length else 0))
 
@@ -174,14 +179,7 @@ class KeysRegion(Region):
         # Create the data for each key
         data = []
         for k in self.keys:
-            # Add the key with the index filled if required
-            if self.fill_in_field is None:
-                data.append(k.key() for k in self.keys)
-            else:
-                data.append(k.key(**{self.fill_in_field: subvertex_index}))
-
-            # Add any extra fields
-            data.extend(f(k, subvertex_index) for f in self.extra_fields)
+            data.extend(f(k, subvertex_index) for f in self.fields)
 
         # Prepend any required additional data
         prepends = []
