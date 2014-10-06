@@ -25,7 +25,6 @@ class NengoVertex(object):
         self.label = label
         self.regions = regions
         self.contraints = constraints
-        self._n_subvertices = 0
 
     def get_resources_used_by_atoms(self, vertex_slice, graph):
         return ResourceContainer(
@@ -34,6 +33,19 @@ class NengoVertex(object):
             dtcm=DTCMResource(self.get_dtcm_usage_for_atoms(vertex_slice)),
             sdram=SDRAMResource(self.get_sdram_usage_for_atoms(vertex_slice))
         )
+
+    def get_subregions(self, subvertex_index, vertex_slice):
+        """Return subregions for the atoms indexed in the vertex slice.
+
+        :param subvertex_index: The sub-object ID assigned to the subvertex.
+        :param vertex_slice: The slice defining the subvertex.
+        """
+        if not (vertex_slice.start <= vertex_slice.stop < self.n_atoms and
+                0 <= vertex_slice.start < self.n_atoms):
+            raise ValueError(vertex_slice)
+
+        return [r.create_subregion(vertex_slice, subvertex_index) for r in
+                self.regions]
 
     def get_sdram_usage_for_atoms(self, vertex_slice):
         """Get the SDRAM usage for the given slice of the vertex.

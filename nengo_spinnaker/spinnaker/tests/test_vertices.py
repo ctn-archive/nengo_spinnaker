@@ -1,3 +1,6 @@
+import mock
+import pytest
+
 from ..vertices import NengoVertex
 from .. import regions
 
@@ -65,3 +68,23 @@ def test_get_dtcm_usage_with_other_costs():
 
     assert (v.get_dtcm_usage_for_atoms(slice(0, 10)) ==
             4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]) + 4*100)
+
+# Subvertexing
+def test_get_subregions():
+    """Ensure that subregions are generated correctly."""
+    # Create a new Vertex with some Mock regions
+    rs = [
+        mock.Mock(),
+        mock.Mock()
+    ]
+    v = NengoVertex(100, '', rs)
+
+    # Create some subregions, ensure the appropriate calls are made to the
+    # regions.
+    srs = v.get_subregions(0, slice(0, 10))
+    for r in rs:
+        r.create_subregion.assert_called_once_with(slice(0, 10), 0)
+
+    # Assert that an error is raised if too many atoms are specified
+    with pytest.raises(ValueError):
+        v.get_subregions(0, slice(0, 1000))
