@@ -8,13 +8,9 @@ import pytest
 
 from .. import output_generator
 from .. import regions
+from .. import vertices
 
 from pacman.model.placements.placement import Placement
-
-# Temporary definition of what the data types should look like (for the purpose
-# of the methods being tested)
-NengoPartitionedVertex = collections.namedtuple(
-    'NengoPartitionedVertex', 'subregions timer_period')
 
 
 @pytest.fixture()
@@ -191,7 +187,7 @@ def test_generate_data_for_placements(tmpdir):
     ds = [np.array([1, 2, 3], dtype=np.uint32),
           np.zeros(100, dtype=np.uint32),
           np.array([5, 6], dtype=np.uint32), ]
-    sv = NengoPartitionedVertex(
+    sv = vertices.NengoPlacedVertex(
         [regions.Subregion(d, d.size, False) for d in ds], 1000)
     placements = [Placement(sv, 0, 0, i) for i in range(17)]
 
@@ -257,7 +253,7 @@ def test_generate_data_for_placements_multiple_chips(tmpdir):
 
 def test_empty_memory_exception(tmpdir):
     """Test that an exception is thrown if there is insufficient memory."""
-    sv = NengoPartitionedVertex(
+    sv = vertices.NengoPlacedVertex(
         [regions.Subregion(np.zeros(100, dtype=np.uint32), 100, False)], 1000)
     p = Placement(sv, 0, 0, 1)
     register_getter = lambda x: 0xEFEF

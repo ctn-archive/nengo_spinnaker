@@ -1,3 +1,5 @@
+import collections
+
 from pacman.model.resources.resource_container import ResourceContainer
 from pacman.model.resources.cpu_cycles_per_tick_resource import \
     CPUCyclesPerTickResource
@@ -61,3 +63,7 @@ class NengoVertex(object):
         """Get the CPU usage (in ticks per step) for the given vertex slice.
         """
         raise NotImplementedError
+
+
+NengoPlacedVertex = collections.namedtuple(
+    'NengoPlacedVertex', 'subregions timer_period')
