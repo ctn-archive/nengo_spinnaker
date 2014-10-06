@@ -111,3 +111,20 @@ class TestMatrixRegion(object):
         assert np.all(sr_data[2:].reshape(data[0:10].shape) == data[0:10])
         assert sr.size_words == 10*5 + 2
         assert not sr.unfilled
+
+    def test_size_no_matrix(self):
+        mr = regions.MatrixRegion(shape=(100, 5, 2), prepend_n_atoms=True,
+                                  prepend_full_length=True)
+        assert mr.sizeof(slice(0, 10)) == 100*5*2 + 2
+
+    def test_size_no_matrix_rows(self):
+        mr = regions.MatrixRegionPartitionedByRows(shape=(100, 5),
+                                                   prepend_n_atoms=True,
+                                                   prepend_full_length=True)
+        assert mr.sizeof(slice(0, 10)) == 10*5 + 2
+
+    def test_size_no_matrix_columns(self):
+        mr = regions.MatrixRegionPartitionedByColumns(shape=(100, 5),
+                                                      prepend_n_atoms=True,
+                                                      prepend_full_length=True)
+        assert mr.sizeof(slice(0, 2)) == 100*2 + 2

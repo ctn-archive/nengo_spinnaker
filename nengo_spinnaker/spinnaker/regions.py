@@ -48,6 +48,8 @@ def Subregion(data, size_words, unfilled):
 class MatrixRegion(Region):
     """An unpartitioned region of memory representing a matrix.
     """
+    partition_index = None  # Not partitioned along any axis
+
     def __init__(self, matrix=None, shape=None, dtype=np.uint32, in_dtcm=True,
                  unfilled=False, prepend_n_atoms=False,
                  prepend_full_length=False, formatter=None):
@@ -64,9 +66,11 @@ class MatrixRegion(Region):
 
         # Assert the matrix matches the given shape
         assert shape is not None or matrix is not None
-        assert shape is None or shape == matrix.shape
 
-        if shape is None:
+        if shape is not None and matrix is not None:
+            assert shape == matrix.shape
+
+        if shape is None and matrix is not None:
             shape = matrix.shape
 
         # Store the matrix and shape
@@ -76,12 +80,27 @@ class MatrixRegion(Region):
 
     def sizeof(self, vertex_slice):
         """Get the size of the region for the specified atoms in words."""
-        return (self[vertex_slice.start:vertex_slice.stop].size +
+        size = self.size_from_shape(vertex_slice)
+
+        return (self.size_from_shape(vertex_slice) +
                 (1 if self.prepend_full_length else 0) +
                 (1 if self.prepend_n_atoms else 0))
 
     def __getitem__(self, index):
         return self.matrix
+
+    def size_from_shape(self, vertex_slice):
+        # If the shape is n-D then multiply the length of the axes together,
+        # accounting for the clipping of the partitioned axis.
+        if isinstance(self.shape, tuple):
+            return reduce(
+                lambda x, y: x*y,
+                [s if i != self.partition_index else
+                 (min(s, vertex_slice.stop) - max(0, vertex_slice.start)) for
+                 i, s in enumerate(self.shape)])
+
+        # Otherwise just clip
+        return min(self.shape, vertex_slice.stop) - max(0, vertex_slice.start)
 
     def create_subregion(self, vertex_slice, subvertex_index):
         """Return the data to write to memory for this region.
@@ -111,6 +130,7 @@ class MatrixRegion(Region):
 class MatrixRegionPartitionedByColumns(MatrixRegion):
     """A region representing a matrix which is partitioned by columns.
     """
+    partition_index = 1
     def __getitem__(self, index):
         return self.matrix.T[index].T
 
@@ -118,5 +138,6 @@ class MatrixRegionPartitionedByColumns(MatrixRegion):
 class MatrixRegionPartitionedByRows(MatrixRegion):
     """A region representing a matrix which is partitioned by rows.
     """
+    partition_index = 0
     def __getitem__(self, index):
         return self.matrix[index]
