@@ -80,8 +80,6 @@ class MatrixRegion(Region):
 
     def sizeof(self, vertex_slice):
         """Get the size of the region for the specified atoms in words."""
-        size = self.size_from_shape(vertex_slice)
-
         return (self.size_from_shape(vertex_slice) +
                 (1 if self.prepend_full_length else 0) +
                 (1 if self.prepend_n_atoms else 0))
@@ -131,6 +129,7 @@ class MatrixRegionPartitionedByColumns(MatrixRegion):
     """A region representing a matrix which is partitioned by columns.
     """
     partition_index = 1
+
     def __getitem__(self, index):
         return self.matrix.T[index].T
 
@@ -139,6 +138,7 @@ class MatrixRegionPartitionedByRows(MatrixRegion):
     """A region representing a matrix which is partitioned by rows.
     """
     partition_index = 0
+
     def __getitem__(self, index):
         return self.matrix[index]
 

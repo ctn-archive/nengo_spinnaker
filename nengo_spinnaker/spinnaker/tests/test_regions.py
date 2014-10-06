@@ -5,7 +5,7 @@ import pytest
 from .. import regions
 
 
-## Matrix region tests
+# Matrix region tests
 class TestMatrixRegion(object):
     """Tests for the MatrixRegion and derived types."""
 
@@ -131,12 +131,12 @@ class TestMatrixRegion(object):
         assert mr.sizeof(slice(0, 2)) == 100*2 + 2
 
 
-## Keys Region Tests
+# Keys Region Tests
 class TestKeysRegion(object):
     def test_fill_in_field(self):
         # Create a set of keys
         keys = [mock.Mock() for i in range(12)]
-        for i,k in enumerate(keys):
+        for i, k in enumerate(keys):
             k.key.return_value = i
 
         # Create a new key region
@@ -153,13 +153,13 @@ class TestKeysRegion(object):
 
         # Assert that a Subregion with the correct data is returned
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
-        for i,k in enumerate(keys):
+        for i, k in enumerate(keys):
             assert sr_data[i] == k.key.return_value
 
     def test_subregion_n_atoms(self):
         # Create a set of keys
         keys = [mock.Mock() for i in range(12)]
-        for i,k in enumerate(keys):
+        for i, k in enumerate(keys):
             k.key.return_value = i
 
         # Create a new key region
@@ -178,7 +178,7 @@ class TestKeysRegion(object):
     def test_subregion_full_length(self):
         # Create a set of keys
         keys = [mock.Mock() for i in range(12)]
-        for i,k in enumerate(keys):
+        for i, k in enumerate(keys):
             k.key.return_value = i
 
         # Create a new key region
@@ -198,7 +198,7 @@ class TestKeysRegion(object):
     def test_subregion_full_length_n_atoms(self):
         # Create a set of keys
         keys = [mock.Mock() for i in range(12)]
-        for i,k in enumerate(keys):
+        for i, k in enumerate(keys):
             k.key.return_value = i
 
         # Create a new key region

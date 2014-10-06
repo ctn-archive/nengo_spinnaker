@@ -102,7 +102,8 @@ def generate_data_for_placements(placed_vertices, sdram_empty_mem, sdram_base,
     word_writes = list()
 
     # Sort the placements by chip and core number
-    placements = sorted(placed_vertices, key=lambda p: (p.x*256 + p.y)*18 + p.p)
+    placed_vertices = sorted(placed_vertices,
+                             key=lambda p: (p.x*256 + p.y)*18 + p.p)
 
     # Split by core number
     grouped_ps = itertools.groupby(placed_vertices, key=lambda p: (p.x, p.y))

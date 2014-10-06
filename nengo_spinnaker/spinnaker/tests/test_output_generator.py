@@ -1,4 +1,3 @@
-import collections
 import mock
 import numpy as np
 import shutil
@@ -9,8 +8,6 @@ import pytest
 from .. import output_generator
 from .. import regions
 from .. import vertices
-
-from pacman.model.placements.placement import Placement
 
 
 @pytest.fixture()
@@ -191,7 +188,7 @@ def test_generate_data_for_placements(tmpdir):
         vertices.NengoPlacedVertex(0, 0, i, None,
                                    [regions.Subregion(d, d.size, False) for d
                                     in ds], 1000
-        ) for i in range(17)
+                                   ) for i in range(17)
     ]
 
     # Get the word and region writes for these placements

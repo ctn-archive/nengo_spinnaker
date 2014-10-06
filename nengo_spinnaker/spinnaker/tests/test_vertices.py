@@ -5,7 +5,7 @@ from ..vertices import NengoVertex
 from .. import regions
 
 
-## Region requirements tests
+# Region requirements tests
 def test_get_sdram_usage_for_atoms():
     """Test that the SDRAM usage for various regions is reported correctly.
     """
@@ -69,6 +69,7 @@ def test_get_dtcm_usage_with_other_costs():
     assert (v.get_dtcm_usage_for_atoms(slice(0, 10)) ==
             4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]) + 4*100)
 
+
 # Subvertexing
 def test_get_subregions():
     """Ensure that subregions are generated correctly."""
@@ -81,7 +82,7 @@ def test_get_subregions():
 
     # Create some subregions, ensure the appropriate calls are made to the
     # regions.
-    srs = v.get_subregions(0, slice(0, 10))
+    v.get_subregions(0, slice(0, 10))
     for r in rs:
         r.create_subregion.assert_called_once_with(slice(0, 10), 0)
 

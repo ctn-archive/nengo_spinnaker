@@ -57,6 +57,7 @@ class NengoVertex(object):
         """Get the SDRAM usage for the given slice of the vertex.
 
         This calculation returns the total memory (in BYTES) used in SDRAM.
+        Method is not intended to be overridden.
         """
         return 4*sum(r.sizeof(vertex_slice) for r in self.regions)
 
@@ -64,6 +65,7 @@ class NengoVertex(object):
         """Get the DTCM usage for the given slice of the vertex.
 
         This calculation returns the total memory (in BYTES) used in DTCM.
+        Method is not intended to be overridden.
         """
         words = sum(r.sizeof(vertex_slice) for r in self.regions if r.in_dtcm)
         words += self.get_dtcm_usage_static(vertex_slice)
@@ -74,10 +76,13 @@ class NengoVertex(object):
         """Get the non-region related DTCM usage for the given number of atoms.
 
         This calculation returns the total memory (in BYTES) used in DTCM.
+        Method is intended to be overridden.
         """
         return 0
 
     def get_cpu_usage_for_atoms(self, vertex_slice):
         """Get the CPU usage (in ticks per step) for the given vertex slice.
+
+        Method is intended to be overridden.
         """
         raise NotImplementedError
