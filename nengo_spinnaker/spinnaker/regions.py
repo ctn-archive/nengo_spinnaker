@@ -152,28 +152,36 @@ class KeysRegion(Region):
 
     The region is not partitioned.
     """
-    def __init__(self, keys, fill_in_field=None, in_dtcm=True,
-                 prepend_n_atoms=False, prepend_full_length=False):
+    def __init__(self, keys, fill_in_field=None, extra_fields=list(),
+                 in_dtcm=True, prepend_n_atoms=False,
+                 prepend_full_length=False):
         super(KeysRegion, self).__init__(
             in_dtcm=in_dtcm, prepend_n_atoms=prepend_n_atoms,
             prepend_full_length=prepend_full_length)
 
         self.fill_in_field = fill_in_field
         self.keys = keys
+        self.extra_fields = extra_fields
 
     def sizeof(self, vertex_slice):
         """The size of the region in WORDS.
         """
-        return len(self.keys) + ((1 if self.prepend_n_atoms else 0) +
-                                 (1 if self.prepend_full_length else 0))
+        return (len(self.keys) * (len(self.extra_fields) + 1) +
+                (1 if self.prepend_n_atoms else 0) +
+                (1 if self.prepend_full_length else 0))
 
     def create_subregion(self, vertex_slice, subvertex_index):
         # Create the data for each key
-        if self.fill_in_field is None:
-            data = [k.key() for k in self.keys]
-        else:
-            data = [k.key(**{self.fill_in_field: subvertex_index}) for k in
-                    self.keys]
+        data = []
+        for k in self.keys:
+            # Add the key with the index filled if required
+            if self.fill_in_field is None:
+                data.append(k.key() for k in self.keys)
+            else:
+                data.append(k.key(**{self.fill_in_field: subvertex_index}))
+
+            # Add any extra fields
+            data.extend(f(k, subvertex_index) for f in self.extra_fields)
 
         # Prepend any required additional data
         prepends = []

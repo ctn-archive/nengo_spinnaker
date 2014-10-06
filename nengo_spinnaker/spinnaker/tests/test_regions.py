@@ -215,3 +215,27 @@ class TestKeysRegion(object):
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data[0] == 10
         assert sr_data[1] == 12
+
+    def test_extra_fields(self):
+        # Create a set of keys
+        keys = [mock.Mock() for i in range(12)]
+        for i, k in enumerate(keys):
+            k.key.return_value = i
+            k.routing_mask = 0xFFFFEEEE
+
+        # Create a new key region
+        r = regions.KeysRegion(keys, fill_in_field='i', extra_fields=[
+                               lambda k, i: k.routing_mask])
+
+        # Get the size of the region
+        assert r.sizeof(slice(0, 10)) == len(keys)*2
+
+        # Create a subregion and ensure that the keys are used correctly
+        sr = r.create_subregion(slice(0, 10), 1)
+
+        # Assert that a Subregion with the correct data is returned
+        sr_data = np.frombuffer(sr.data, dtype=np.uint32)
+        for i, d in enumerate(sr_data[0::2]):
+            assert d == i
+        for d in sr_data[1::2]:
+            assert d == 0xFFFFEEEE
