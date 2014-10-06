@@ -23,11 +23,11 @@ class Region(object):
         self.prepend_full_length = prepend_full_length
         self.formatter = formatter
 
-    def sizeof(self, lo_atom, hi_atom):
+    def sizeof(self, vertex_slice):
         """Get the size (in words) of the region."""
         raise NotImplementedError
 
-    def create_subregion(self, lo_atom, hi_atom, subvertex_index):
+    def create_subregion(self, vertex_slice, subvertex_index):
         """Create a smaller version of the region ready to write to memory.
         """
         raise NotImplementedError
@@ -141,3 +141,48 @@ class MatrixRegionPartitionedByRows(MatrixRegion):
     partition_index = 0
     def __getitem__(self, index):
         return self.matrix[index]
+
+
+class KeysRegion(Region):
+    """A region which represents a series of keys.
+
+    A region which represents keys to be used in transmitting or receiving
+    multicast packets.  If desired a field may be filled in with the subvertex
+    index when a subregion is created.
+
+    The region is not partitioned.
+    """
+    def __init__(self, keys, fill_in_field=None, in_dtcm=True,
+                 prepend_n_atoms=False, prepend_full_length=False):
+        super(KeysRegion, self).__init__(
+            in_dtcm=in_dtcm, prepend_n_atoms=prepend_n_atoms,
+            prepend_full_length=prepend_full_length)
+
+        self.fill_in_field = fill_in_field
+        self.keys = keys
+
+    def sizeof(self, vertex_slice):
+        """The size of the region in WORDS.
+        """
+        return len(self.keys) + ((1 if self.prepend_n_atoms else 0) +
+                                 (1 if self.prepend_full_length else 0))
+
+    def create_subregion(self, vertex_slice, subvertex_index):
+        # Create the data for each key
+        if self.fill_in_field is None:
+            data = [k.key() for k in self.keys]
+        else:
+            data = [k.key(**{self.fill_in_field: subvertex_index}) for k in
+                    self.keys]
+
+        # Prepend any required additional data
+        prepends = []
+        if self.prepend_n_atoms:
+            prepends.append(vertex_slice.stop - vertex_slice.start)
+        if self.prepend_full_length:
+            prepends.append(len(data))
+
+        # Create the subregion and return
+        srd = np.hstack([np.array(prepends, dtype=np.uint32),
+                         np.array(data, dtype=np.uint32)])
+        return Subregion(srd, len(srd), False)
