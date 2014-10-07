@@ -2,6 +2,7 @@
  * Authors:
  *   - Andrew Mundy <mundya@cs.man.ac.uk>
  *   - Terry Stewart
+ *   - Jonathan Heathcote <jdh@cs.man.ac.uk>
  * 
  * Copyright:
  *   - Advanced Processor Technologies, School of Computer Science,
@@ -9,6 +10,9 @@
  *   - Computational Neuroscience Research Group, Centre for
  *      Theoretical Neuroscience, University of Waterloo
  */
+
+#include "disciplined_clock.h"
+#include "disciplined_timer.h"
 
 #include "ensemble.h"
 #include "ensemble_output.h"
@@ -20,6 +24,8 @@ void ensemble_update(uint ticks, uint arg1) {
   use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
+  } else {
+    dtimer_schedule_next_interrupt();
   }
 
   // Prepare the recorder

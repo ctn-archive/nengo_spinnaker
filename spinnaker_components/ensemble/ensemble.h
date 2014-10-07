@@ -15,6 +15,7 @@
  * \author Andrew Mundy <mundya@cs.man.ac.uk>
  * \author Terry Stewart
  * \author James Knight <knightj@cs.man.ac.uk>
+ * \author Jonathan Heathcote <jdh@cs.man.ac.uk>
  * 
  * \copyright Advanced Processor Technologies, School of Computer Science,
  *   University of Manchester
@@ -49,6 +50,8 @@ typedef struct region_system
   value_t dt_over_t_rc;
   bool record_spikes;
   uint n_inhibitory_dimensions;
+  uint sim_controller_key_rx;
+  uint sim_controller_key_tx;
 } region_system_t;
 
 /** \brief Persistent neuron variables.
