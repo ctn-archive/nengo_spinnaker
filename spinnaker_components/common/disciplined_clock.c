@@ -22,6 +22,15 @@ dclk_initialise_state(void)
 	state.correction_phase_accumulator = 0;
 	state.freq_correction_weight = DCLK_FREQ_CORRECTION_WEIGHT_START;
 	state.phase_correction_weight = DCLK_PHASE_CORRECTION_WEIGHT_START;
+	
+	// Configure timer appropriately
+	tc2[TC_CONTROL] = ( (0 << 0) /* Wrapping counter */
+	                  | (1 << 1) /* 32-bit counter */
+	                  | (0 << 2) /* Clock divider (/1 = 0, /16 = 1, /256 = 2) */
+	                  | (0 << 5) /* No interrupt */
+	                  | (0 << 6) /* Free-running */
+	                  | (1 << 7) /* Enabled */
+	                  );
 }
 
 

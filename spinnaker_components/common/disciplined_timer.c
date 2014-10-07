@@ -21,30 +21,21 @@ dtimer_start_interrupts( dclk_time_t next_interrupt_time
 	dtimer.interrupt_period    = interrupt_period;
 	dtimer.stop                = FALSE;
 	
-	// Set up the timer (but do not enable and don't set the prescaler)
-	uint timer_control = DTIMER_TC[TC_CONTROL];
-	timer_control &= ~( (1 << 0) // One shot
-	                  | (1 << 1) // Timer Size
-	                  | (1 << 5) // Interrupt Enable
-	                  | (1 << 6) // Mode
-	                  | (1 << 7) // Enable
-	                  );
-	timer_control |=  ( (1 << 0) // One-shot counter
-	                  | (1 << 1) // 32-bit counter
-	                  | (1 << 5) // Interrupt
-	                  | (1 << 6) // Periodic
-	                  | (0 << 7) // Not Enabled
-	                  );
-	DTIMER_TC[TC_CONTROL] = timer_control;
-	
 	// Schedule the next interrupt. Note that the next_interrupt_time is
 	// decremented since dtimer_schedule_next_interrupt will set the interrupt for
 	// whatever time next_interrupt_time+interrupt_period is.
 	dtimer.next_interrupt_time -= dtimer.interrupt_period;
 	dtimer_schedule_next_interrupt();
 	
-	// Enable the timer (and thus its interrupts)
-	DTIMER_TC[TC_CONTROL] |= (1<<7);
+	// Set up the timer and enable
+	tc1[TC_CONTROL] = ( (1 << 0) /* One-shot counter */
+	                  | (1 << 1) /* 32-bit counter */
+	                  | (0 << 2) /* Clock divider (/1 = 0, /16 = 1, /256 = 2) */
+	                  | (1 << 5) /* Interrupt */
+	                  | (1 << 6) /* Periodic */
+	                  | (1 << 7) /* Enabled */
+	                  );
+	
 }
 
 
@@ -72,7 +63,7 @@ dtimer_schedule_next_interrupt(void)
 	   ) {
 		// Disable the timer (not required useful as an indicator that interrupts
 		// intentionally stopped).
-		DTIMER_TC[TC_CONTROL] &= ~(1<<7);
+		tc1[TC_CONTROL] &= ~(1<<7);
 	} else {
 		// Reload the timer with the next interrupt time (make sure that the number of
 		// ticks is at least one to ensure the interrupt does happen).
@@ -82,9 +73,9 @@ dtimer_schedule_next_interrupt(void)
 		dtimer.next_interrupt_time = new_next_interrupt_time;
 		
 		if (ticks_til_next_interrupt > 0)
-			DTIMER_TC[TC_LOAD] = ticks_til_next_interrupt;
+			tc1[TC_LOAD] = ticks_til_next_interrupt;
 		else
-			DTIMER_TC[TC_LOAD] = 1;
+			tc1[TC_LOAD] = 1;
 	}
 	
 	return nominal_time_now;

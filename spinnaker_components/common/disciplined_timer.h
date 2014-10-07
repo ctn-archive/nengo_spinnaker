@@ -79,10 +79,5 @@ void dtimer_stop_interrupts(dclk_time_t stop_time);
  */
 dclk_time_t dtimer_schedule_next_interrupt(void);
 
-/**
- * Pointer to the specific timer to control.
- */
-#define DTIMER_TC (tc1)
-
 #endif
 
