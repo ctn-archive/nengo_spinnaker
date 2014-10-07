@@ -1,23 +1,31 @@
 import pytest
 import random
 
-from nengo_spinnaker import utils
+from .. import keyspaces
+
+
+nengo_default = keyspaces.create_keyspace(
+    'NengoDefault', [('x', 8), ('y', 8), ('p', 5), ('i', 5), ('d', 6)],
+    "xypi", "xypi"
+)()
 
 
 def test_keyspace_init_size():
     # Assert that we can't create a new keyspace with more than 32 bits
     with pytest.raises(ValueError):
-        class KeyTest(utils.keyspaces.KeySpace):
+        class KeyTest(keyspaces.KeySpace):
             fields = [('x', 31), ('y', 2)]
             routing_fields = ['x', 'y']
+            filter_fields = ['x', 'y']
 
 
 def test_keyspace_masks():
     # Create a new keyspace and check that appropriate masks can be retrieved
     # from it.
-    class Nengo88556(utils.keyspaces.KeySpace):
+    class Nengo88556(keyspaces.KeySpace):
         fields = [('x', 8), ('y', 8), ('p', 5), ('i', 5), ('d', 6)]
         routing_fields = ['x', 'y', 'p', 'i']
+        filter_fields = ['x', 'y', 'p', 'i']
 
     # Assert that we get the correct masks out
     ks = Nengo88556()
@@ -36,7 +44,7 @@ def test_keyspace_masks():
 
 def test_keyspace_key():
     # Test generation of a single key and routing key
-    ks = utils.keyspaces.nengo_default()
+    ks = nengo_default()
     for _ in range(1000):
         x = random.randint(0, 31)
         assert(ks.routing_key(x=x) == ks.key(x=x) == (x << 24))
@@ -63,33 +71,33 @@ def test_keyspace_key():
 
 def test_keyspace_equivalence():
     # Check that equivalent spaces with no values are equivalent
-    ks1 = utils.keyspaces.nengo_default()
-    ks2 = utils.keyspaces.create_keyspace(
+    ks1 = nengo_default()
+    ks2 = keyspaces.create_keyspace(
         'KS2', [('x', 8), ('y', 8), ('p', 5), ('i', 5), ('d', 6)],
-        "xypi"
+        "xypi", "xypi"
     )()
 
     assert ks1 == ks2
 
     # Check that non-equivalent field allocations are not equivalent
-    ks3 = utils.keyspaces.create_keyspace(
+    ks3 = keyspaces.create_keyspace(
         'KS3', [('x', 8), ('y', 8), ('p', 5), ('i', 7), ('d', 4)],
-        "xypi")()
+        "xypi", "xypi")()
 
     assert ks1 != ks3
 
     # Check that equivalent field allocations but non-equivalent routing keys
     # are not equivalent
-    ks4 = utils.keyspaces.create_keyspace(
+    ks4 = keyspaces.create_keyspace(
         'KS4', [('x', 8), ('y', 8), ('p', 5), ('i', 5), ('d', 6)],
-        "xypd"
+        "xypd", "xypd"
     )()
     assert ks1 != ks4
 
 
 def test_keyspace_preset():
     # Check that we can set presets on keyspaces in two different ways
-    ks1 = utils.keyspaces.nengo_default(i=1)
+    ks1 = nengo_default(i=1)
     ks2 = ks1(x=5)
 
     assert((ks1.key() & ks1.mask_i) >> 6 == 1)
@@ -99,9 +107,9 @@ def test_keyspace_preset():
 def test_keyspace_size_checks():
     # Check that if we try to set a field value too high we get an exception
     with pytest.raises(ValueError):
-        utils.keyspaces.nengo_default(x=512)
+        nengo_default(x=512)
 
-    ks = utils.keyspaces.nengo_default()
+    ks = nengo_default()
     with pytest.raises(ValueError):
         print ks._field_values
         ks.key(x=512)
@@ -114,7 +122,7 @@ def test_keyspace_size_checks():
 
 
 def test_keyspace_inheritance():
-    ks = utils.keyspaces.nengo_default()
+    ks = nengo_default()
     ks1 = ks(x=1)
     ks2 = ks1(y=2)
 
@@ -127,7 +135,7 @@ def test_keyspace_inheritance():
 
 
 def test_field_set_check():
-    ks = utils.keyspaces.nengo_default(i=6)
+    ks = nengo_default(i=6)
     assert(ks.is_set_i)
 
     with pytest.raises(AttributeError):
