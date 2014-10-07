@@ -1,6 +1,8 @@
 #include "value_source.h"
 #include "slots.h"
 
+#include "discipline.h"
+
 slots_t slots;            // Slots for output data
 uint* keys;               // Output keys
 system_parameters_t pars; // Global system parameters
@@ -8,10 +10,16 @@ uint n_blocks;            // Number of blocks (in total)
 uint current_block;       // Current block
 void* blocks;             // Location of blocks in DRAM
 
+void mcpl_callback(uint key, uint payload) {
+  discipline_process_mc_packet(key, payload);
+}
+
 void valsource_tick(uint ticks, uint arg1) {
   use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
+  } else {
+    discipline_on_interrupt();
   }
 
   // Transmit a MC packet for each value in the current frame
@@ -125,7 +133,8 @@ void c_main(void) {
   }
 
   // Set up callbacks, wait for synchronisation
-  spin1_set_timer_tick(pars.time_step);
+  discipline_initialise(region_start(4, address), pars.time_step);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
   spin1_callback_on(TIMER_TICK, valsource_tick, 0);
   spin1_start(SYNC_WAIT);
 }

@@ -1,5 +1,7 @@
 #include "filter.h"
 
+#include "discipline.h"
+
 filter_parameters_t g_filter;
 uint delay_remaining;
 input_filter_t g_input;
@@ -8,6 +10,8 @@ void filter_update(uint ticks, uint arg1) {
   use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
+  } else {
+    discipline_on_interrupt();
   }
 
   // Update the filters
@@ -86,6 +90,9 @@ bool data_get_transform(address_t addr) {
 }
 
 void mcpl_callback(uint key, uint payload) {
+  if (discipline_process_mc_packet(key, payload))
+    return;
+
   input_filter_mcpl_rx(&g_input, key, payload);
 }
 
@@ -107,7 +114,7 @@ void c_main(void) {
   }
 
   // Setup timer tick, start
-  spin1_set_timer_tick(g_filter.machine_timestep);
+  discipline_initialise(region_start(6, address), g_filter.machine_timestep);
   spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
   spin1_callback_on(TIMER_TICK, filter_update, 2);
   spin1_start(SYNC_WAIT);

@@ -4,6 +4,7 @@
  * Authors:
  *   - Andrew Mundy <mundya@cs.man.ac.uk>
  *   - Terry Stewart
+ *   - Jonathan Heathcote <jdh@cs.man.ac.uk>
  * 
  * Copyright:
  *   - Advanced Processor Technologies, School of Computer Science,
@@ -16,6 +17,8 @@
 #include "ensemble_output.h"
 #include "ensemble_pes.h"
 
+#include "discipline.h"
+
 /* Parameters and Buffers ***************************************************/
 ensemble_parameters_t g_ensemble;
 input_filter_t g_input;
@@ -25,6 +28,9 @@ input_filter_t g_input_modulatory;
 /* Multicast Wrapper ********************************************************/
 void mcpl_rx(uint key, uint payload) 
 {
+  if (discipline_process_mc_packet(key, payload))
+    return;
+
   bool handled = false;
   handled |= input_filter_mcpl_rx(&g_input, key, payload);
   handled |= input_filter_mcpl_rx(&g_input_inhibitory, key, payload);
@@ -32,7 +38,7 @@ void mcpl_rx(uint key, uint payload)
 
   if(!handled)
   {
-      io_printf(IO_BUF, "[MCPL Rx] Unknown key %08x\n", key);
+    io_printf(IO_BUF, "[MCPL Rx] Unknown key %08x\n", key);
   }
 }
 

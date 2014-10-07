@@ -1,3 +1,5 @@
+#include "spinnaker.h"
+
 #include "disciplined_clock.h"
 
 #ifndef MIN
@@ -59,7 +61,7 @@ dclk_get_time(void)
 		dclk_time_t corrected_time_since_last_read = new_corrected_time - state.last_corrected_time;
 		
 		dclk_offset_t phase_correction = -((state.correction_phase_accumulator >> DCLK_FP_PHASE_FBITS) + 1);
-		phase_correction = MIN(corrected_time_since_last_read, phase_correction);
+		phase_correction = MIN((dclk_offset_t)corrected_time_since_last_read, phase_correction);
 		
 		state.correction_phase_accumulator += phase_correction << DCLK_FP_PHASE_FBITS;
 		state.offset -= phase_correction;

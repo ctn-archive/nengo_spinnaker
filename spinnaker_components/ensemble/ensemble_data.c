@@ -4,6 +4,7 @@
  * Authors:
  *   - Andrew Mundy <mundya@cs.man.ac.uk>
  *   - Terry Stewart
+ *   - Jonathan Heathcote <jdh@cs.man.ac.uk>
  * 
  * Copyright:
  *   - Advanced Processor Technologies, School of Computer Science,

@@ -13,9 +13,6 @@
  * for public access.
  */
 typedef struct {
-	// The dclk_state_t of the disciplined clock to use as a reference
-	volatile dclk_state_t *dclk;
-	
 	// The time at which the next timer interrupt is scheduled (corrected time)
 	dclk_time_t next_interrupt_time;
 	
@@ -49,8 +46,7 @@ typedef struct {
  * See the documentation for dclk_get_ticks_until_time for further timing
  * guaruntees.
  */
-void dtimer_start_interrupts( volatile dclk_state_t *dclk
-                            , dclk_time_t next_interrupt_time
+void dtimer_start_interrupts( dclk_time_t next_interrupt_time
                             , dclk_time_t interrupt_period
                             );
 

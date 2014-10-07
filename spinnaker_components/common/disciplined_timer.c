@@ -8,17 +8,15 @@
  * The disciplined timer state variable. Just one since this library can only
  * control a single timer.
  */
-volatile static dtimer_state_t dtimer;
+static volatile dtimer_state_t dtimer;
 
 
 void
-dtimer_start_interrupts( volatile dclk_state_t *dclk
-                       , dclk_time_t next_interrupt_time
+dtimer_start_interrupts( dclk_time_t next_interrupt_time
                        , dclk_time_t interrupt_period
                        )
 {
 	// Set up the data structure
-	dtimer.dclk                = dclk;
 	dtimer.next_interrupt_time = next_interrupt_time;
 	dtimer.interrupt_period    = interrupt_period;
 	dtimer.stop                = FALSE;
@@ -79,7 +77,7 @@ dtimer_schedule_next_interrupt(void)
 		// Reload the timer with the next interrupt time (make sure that the number of
 		// ticks is at least one to ensure the interrupt does happen).
 		dclk_time_t ticks_til_next_interrupt
-			= dclk_get_ticks_until_time(dtimer.dclk, dtimer.next_interrupt_time);
+			= dclk_get_ticks_until_time(dtimer.next_interrupt_time);
 		
 		dtimer.next_interrupt_time = new_next_interrupt_time;
 		

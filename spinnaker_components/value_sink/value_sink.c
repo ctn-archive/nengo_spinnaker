@@ -1,5 +1,7 @@
 #include "value_sink.h"
 
+#include "discipline.h"
+
 address_t rec_start, rec_curr;
 uint n_dimensions;
 value_t *input;
@@ -10,6 +12,8 @@ void sink_update(uint ticks, uint arg1) {
   use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
+  } else {
+    discipline_on_interrupt();
   }
 
   // Filter inputs, write the latest value to SRAM
@@ -19,6 +23,9 @@ void sink_update(uint ticks, uint arg1) {
 }
 
 void mcpl_callback(uint key, uint payload) {
+  if (discipline_process_mc_packet(key, payload))
+    return;
+  
   input_filter_mcpl_rx(&g_input, key, payload);
 }
 
@@ -48,7 +55,7 @@ void c_main(void)
   rec_start = rec_curr = region_start(15, address);
 
   // Set up callbacks, start
-  spin1_set_timer_tick(pars->timestep);
+  discipline_initialise(region_start(4, address), pars->timestep);
   spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
   spin1_callback_on(TIMER_TICK, sink_update, 2);
   spin1_start(SYNC_WAIT);

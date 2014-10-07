@@ -50,8 +50,6 @@ typedef struct region_system
   value_t dt_over_t_rc;
   bool record_spikes;
   uint n_inhibitory_dimensions;
-  uint sim_controller_key_rx;
-  uint sim_controller_key_tx;
 } region_system_t;
 
 /** \brief Persistent neuron variables.

@@ -11,12 +11,11 @@
  *      Theoretical Neuroscience, University of Waterloo
  */
 
-#include "disciplined_clock.h"
-#include "disciplined_timer.h"
-
 #include "ensemble.h"
 #include "ensemble_output.h"
 #include "ensemble_pes.h"
+
+#include "discipline.h"
 
 uint lfsr = 1;                   //!< LFSR for spike perturbation
 
@@ -25,7 +24,7 @@ void ensemble_update(uint ticks, uint arg1) {
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
   } else {
-    dtimer_schedule_next_interrupt();
+    discipline_on_interrupt();
   }
 
   // Prepare the recorder

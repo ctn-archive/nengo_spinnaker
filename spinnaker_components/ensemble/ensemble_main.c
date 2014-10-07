@@ -2,6 +2,8 @@
 #include "ensemble_data.h"
 #include "ensemble_pes.h"
 
+#include "discipline.h"
+
 void c_main(void) {
   // Set the system up
   io_printf(IO_BUF, "[Ensemble] C_MAIN\n");
@@ -59,9 +61,11 @@ void c_main(void) {
   if(leadAp){
     system_lead_app_configured();
   }
+  
 
-  // Setup timer tick, start
-  io_printf(IO_BUF, "[Ensemble] C_MAIN Set timer and spin1_start.\n");
-  spin1_set_timer_tick(g_ensemble.machine_timestep);
+  // Setup timer tick
+  discipline_initialise(region_start(14, address), g_ensemble.machine_timestep);
+  
+  io_printf(IO_BUF, "[Ensemble] C_MAIN spin1_start.\n");
   spin1_start(SYNC_WAIT);
 }

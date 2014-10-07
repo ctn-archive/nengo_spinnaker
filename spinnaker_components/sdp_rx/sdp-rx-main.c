@@ -1,5 +1,7 @@
 #include "sdp-rx.h"
 
+#include "discipline.h"
+
 sdp_rx_parameters_t g_sdp_rx;
 
 /** \brief Timer tick
@@ -8,6 +10,8 @@ void sdp_rx_tick(uint ticks, uint arg1) {
   use(arg1);
   if (simulation_ticks != UINT32_MAX && ticks >= simulation_ticks) {
     spin1_exit(0);
+  } else {
+    discipline_on_interrupt();
   }
 
   for (uint d = 0; d < g_sdp_rx.n_dimensions; d++) {
@@ -20,6 +24,11 @@ void sdp_rx_tick(uint ticks, uint arg1) {
       spin1_delay_us(1);
     }
   }
+}
+
+
+void mcpl_callback(uint key, uint payload) {
+  discipline_process_mc_packet(key, payload);
 }
 
 /** \brief Receive packed data packed in SDP message
@@ -89,8 +98,9 @@ void c_main(void) {
   }
 
   // Setup timer tick, start
-  spin1_set_timer_tick(g_sdp_rx.transmission_period);
-  spin1_callback_on(SDP_PACKET_RX, sdp_received, -1);
-  spin1_callback_on(TIMER_TICK, sdp_rx_tick, 0);
+  discipline_initialise(region_start(3, address), g_sdp_rx.transmission_period);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
+  spin1_callback_on(SDP_PACKET_RX, sdp_received, 0);
+  spin1_callback_on(TIMER_TICK, sdp_rx_tick, 1);
   spin1_start(SYNC_WAIT);
 }

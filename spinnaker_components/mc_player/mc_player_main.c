@@ -2,6 +2,8 @@
 #include "nengo-common.h"
 #include "common-impl.h"
 
+#include "discipline.h"
+
 typedef struct _mc_packet_t {
   uint timestamp;
   uint key;
@@ -23,6 +25,10 @@ void transmit_packet_region(uint* packets_region) {
   }
 }
 
+void mcpl_callback(uint key, uint payload) {
+  discipline_process_mc_packet(key, payload);
+}
+
 void tick(uint ticks, uint arg1) {
   use(arg1);
 
@@ -30,6 +36,8 @@ void tick(uint ticks, uint arg1) {
     // Transmit all packets assigned to be sent after the end of the simulation
     transmit_packet_region(end_packets);
     spin1_exit(0);
+  } else {
+    discipline_on_interrupt();
   }
 }
 
@@ -70,8 +78,10 @@ void c_main(void) {
   // simulation
   transmit_packet_region(start_packets);
 
-  spin1_set_timer_tick(1000);
+  // XXX: Timestep not specified by front-end!
+  discipline_initialise(region_start(5, address), 1000);
   spin1_callback_on(TIMER_TICK, tick, 2);
+  spin1_callback_on(MCPL_PACKET_RECEIVED, mcpl_callback, -1);
 
   // Synchronise with the simulation
   spin1_start(SYNC_WAIT);
