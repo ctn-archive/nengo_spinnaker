@@ -6,7 +6,7 @@ uint* keys;               // Output keys
 system_parameters_t pars; // Global system parameters
 uint n_blocks;            // Number of blocks (in total)
 uint current_block;       // Current block
-void* blocks;             // Location of blocks in DRAM
+uint8_t* blocks;          // Location of blocks in DRAM
 
 void valsource_tick(uint ticks, uint arg1) {
   use(arg1);
@@ -27,8 +27,8 @@ void valsource_tick(uint ticks, uint arg1) {
   if (slots.current->current_pos == 0) {
     if (n_blocks > 1) {
       // More than one block, need to copy in subsequent block
-      void *s_addr = &blocks[(current_block + 1) * pars.block_length *
-                              pars.n_dims * sizeof(value_t)];
+      void *s_addr = (void*) &blocks[(current_block + 1) * pars.block_length *
+                                     pars.n_dims * sizeof(value_t)];
 
       if (current_block == pars.n_blocks - 1) {
         // Subsequent block is the LAST block

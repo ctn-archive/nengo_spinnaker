@@ -2,9 +2,9 @@
 #define __SLOTS_H__
 
 typedef struct __slot_t {
-  uint* data;
-  uint current_pos;
-  uint length;
+  uint32_t* data;
+  uint32_t current_pos;
+  uint32_t length;
 } _slot_t;
 
 typedef struct _slots_t {
