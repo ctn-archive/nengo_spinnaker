@@ -1,9 +1,11 @@
 import mock
-import nengo
 import numpy as np
 import pytest
 
-from nengo_spinnaker import utils
+import nengo
+import nengo.solvers
+
+from .. import decoders as decoder_utils
 
 
 def test_decoder_generation():
@@ -23,15 +25,15 @@ def test_decoder_generation():
         c4 = nengo.Connection(a, c, function=f,
                               transform=np.random.normal(size=(3, 3)))  # Share (c3)
 
-        c5 = nengo.Connection(a, c, solver=nengo.decoders.LstsqL2())  # Share ()
-        c6 = nengo.Connection(a, c, eval_points=np.random.normal((100,2))) # !Share
+        c5 = nengo.Connection(a, c, solver=nengo.solvers.LstsqL2())  # Share ()
+        c6 = nengo.Connection(a, c, eval_points=np.random.normal(size=(100,3))) # !Share
 
         c7 = nengo.Connection(a, c, transform=3)
 
     # Build the decoders in order
     decoder_build_func = mock.Mock()
-    decoder_build_func.return_value = 0.
-    decoder_builder = utils.decoders.DecoderBuilder(decoder_build_func)
+    decoder_build_func.return_value = np.array(0.)
+    decoder_builder = decoder_utils.DecoderBuilder(decoder_build_func)
 
     # Build C1, should cause the decoder build func to be called
     decoder_builder.get_transformed_decoder(c1.function, c1.transform,
@@ -74,7 +76,7 @@ def test_decoder_generation():
 
     # Check that the decoder is transformed
     dec = np.random.uniform((3, 100))
-    decoder_builder = utils.decoders.DecoderBuilder(lambda f, e, s: dec)
+    decoder_builder = decoder_utils.DecoderBuilder(lambda f, e, s: dec)
     tdec = decoder_builder.get_transformed_decoder(c7.function, c7.transform,
                                                    c7.eval_points, c7.solver)
     assert(np.all(tdec == np.dot(dec, 3)))
@@ -92,7 +94,7 @@ def test_get_compressed_decoder():
             dec[n][d] = 0.
 
     # Get a compressed version of the decoder, and a list of used dimensions
-    (dims, cdec) = utils.decoders.get_compressed_decoder(dec)
+    (dims, cdec) = decoder_utils.get_compressed_decoder(dec)
 
     assert(dims == [1, 2, 3, 6])
     assert(cdec.shape == (100, 4))
@@ -126,7 +128,7 @@ def test_get_compressed_decoders():
             dec2[n][d] = 0.
 
     # Construct the compressed decoder
-    (headers, cdec) = utils.decoders.get_combined_compressed_decoders(
+    (headers, cdec) = decoder_utils.get_combined_compressed_decoders(
         [dec1, dec2])
     assert(cdec.shape == (100, final_length))
 
@@ -168,7 +170,7 @@ def test_get_compressed_decoders_with_indices():
         expected_headers.extend([(None, i, d) for d in ds])
 
     # Get the combined compressed decoders and check everything is as expected
-    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+    headers, cdec = decoder_utils.get_combined_compressed_decoders(
         decoders, indices)
 
     assert(cdec.shape == (n_neurons, len(expected_headers)))
@@ -208,7 +210,7 @@ def test_get_compressed_decoders_with_headers():
         expected_headers.extend([(h, i, d) for d in ds])
 
     # Get the combined compressed decoders and check everything is as expected
-    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+    headers, cdec = decoder_utils.get_combined_compressed_decoders(
         decoders, indices, headers)
 
     assert(cdec.shape == (n_neurons, len(expected_headers)))
@@ -227,7 +229,7 @@ def test_get_compressed_and_uncompressed_decoders():
             d3[n][d] = 0.
 
     # Compress the decoders
-    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+    headers, cdec = decoder_utils.get_combined_compressed_decoders(
         [d1, d2, d3], compress=[True, False, True])
 
     # d2 should not have been compressed, d3 should have been
@@ -235,5 +237,5 @@ def test_get_compressed_and_uncompressed_decoders():
 
 
 def test_null_decoders():
-    headers, cdec = utils.decoders.get_combined_compressed_decoders(
+    headers, cdec = decoder_utils.get_combined_compressed_decoders(
         [], headers=[])
