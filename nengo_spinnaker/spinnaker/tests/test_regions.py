@@ -46,6 +46,10 @@ class TestMatrixRegion(object):
         mr = regions.MatrixRegion(np.zeros(100))
         assert mr.sizeof(slice(0, 101)) == 100
 
+    def test_matrix_sizeof_undersized(self):
+        mr = regions.MatrixRegion(np.zeros(100))
+        assert mr.sizeof(slice(0, 10)) == 100
+
     def test_matrix_rows_sizeof(self):
         mr = regions.MatrixRegionPartitionedByRows(np.zeros((100, 5)))
         assert mr.sizeof(slice(0, 10)) == 5*10
