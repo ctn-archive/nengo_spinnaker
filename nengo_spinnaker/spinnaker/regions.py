@@ -9,8 +9,7 @@ class Region(object):
     :attr unfilled: Region is left unfilled.
     :attr prepend_length: Prepend the length of the region when writing out.
     """
-    def __init__(self, in_dtcm=True, unfilled=False, prepend_n_atoms=False,
-                 prepend_full_length=False, formatter=lambda x: x):
+    def __init__(self, in_dtcm=True, unfilled=False):
         """
         :param bool in_dtcm: Whether the region is stored in DTCM.
         :param bool unfilled: Whether the region is to be left unfilled.
@@ -19,9 +18,6 @@ class Region(object):
         """
         self.in_dtcm = in_dtcm
         self.unfilled = unfilled
-        self.prepend_n_atoms = prepend_n_atoms
-        self.prepend_full_length = prepend_full_length
-        self.formatter = formatter
 
     def sizeof(self, vertex_slice):
         """Get the size (in words) of the region."""
@@ -60,9 +56,10 @@ class MatrixRegion(Region):
                       if not specified.
         """
         super(MatrixRegion, self).__init__(
-            in_dtcm=in_dtcm, unfilled=unfilled,
-            prepend_full_length=prepend_full_length,
-            prepend_n_atoms=prepend_n_atoms, formatter=formatter)
+            in_dtcm=in_dtcm, unfilled=unfilled)
+        self.prepend_n_atoms = prepend_n_atoms
+        self.prepend_full_length = prepend_full_length
+        self.formatter = formatter
 
         # Assert the matrix matches the given shape
         assert shape is not None or matrix is not None
@@ -153,11 +150,10 @@ class KeysRegion(Region):
     The region is not partitioned.
     """
     def __init__(self, keys, fill_in_field=None, extra_fields=list(),
-                 in_dtcm=True, prepend_n_atoms=False,
-                 prepend_full_length=False):
+                 in_dtcm=True, prepend_n_keys=False):
         super(KeysRegion, self).__init__(
-            in_dtcm=in_dtcm, prepend_n_atoms=prepend_n_atoms,
-            prepend_full_length=prepend_full_length)
+            in_dtcm=in_dtcm, unfilled=False)
+        self.prepend_n_keys = prepend_n_keys
 
         self.keys = keys
 
@@ -172,8 +168,7 @@ class KeysRegion(Region):
         """The size of the region in WORDS.
         """
         return (len(self.keys) * (len(self.fields)) +
-                (1 if self.prepend_n_atoms else 0) +
-                (1 if self.prepend_full_length else 0))
+                (1 if self.prepend_n_keys else 0))
 
     def create_subregion(self, vertex_slice, subvertex_index):
         # Create the data for each key
@@ -183,10 +178,8 @@ class KeysRegion(Region):
 
         # Prepend any required additional data
         prepends = []
-        if self.prepend_n_atoms:
-            prepends.append(vertex_slice.stop - vertex_slice.start)
-        if self.prepend_full_length:
-            prepends.append(len(data))
+        if self.prepend_n_keys:
+            prepends.append(len(self.keys))
 
         # Create the subregion and return
         srd = np.hstack([np.array(prepends, dtype=np.uint32),
