@@ -6,12 +6,15 @@ from pacman.model.resources.cpu_cycles_per_tick_resource import \
 from pacman.model.resources.dtcm_resource import DTCMResource
 from pacman.model.resources.sdram_resource import SDRAMResource
 
+from pacman.model.partitionable_graph.abstract_constrained_vertex import \
+    AbstractConstrainedVertex
+
 
 NengoPlacedVertex = collections.namedtuple(
     'NengoPlacedVertex', 'x y p executable subregions timer_period')
 
 
-class NengoVertex(object):
+class NengoVertex(AbstractConstrainedVertex):
     """Helper for constructing Vertices for PACMAN."""
     executable_path = None  # Path for the executable
 
@@ -27,10 +30,9 @@ class NengoVertex(object):
         :param list regions: A list of memory regions for the vertex.
         :param list constraints: A list of constraints for the vertex.
         """
+        super(NengoVertex, self).__init__(label, constraints)
         self.n_atoms = n_atoms
-        self.label = label
         self.regions = regions
-        self.contraints = constraints
 
     def get_resources_used_by_atoms(self, vertex_slice, graph):
         return ResourceContainer(
