@@ -1,5 +1,7 @@
 import nengo
-import pacman103
+
+from pacman.model.partitionable_graph.partitionable_edge import (
+    PartitionableEdge as PacmanPartitionableEdge)
 
 
 class IntermediateConnection(object):
@@ -59,14 +61,14 @@ class IntermediateConnection(object):
                                 add_to_container=False)
 
 
-class NengoEdge(pacman103.lib.graph.Edge):
+class NengoEdge(PacmanPartitionableEdge):
     def __init__(self, prevertex, postvertex, keyspace):
         super(NengoEdge, self).__init__(prevertex, postvertex)
         self.keyspace = keyspace
 
 
 def generic_connection_builder(connection, assembler):
-    """Builder for connections which just require an edge between two vertices
+    """Builder for connections which just require an edge between two vertices.
     """
     # Get the pre_obj and post_obj objects
     prevertex = assembler.get_object_vertex(connection.pre_obj)
