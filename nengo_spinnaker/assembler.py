@@ -3,13 +3,13 @@ import itertools
 
 import nengo
 
-import pacman103
 from .config import Config
-import connection
-import ensemble
-import node
-import probe
-import utils
+from .spinnaker import vertices
+# import connection
+# import ensemble
+# import node
+# import probe
+# import utils
 
 
 class Assembler(object):
@@ -18,7 +18,9 @@ class Assembler(object):
     of the network to be simulated on host.
     """
     object_builders = dict()  # Map of classes to functions
-    connection_builders = dict()  # Map of (pre_obj, post_obj) tuples to functions
+
+    # Map of (pre_obj, post_obj) tuples to functions
+    connection_builders = dict()
 
     @classmethod
     def register_object_builder(cls, func, nengo_class):
@@ -38,7 +40,6 @@ class Assembler(object):
 
         vertex = self.object_builders[obj_type](obj, self)
         if vertex is not None:
-            assert isinstance(vertex, pacman103.lib.graph.Vertex)
             vertex.runtime = self.time_in_seconds
         return vertex
 
@@ -100,22 +101,22 @@ class Assembler(object):
     def get_outgoing_connections(self, obj):
         return [c for c in self.connections if c.pre_obj == obj]
 
-Assembler.register_connection_builder(connection.generic_connection_builder)
+# Assembler.register_connection_builder(connection.generic_connection_builder)
 
-Assembler.register_object_builder(ensemble.EnsembleLIF.assemble,
-                                  ensemble.IntermediateEnsembleLIF)
-Assembler.register_object_builder(node.FilterVertex.assemble_from_intermediate,
-                                  node.IntermediateFilter)
-Assembler.register_object_builder(node.FilterVertex.assemble,
-                                  node.FilterVertex)
-Assembler.register_object_builder(probe.DecodedValueProbe.assemble,
-                                  probe.IntermediateProbe)
+# Assembler.register_object_builder(ensemble.EnsembleLIF.assemble,
+                                  # ensemble.IntermediateEnsembleLIF)
+# Assembler.register_object_builder(node.FilterVertex.assemble_from_intermediate,
+                                  # node.IntermediateFilter)
+# Assembler.register_object_builder(node.FilterVertex.assemble,
+                                  # node.FilterVertex)
+# Assembler.register_object_builder(probe.DecodedValueProbe.assemble,
+                                  # probe.IntermediateProbe)
 
 
 def vertex_builder(vertex, assembler):
     return vertex
 
-Assembler.register_object_builder(vertex_builder, pacman103.lib.graph.Vertex)
+Assembler.register_object_builder(vertex_builder, vertices.NengoVertex)
 
 
 def assemble_node(node, assembler):
@@ -128,6 +129,7 @@ MulticastPacket = collections.namedtuple('MulticastPacket',
                                          ['timestamp', 'key', 'payload'])
 
 
+"""
 class MulticastPlayer(utils.vertices.NengoVertex):
     # NOTE This is intended to be temporary while PACMAN is refactored
     MODEL_NAME = 'nengo_mc_player'
@@ -170,3 +172,4 @@ class MulticastPlayer(utils.vertices.NengoVertex):
         return mcp
 
 Assembler.register_object_builder(MulticastPlayer.assemble, MulticastPlayer)
+"""

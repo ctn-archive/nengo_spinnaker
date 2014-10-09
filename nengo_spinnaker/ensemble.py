@@ -5,7 +5,7 @@ import nengo
 from nengo.utils import distributions as dists
 import nengo.utils.builder
 import nengo.utils.numpy as npext
-from nengo.utils.inspect import checked_call
+from nengo.utils.stdlib import checked_call
 
 import connection
 import utils
