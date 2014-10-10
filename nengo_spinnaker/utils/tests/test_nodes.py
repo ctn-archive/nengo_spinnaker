@@ -2,7 +2,6 @@ import mock
 import numpy as np
 
 import nengo
-from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 from .. import nodes as nodes_utils
 
 
@@ -47,6 +46,7 @@ def test_input_from_board_node_simple_2():
     io.get_node_input.assert_called_with(m)
     assert(np.all(np.zeros(5) == input_to_m))
 
+
 def test_replace_node_x_connections():
     """Checks that connections from Nodes to ANY OTHER objects are replaced
     with a new OutputNode and a connection from the Node to that OutputNode.
@@ -69,6 +69,7 @@ def test_replace_node_x_connections():
     assert new_conns[0].pre_obj is a
     assert new_conns[0].post_obj is new_nodes[0]
 
+
 def test_replace_node_x_connections_k():
     """Test that constant nodes do not result in new nodes or connections.
     """
@@ -85,6 +86,7 @@ def test_replace_node_x_connections_k():
     # Should be no new Nodes or Connections
     assert len(new_nodes) == 0
     assert len(new_conns) == 0
+
 
 def test_replace_x_node_connections():
     """Test that connections to Nodes from ANY OTHER objects are replaced with

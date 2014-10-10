@@ -95,8 +95,8 @@ class UART(object):
                     new_conns.append(c)
 
             # Combine the outgoing connections for the Node so we have some
-            # access to these keys.  Replace the pre_obj of all these connections
-            # with the serial vertex.
+            # access to these keys.  Replace the pre_obj of all these
+            # connections with the serial vertex.
             out_conns = [c for c in connections if c.pre_obj == obj and
                          not isinstance(c.post_obj, nengo.Node)]
             if len(out_conns) > 0:
@@ -128,7 +128,7 @@ class UART(object):
         return self
 
     def __enter__(self):
-        self.nodes_inputs = collections.defaultdict(lambda : [None])
+        self.nodes_inputs = collections.defaultdict(lambda: [None])
         return self
 
     def __exit__(self, *args):

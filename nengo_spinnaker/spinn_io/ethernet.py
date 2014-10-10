@@ -156,8 +156,8 @@ class Ethernet(object):
                 self.nodes_connections[obj].append((tfk, buf, rx))
                 self.rx_buffers[rx].append(buf)
 
-                # Replace the pre_obj on all connections from this Node to account
-                # for the change to the SDPRxVertex.
+                # Replace the pre_obj on all connections from this Node to
+                # account for the change to the SDPRxVertex.
                 for c in out_conns:
                     if outgoing_conns[c] == i:
                         c.pre_obj = rx

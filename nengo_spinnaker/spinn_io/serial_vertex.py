@@ -3,6 +3,7 @@ from pacman103.front import common
 
 class SerialVertex(common.ExternalDeviceVertex):
     size_in = None
+
     def __init__(self,
                  virtual_chip_coords=dict(x=0xFE, y=0xFF),
                  connected_node_coords=dict(x=1, y=0),

@@ -131,7 +131,7 @@ def test_keyspace_inheritance():
 
     # Check that the set value overrides any provided values
     with pytest.raises(AttributeError):
-        ks2.key(x = 5)
+        ks2.key(x=5)
 
 
 def test_field_set_check():

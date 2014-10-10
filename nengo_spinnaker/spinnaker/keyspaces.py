@@ -9,6 +9,7 @@ def _make_mask_getter(mask):
         return mask
     return get_mask
 
+
 def _make_set_checker(field):
     def get_set(self):
         return field in self._field_values

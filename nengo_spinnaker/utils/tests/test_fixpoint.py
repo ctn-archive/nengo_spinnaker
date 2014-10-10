@@ -1,9 +1,8 @@
 """Tests for the fixed-point utility module.
 """
 
-import nengo
-import pytest
-from nengo_spinnaker.utils.fixpoint import *
+from ..fixpoint import bitsk, kbits
+
 
 def test_bitsk_basic():
     assert bitsk(0.0) == 0
@@ -17,6 +16,7 @@ def test_bitsk_basic():
     assert bitsk(-0.5) == 0x100000000 - 0x4000
     assert bitsk(-(2**16)) == 0x80000000
 
+
 def test_bitsk_unsigned():
     assert bitsk(0.0, signed=False) == 0
     assert bitsk(1.0, signed=False) == 0x8000
@@ -29,6 +29,7 @@ def test_bitsk_unsigned():
     assert bitsk(-2.0, signed=False) == 0
     assert bitsk(-0.5, signed=False) == 0
     assert bitsk(-(2**16), signed=False) == 0
+
 
 def test_bitsk_byte():
     kwargs = dict(n_bits=8, n_frac=3)
@@ -58,6 +59,7 @@ def test_bitsk_byte_unsigned():
     assert bitsk(-0.5, **kwargs) == 0
     assert bitsk(-(2**4), **kwargs) == 0
 
+
 def test_bitsk_no_frac():
     kwargs = dict(n_bits=8, n_frac=0, signed=True)
     assert bitsk(0.0, **kwargs) == 0
@@ -82,6 +84,7 @@ def test_bitsk_no_frac():
     assert bitsk(-2.0, **kwargs) == 0
     assert bitsk(-(2**7), **kwargs) == 0
     assert bitsk(-(2**8), **kwargs) == 0
+
 
 def test_bitsk_neg_frac():
     kwargs = dict(n_bits=8, n_frac=-8, signed=True)
@@ -113,6 +116,7 @@ def test_bitsk_neg_frac():
     assert bitsk(-(2**8), **kwargs) == 0
     assert bitsk(-(2**9), **kwargs) == 0
 
+
 def test_bitsk_large_frac():
     kwargs = dict(n_bits=8, n_frac=16, signed=True)
     assert bitsk(0.0, **kwargs) == 0
@@ -138,6 +142,7 @@ def test_bitsk_large_frac():
     assert bitsk(-(2**-17), **kwargs) == 0
     assert bitsk(-(2**-16), **kwargs) == 0
 
+
 def test_random():
     import random
     for i in range(10000):
@@ -151,11 +156,3 @@ def test_random():
         fixed_value2 = bitsk(float_value, n_bits=n_bits, n_frac=n_frac,
                              signed=signed)
         assert fixed_value == fixed_value2
-
-
-
-
-
-if __name__ == '__main__':
-    nengo.log(debug=True)
-    pytest.main([__file__, '-v'])

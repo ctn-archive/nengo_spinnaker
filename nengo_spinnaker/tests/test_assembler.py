@@ -4,6 +4,7 @@ import pytest
 from .. import assembler
 from ..spinnaker import vertices
 
+
 class TestAssembler(object):
     @pytest.fixture(scope='function')
     def reset_assembler_objects(self):

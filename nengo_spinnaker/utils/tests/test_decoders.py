@@ -1,6 +1,5 @@
 import mock
 import numpy as np
-import pytest
 
 import nengo
 import nengo.solvers
@@ -23,10 +22,11 @@ def test_decoder_generation():
         f = lambda v: v**2
         c3 = nengo.Connection(a, b, function=f)  # Share ()
         c4 = nengo.Connection(a, c, function=f,
-                              transform=np.random.normal(size=(3, 3)))  # Share (c3)
+                              transform=np.random.normal(size=(3, 3)))
 
         c5 = nengo.Connection(a, c, solver=nengo.solvers.LstsqL2())  # Share ()
-        c6 = nengo.Connection(a, c, eval_points=np.random.normal(size=(100,3))) # !Share
+        c6 = nengo.Connection(
+            a, c, eval_points=np.random.normal(size=(100, 3)))
 
         c7 = nengo.Connection(a, c, transform=3)
 
