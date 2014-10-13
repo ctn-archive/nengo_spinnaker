@@ -3,140 +3,19 @@ import warnings
 
 import nengo
 from nengo.utils import distributions as dists
-import nengo.utils.builder
+import nengo.utils.builder as builder_utils
 import nengo.utils.numpy as npext
 from nengo.utils.stdlib import checked_call
 
-import connection
-import utils
+from . import connections as ens_conn_utils
+from . import intermediate
+from ..utils import decoders as decoder_utils
 
 
-def build_ensembles(objects, connections, probes, dt, rng):
-    """Build Ensembles and related connections into intermediate
-    representation form.
-    """
-    new_objects = list()
-    new_connections = list()
-
-    # Sort out GlobalInhibitionConnections
-    (objects, connections) = process_global_inhibition_connections(
-        objects, connections, probes)
-
-    # Create an intermediate representation for each Ensemble
-    for obj in objects:
-        if not isinstance(obj, nengo.Ensemble):
-            new_objects.append(obj)
-            continue
-
-        # Build the appropriate intermediate representation for the Ensemble
-        if isinstance(obj.neuron_type, nengo.neurons.LIF):
-            # Get the set of outgoing connections for this Ensemble so that
-            # decoders can be solved for.
-            out_conns = [c for c in connections if c.pre_obj == obj]
-            new_obj = IntermediateEnsembleLIF.from_object(obj, out_conns,
-                                                          dt, rng)
-            new_objects.append(new_obj)
-        else:
-            raise NotImplementedError("nengo_spinnaker does not currently "
-                                      "support '%s' neurons."
-                                      % obj.neuron_type.__class__.__name__)
-
-        # Modify connections into/out of this ensemble
-        for c in connections:
-            if c.pre_obj is obj:
-                c.pre_obj = new_obj
-            if c.post_obj is obj:
-                c.post_obj = new_obj
-
-        # Mark the Ensemble as recording spikes/voltages if appropriate
-        for p in probes:
-            if p.target is obj:
-                if p.attr == 'spikes':
-                    new_obj.record_spikes = True
-                    new_obj.probes.append(p)
-                elif p.attr == 'voltage':
-                    raise NotImplementedError("Voltage probing not currently "
-                                              "supported.")
-                    new_obj.record_voltage = True
-                    new_obj.probes.append(p)
-
-    # Add direct inputs
-    for c in connections:
-        if (isinstance(c.post_obj, IntermediateEnsemble) and
-                isinstance(c.pre_obj, nengo.Node) and not
-                callable(c.pre_obj.output)):
-            # This Node just forms direct input, add it to direct input and
-            # don't add the connection to the list of new connections
-            inp = c.pre_obj.output
-            if c.function is not None:
-                inp = c.function(inp)
-            c.post_obj.direct_input += np.dot(c.transform, inp)
-        else:
-            new_connections.append(c)
-
-    return new_objects, new_connections
-
-
-def process_global_inhibition_connections(objs, connections, probes):
-    # Go through connections replacing global inhibition connections with
-    # an intermediate representation
-    new_connections = list()
-    for c in connections:
-        if (isinstance(c.post_obj, nengo.ensemble.Neurons) and
-                np.all([c.transform[0] == t for t in c.transform])):
-            # This is a global inhibition connection, swap out
-            c = IntermediateGlobalInhibitionConnection.from_connection(c)
-        new_connections.append(c)
-
-    return objs, new_connections
-
-
-class IntermediateEnsemble(object):
-    def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 eval_points, decoder_headers, learning_rules, label=None):
-        self.n_neurons = n_neurons
-        self.label = label
-
-        # Assert that the number of neurons is reflected in other parameters
-        assert gains.size == n_neurons
-        assert bias.size == n_neurons
-        assert encoders.shape[0] == n_neurons
-
-        # Get the number of dimensions represented and store fundamental
-        # parameters
-        self.size_in = self.n_dimensions = encoders.shape[1]
-        self.gains = gains
-        self.bias = bias
-        self.encoders = encoders
-        self.decoders = decoders
-
-        # Output keys
-        self.decoder_headers = decoder_headers
-        self.output_keys = None
-
-        # Learning rules
-        self.learning_rules = learning_rules
-
-        # Recording parameters
-        self.record_spikes = False
-        self.record_voltage = False
-        self.probes = list()
-
-        # Direct input
-        self.direct_input = np.zeros(self.n_dimensions)
-
-    def create_output_keyspaces(self, ens_id, keyspace):
-        self.output_keyspaces = list()
-        for header in self.decoder_headers:
-            ks = keyspace if header[0] is None else header[0]
-            ks = ks(o=ens_id, i=header[1], d=header[2])
-            self.output_keyspaces.append(ks)
-
-
-class IntermediateEnsembleLIF(IntermediateEnsemble):
+class IntermediateLIF(intermediate.IntermediateEnsemble):
     def __init__(self, n_neurons, gains, bias, encoders, decoders, tau_rc,
                  tau_ref, eval_points, decoder_headers, learning_rules):
-        super(IntermediateEnsembleLIF, self).__init__(
+        super(IntermediateLIF, self).__init__(
             n_neurons, gains, bias, encoders, decoders, eval_points,
             decoder_headers, learning_rules)
         self.tau_rc = tau_rc
@@ -156,8 +35,8 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
         if isinstance(ens.eval_points, dists.Distribution):
             n_points = ens.n_eval_points
             if n_points is None:
-                n_points = nengo.utils.builder.default_n_eval_points(
-                    ens.n_neurons, ens.dimensions)
+                n_points = builder_utils.default_n_eval_points(ens.n_neurons,
+                                                               ens.dimensions)
             eval_points = ens.eval_points.sample(n_points, ens.dimensions, rng)
             eval_points *= ens.radius
         else:
@@ -190,7 +69,8 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
 
         # Generate decoders for outgoing connections
         decoders = list()
-        tfses = utils.connections.OutgoingEnsembleConnections(out_conns)
+        tfses = ens_conn_utils.get_combined_outgoing_ensemble_connections(
+            out_conns)
 
         def build_decoder(function, evals, solver):
             """Internal function for building a single decoder."""
@@ -219,7 +99,7 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
 
             return solver(activities, targets, rng=rng)[0]
 
-        decoder_builder = utils.decoders.DecoderBuilder(build_decoder)
+        decoder_builder = decoder_utils.DecoderBuilder(build_decoder)
 
         # Build each of the decoders in turn
         for tfse in tfses.transforms_functions:
@@ -241,32 +121,13 @@ class IntermediateEnsembleLIF(IntermediateEnsemble):
 
         # Compress and merge the decoders
         (decoder_headers, decoders) =\
-            utils.decoders.get_combined_compressed_decoders(
+            decoder_utils.get_combined_compressed_decoders(
                 decoders, compress=decoders_to_compress)
         decoders /= dt
 
         return cls(ens.n_neurons, gain, bias, encoders, decoders,
                    ens.neuron_type.tau_rc, ens.neuron_type.tau_ref,
                    eval_points, decoder_headers, learning_rules)
-
-
-class IntermediateGlobalInhibitionConnection(
-        connection.IntermediateConnection):
-    @classmethod
-    def from_connection(cls, c):
-        # Assert that the transform is as we'd expect
-        assert isinstance(c.post_obj, nengo.ensemble.Neurons)
-        assert np.all([c.transform[0] == t for t in c.transform])
-
-        # Compress the transform to have output dimension of 1
-        tr = c.transform[0][0]
-
-        # Get the keyspace for the connection
-        keyspace = getattr(c, 'keyspace', None)
-
-        # Create a new instance
-        return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr,
-                   c.solver, c.eval_points, keyspace)
 
 
 class EnsembleLIF(utils.vertices.NengoVertex):
@@ -317,8 +178,8 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         # Prepare the inhibitory filtering regions
         in_conns = assembler.get_incoming_connections(ens)
         inhib_conns =\
-            [c for c in in_conns if
-             isinstance(c, IntermediateGlobalInhibitionConnection)]
+            [c for c in in_conns if isinstance(
+                c, ens_conn_utils.IntermediateGlobalInhibitionConnection)]
         modul_conns = [c for c in in_conns if c.modulatory]
         input_conns = [c for c in in_conns
                        if c not in inhib_conns and c not in modul_conns]
@@ -381,3 +242,8 @@ class EnsembleLIF(utils.vertices.NengoVertex):
                      pes_region, spikes_region)
         vertex.probes = ens.probes
         return vertex
+
+
+assert False, "Incomplete!"
+class SystemRegion(object):
+    pass
