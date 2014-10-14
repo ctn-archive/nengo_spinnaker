@@ -8,8 +8,8 @@ import nengo.utils.numpy as npext
 from nengo.utils.stdlib import checked_call
 
 from . import connections as ens_conn_utils
+from . import decoders as decoder_utils
 from . import intermediate
-from ..utils import decoders as decoder_utils
 
 
 class IntermediateLIF(intermediate.IntermediateEnsemble):
