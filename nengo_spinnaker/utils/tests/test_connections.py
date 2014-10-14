@@ -42,7 +42,7 @@ def test_get_combined_connections():
         ]
 
     # Combine the given connections
-    combined_connection_residues = \
+    combined_connection_residues, combined_connection_indices = \
         connections_utils.get_combined_connections(cs)
 
     assert len(combined_connection_residues) == 4
@@ -51,13 +51,18 @@ def test_get_combined_connections():
     assert combined_connection_residues[0].function is squared
     assert np.all(combined_connection_residues[0].transform == cs[0].transform)
     assert combined_connection_residues[0].keyspace is None
+    assert (combined_connection_indices[cs[0]] ==
+            combined_connection_indices[cs[1]] == 0)
 
     # Check 3rd and 4th
+    assert combined_connection_indices[cs[2]] == 1
     assert combined_connection_residues[1].function is None
     assert np.all(combined_connection_residues[1].transform == cs[2].transform)
     assert combined_connection_residues[1].keyspace is None
 
     # Check 4th and 5th uncombined
+    assert combined_connection_indices[cs[4]] == 2
+    assert combined_connection_indices[cs[5]] == 3
     assert np.all(combined_connection_residues[2].transform == cs[4].transform)
     assert np.all(combined_connection_residues[3].transform == cs[5].transform)
 
@@ -87,7 +92,7 @@ def test_get_combined_connections_custom_func():
         connections_utils.TransformFunctionKeyspaceConnection
 
     # Combine the given connections
-    combined_connection_residues = \
+    combined_connection_residues, _ = \
         connections_utils.get_combined_connections(
             connections=cs, reduced_connection_type=reduced_connection_type)
 

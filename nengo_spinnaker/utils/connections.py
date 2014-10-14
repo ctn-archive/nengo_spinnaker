@@ -46,10 +46,16 @@ def get_combined_connections(
     :param iterable connections: The set of connections to reduce.
     :param type reduced_connection_type: Type which accepts a connection and
         returns a reduced representation of it.
-    :returns iterable: A set of reduced connection types.
+    :returns tuple: A tuple containing an iterable of reduced connection types
+        and a dictionary mapping connections to an index into the list of
+        reduced connections.
     """
     reduced_connections = list()
-    for c in map(reduced_connection_type, connections):
-        if c not in reduced_connections:
-            reduced_connections.append(c)
-    return reduced_connections
+    connection_map = dict()
+
+    for (c, rc) in [(c, reduced_connection_type(c)) for c in connections]:
+        if rc not in reduced_connections:
+            reduced_connections.append(rc)
+        connection_map[c] = reduced_connections.index(rc)
+
+    return reduced_connections, connection_map

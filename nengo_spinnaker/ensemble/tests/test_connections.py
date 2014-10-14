@@ -57,7 +57,7 @@ def test_combine_outgoing_ensemble_connections():
 
         # Connections 1 & 2 and 5 & 6 should be shared, all others should be
         # separate.
-        combined_connections = ensemble_connection_utils.\
+        combined_connections, connection_map = ensemble_connection_utils.\
             get_combined_outgoing_ensemble_connections(cs)
 
         assert len(combined_connections) == len(cs) - 2
@@ -66,6 +66,7 @@ def test_combine_outgoing_ensemble_connections():
         assert (combined_connections[0].function is
                 cs[0].function is
                 cs[1].function)
+        assert connection_map[cs[0]] == connection_map[cs[1]] == 0
         assert np.all(combined_connections[0].transform == cs[0].transform)
         assert combined_connections[0].solver is cs[0].solver is cs[1].solver
 
@@ -74,6 +75,7 @@ def test_combine_outgoing_ensemble_connections():
         assert combined_connections[2].solver is cs[3].solver
 
         # Check shared 5th and 6th connections
+        assert connection_map[cs[4]] == connection_map[cs[5]] == 3
         assert np.all(combined_connections[3].eval_points == cs[4].eval_points)
         assert np.all(combined_connections[3].eval_points == cs[5].eval_points)
 
