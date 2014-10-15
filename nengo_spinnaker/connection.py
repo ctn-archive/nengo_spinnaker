@@ -60,6 +60,10 @@ class IntermediateConnection(object):
                                 modulatory=self.modulatory,
                                 add_to_container=False)
 
+    def __repr__(self):
+        return '<IntermediateConnection({}, {})>'.format(self.pre_obj,
+                                                         self.post_obj)
+
 
 class NengoEdge(PacmanPartitionableEdge):
     def __init__(self, prevertex, postvertex, keyspace):
