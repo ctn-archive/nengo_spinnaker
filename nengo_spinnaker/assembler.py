@@ -101,16 +101,6 @@ class Assembler(object):
     def get_outgoing_connections(self, obj):
         return [c for c in self.connections if c.pre_obj == obj]
 
-# Assembler.register_connection_builder(connection.generic_connection_builder)
-# Assembler.register_object_builder(ensemble.EnsembleLIF.assemble,
-#                                   ensemble.IntermediateEnsembleLIF)
-# Assembler.register_object_builder(
-#   node.FilterVertex.assemble_from_intermediate, node.IntermediateFilter)
-# Assembler.register_object_builder(node.FilterVertex.assemble,
-#                                   node.FilterVertex)
-# Assembler.register_object_builder(probe.DecodedValueProbe.assemble,
-#                                   probe.IntermediateProbe)
-
 
 def vertex_builder(vertex, assembler):
     return vertex
