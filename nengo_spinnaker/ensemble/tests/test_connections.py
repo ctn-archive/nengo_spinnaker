@@ -3,7 +3,6 @@
 
 import nengo
 import numpy as np
-import pytest
 
 from .. import connections as ensemble_connection_utils
 

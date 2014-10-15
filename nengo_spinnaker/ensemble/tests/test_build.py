@@ -49,7 +49,7 @@ def test_replaced_ensembles():
 
 def test_apply_probing():
     FakeProbe = collections.namedtuple('FakeProbe', 'target attr')
-    
+
     class FakeIntermediateEnsemble(object):
         def __init__(self):
             self.record_spikes = False
@@ -94,7 +94,7 @@ def test_include_constant_inputs():
 
     # Create connections, 1st one to be removed
     cs = [
-        IntermediateConnection(a, ens, transform=0.5, function=np.sin), 
+        IntermediateConnection(a, ens, transform=0.5, function=np.sin),
         IntermediateConnection(b, ens),
         IntermediateConnection(a, c),
         IntermediateConnection(ens, c),

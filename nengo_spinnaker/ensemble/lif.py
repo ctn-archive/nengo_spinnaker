@@ -105,6 +105,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
 
         # Build list of learning rule, connection-index tuples
+        raise NotImplementedError
         learning_rules = list()
         for c in tfses:
             for l in utils.connections.get_learning_rules(c):

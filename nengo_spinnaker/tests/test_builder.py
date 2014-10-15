@@ -83,15 +83,15 @@ class TestBuilder(object):
 
         for (a, b) in zip(args[1], rep_conns):
             assert ((a.pre_obj is b.pre_obj) and
-                     (a.post_obj is b.post_obj) and
-                     (a.synapse == b.synapse) and
-                     (a.function == b.function) and
-                     (np.all(a.transform == b.transform)) and
-                     (a.solver == b.solver) and
-                     (a.width == b.width) and
-                     (a.is_accumulatory == b.is_accumulatory) and
-                     (a.learning_rule == b.learning_rule) and
-                     (a.modulatory == b.modulatory))
+                    (a.post_obj is b.post_obj) and
+                    (a.synapse == b.synapse) and
+                    (a.function == b.function) and
+                    (np.all(a.transform == b.transform)) and
+                    (a.solver == b.solver) and
+                    (a.width == b.width) and
+                    (a.is_accumulatory == b.is_accumulatory) and
+                    (a.learning_rule == b.learning_rule) and
+                    (a.modulatory == b.modulatory))
 
         assert args[2] == list()
         assert args[3] == dt

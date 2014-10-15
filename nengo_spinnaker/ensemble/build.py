@@ -92,6 +92,7 @@ def apply_probing(replaced_ensembles, probes):
             )
         replaced_ensembles[p.target].probes.append(p)
 
+
 def include_constant_inputs(connections):
     """Remove connections from constant valued Nodes to IntermediateEnsembles.
 
