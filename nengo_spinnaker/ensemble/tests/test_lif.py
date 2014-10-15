@@ -1,6 +1,7 @@
 """LIF related Ensembles.
 """
 
+import mock
 import nengo
 import pytest
 
@@ -14,8 +15,8 @@ class TestIntermediateLIF(object):
     def test_from_object_fail(self):
         model = nengo.Network()
         with model:
-            a = nengo.Ensemble(100, 1, neuron_type=nengo.neurons.Direct)
+            a = nengo.Ensemble(100, 1, neuron_type=nengo.neurons.Direct())
 
         # Incorrect Neuron type
-        with pytest.raises(TypeError):
+        with pytest.raises(AssertionError):
             lif.IntermediateLIF.from_object(a, list(), 0.001, mock.Mock())

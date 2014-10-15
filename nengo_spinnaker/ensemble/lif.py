@@ -26,10 +26,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         assert isinstance(ens.neuron_type, nengo.neurons.LIF)
         assert isinstance(ens, nengo.Ensemble)
 
-        if ens.seed is None:
-            rng = np.random.RandomState(rng.tomaxint())
-        else:
-            rng = np.random.RandomState(ens.seed)
+        rng = np.random.RandomState(ens.seed)
 
         # Generate evaluation points
         if isinstance(ens.eval_points, dists.Distribution):
@@ -69,8 +66,9 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         # Generate decoders for outgoing connections
         decoders = list()
-        tfses = ens_conn_utils.get_combined_outgoing_ensemble_connections(
-            out_conns)
+        tfses, tfse_map = \
+            ens_conn_utils.get_combined_outgoing_ensemble_connections(
+                out_conns)
 
         def build_decoder(function, evals, solver):
             """Internal function for building a single decoder."""
@@ -102,7 +100,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         decoder_builder = decoder_utils.DecoderBuilder(build_decoder)
 
         # Build each of the decoders in turn
-        for tfse in tfses.transforms_functions:
+        for tfse in tfses:
             decoders.append(decoder_builder.get_transformed_decoder(
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
 
@@ -110,7 +108,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         learning_rules = list()
         for c in tfses:
             for l in utils.connections.get_learning_rules(c):
-                learning_rules.append((l, tfses[c]))
+                learning_rules.append((l, tfse_map[c]))
 
         # By default compress all decoders
         decoders_to_compress = [True for d in decoders]
@@ -130,6 +128,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
                    eval_points, decoder_headers, learning_rules)
 
 
+"""
 class EnsembleLIF(utils.vertices.NengoVertex):
     MODEL_NAME = 'nengo_ensemble'
     MAX_ATOMS = 128
@@ -247,3 +246,4 @@ class EnsembleLIF(utils.vertices.NengoVertex):
 assert False, "Incomplete!"
 class SystemRegion(object):
     pass
+"""
