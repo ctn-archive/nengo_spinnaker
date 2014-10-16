@@ -1,7 +1,7 @@
 import mock
 import pytest
 
-from ..vertices import NengoVertex
+from ..vertices import Vertex
 from .. import regions
 
 
@@ -16,7 +16,7 @@ def test_get_sdram_usage_for_atoms():
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5))
     ]
-    v = NengoVertex(100, '', rs)
+    v = Vertex(100, '', rs)
 
     assert (v.get_sdram_usage_for_atoms(slice(0, 10)) ==
             4*sum(r.sizeof(slice(0, 10)) for r in rs))
@@ -32,7 +32,7 @@ def test_get_dtcm_usage_for_regions():
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5))
     ]
-    v = NengoVertex(100, '', rs)
+    v = Vertex(100, '', rs)
 
     assert (v.get_dtcm_usage_for_atoms(slice(0, 10)) ==
             4*sum(r.sizeof(slice(0, 10)) for r in rs))
@@ -49,7 +49,7 @@ def test_get_dtcm_usage_for_regions_non_dtcm_regions():
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)
     ]
-    v = NengoVertex(100, '', rs)
+    v = Vertex(100, '', rs)
 
     assert (v.get_dtcm_usage_for_atoms(slice(0, 10)) ==
             4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]))
@@ -63,7 +63,7 @@ def test_get_dtcm_usage_with_other_costs():
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)
     ]
-    v = NengoVertex(100, '', rs)
+    v = Vertex(100, '', rs)
     v.get_dtcm_usage_static = lambda sl: 10*(sl.stop - sl.start)
 
     assert (v.get_dtcm_usage_for_atoms(slice(0, 10)) ==
@@ -78,7 +78,7 @@ def test_get_subregions():
         mock.Mock(),
         mock.Mock()
     ]
-    v = NengoVertex(100, '', rs)
+    v = Vertex(100, '', rs)
 
     # Create some subregions, ensure the appropriate calls are made to the
     # regions.

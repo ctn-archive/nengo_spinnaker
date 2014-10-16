@@ -185,10 +185,10 @@ def test_generate_data_for_placements(tmpdir):
           np.zeros(100, dtype=np.uint32),
           np.array([5, 6], dtype=np.uint32), ]
     svs = [
-        vertices.NengoPlacedVertex(0, 0, i, None,
-                                   [regions.Subregion(d, d.size, False) for d
-                                    in ds], 1000
-                                   ) for i in range(17)
+        vertices.PlacedVertex(0, 0, i, None,
+                              [regions.Subregion(d, d.size, False) for d
+                               in ds], 1000
+                              ) for i in range(17)
     ]
 
     # Get the word and region writes for these placements
@@ -253,7 +253,7 @@ def test_generate_data_for_placements_multiple_chips(tmpdir):
 
 def test_empty_memory_exception(tmpdir):
     """Test that an exception is thrown if there is insufficient memory."""
-    sv = vertices.NengoPlacedVertex(
+    sv = vertices.PlacedVertex(
         0, 0, 1, None,
         [regions.Subregion(np.zeros(100, dtype=np.uint32), 100, False)], 1000)
     register_getter = lambda x: 0xEFEF

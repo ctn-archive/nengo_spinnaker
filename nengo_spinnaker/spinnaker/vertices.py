@@ -10,18 +10,18 @@ from pacman.model.partitionable_graph.abstract_constrained_vertex import \
     AbstractConstrainedVertex
 
 
-NengoPlacedVertex = collections.namedtuple(
-    'NengoPlacedVertex', 'x y p executable subregions timer_period')
+PlacedVertex = collections.namedtuple(
+    'PlacedVertex', 'x y p executable subregions timer_period')
 
 
-class NengoVertex(AbstractConstrainedVertex):
+class Vertex(AbstractConstrainedVertex):
     """Helper for constructing Vertices for PACMAN."""
     executable_path = None  # Path for the executable
 
     def __init__(self, n_atoms, label, regions=list(), constraints=None):
-        """Create a new NengoVertex object.
+        """Create a new Vertex object.
 
-        Each NengoVertex object consists of a set of regions, each region
+        Each Vertex object consists of a set of regions, each region
         describes a block of memory that is to be treated in various ways.
 
         :param int n_atoms: Number of processing atoms represented by the
@@ -30,7 +30,7 @@ class NengoVertex(AbstractConstrainedVertex):
         :param list regions: A list of memory regions for the vertex.
         :param list constraints: A list of constraints for the vertex.
         """
-        super(NengoVertex, self).__init__(label, constraints)
+        super(Vertex, self).__init__(label, constraints)
         self.n_atoms = n_atoms
         self.regions = regions
 

@@ -32,7 +32,7 @@ class TestAssembler(object):
         """
         # Add a new object builder
         build_fn = mock.Mock()
-        build_fn.return_value = vertices.NengoVertex(None, None)
+        build_fn.return_value = vertices.Vertex(None, None)
 
         assembler.Assembler.register_object_builder(build_fn, mock.Mock)
 
@@ -91,7 +91,7 @@ class TestAssembler(object):
         """Test that the vertex assemble function just returns the vertex it
         was given.
         """
-        vertex = vertices.NengoVertex(None, None)
+        vertex = vertices.Vertex(None, None)
         rval = assembler.vertex_builder(vertex, mock.Mock())
 
         assert rval is vertex
@@ -111,7 +111,7 @@ class TestAssembler(object):
         c = TestObject()
 
         objs = [a, b, c]
-        obj_verts = {k: vertices.NengoVertex(None, None) for k in objs[:-1]}
+        obj_verts = {k: vertices.Vertex(None, None) for k in objs[:-1]}
         obj_verts.update({c: None})
 
         def build_test_object(test_object, asmblr):

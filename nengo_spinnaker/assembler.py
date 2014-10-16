@@ -105,7 +105,7 @@ class Assembler(object):
 def vertex_builder(vertex, assembler):
     return vertex
 
-Assembler.register_object_builder(vertex_builder, vertices.NengoVertex)
+Assembler.register_object_builder(vertex_builder, vertices.Vertex)
 
 
 def assemble_node(node, assembler):
