@@ -1,7 +1,7 @@
 import nengo
-import utils
 
-from connection import IntermediateConnection
+from ..connection import IntermediateConnection
+from . import connections as ens_conn_utils
 
 
 def reroute_modulatory_connections(objs, connections, probes):
@@ -14,7 +14,7 @@ def reroute_modulatory_connections(objs, connections, probes):
         intermediate_c = None
         replaced_learning_rules = list()
 
-        for l in utils.connections.get_learning_rules(c):
+        for l in ens_conn_utils.get_learning_rules(c):
             # If learning rule is PES
             if isinstance(l, nengo.PES):
                 # Create an intermediate connection
@@ -50,7 +50,7 @@ def reroute_modulatory_connections(objs, connections, probes):
             # Add learning rules from original connection that
             # Haven't been replaced to intermediate connection
             intermediate_c.learning_rule.extend(
-                [l for l in utils.connections.get_learning_rules(c)
+                [l for l in ens_conn_utils.get_learning_rules(c)
                     if l not in replaced_learning_rules])
 
             # Add original to list

@@ -5,6 +5,8 @@ import collections
 import nengo
 import numpy as np
 
+from nengo.utils.compat import is_iterable
+
 from .. import connection
 from ..utils import connections as connection_utils
 
@@ -95,3 +97,12 @@ class IntermediateGlobalInhibitionConnection(
         # Create a new instance
         return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr,
                    c.solver, c.eval_points, keyspace)
+
+
+def get_learning_rules(connection):
+    if is_iterable(connection.learning_rule):
+        return tuple(connection.learning_rule)
+    elif connection.learning_rule is not None:
+        return (connection.learning_rule,)
+    else:
+        return ()

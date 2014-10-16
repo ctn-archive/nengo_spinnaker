@@ -105,10 +105,9 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
                 tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
 
         # Build list of learning rule, connection-index tuples
-        raise NotImplementedError
         learning_rules = list()
         for c in tfses:
-            for l in utils.connections.get_learning_rules(c):
+            for l in ens_conn_utils.get_learning_rules(c):
                 learning_rules.append((l, tfse_map[c]))
 
         # By default compress all decoders

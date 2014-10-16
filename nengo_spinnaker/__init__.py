@@ -1,15 +1,15 @@
 # from .simulator import Simulator  # noqa
 
 # Register transform functions with the builder
-import builder
+from builder import Builder
 import ensemble.build
+from ensemble import pes
 # import probe
 
-builder.Builder.register_object_transform(ensemble.build.build_ensembles)
-# builder.Builder.register_connectivity_transform(
+Builder.register_object_transform(ensemble.build.build_ensembles)
+# Builder.register_connectivity_transform(
 #     probe.insert_decoded_output_probes)
-# builder.Builder.register_connectivity_transform(
-#     pes.reroute_modulatory_connections)
+Builder.register_connectivity_transform(pes.reroute_modulatory_connections)
 
 # Register assembler methods with the assembler
 import assembler
