@@ -30,7 +30,7 @@ class IntermediateConnection(object):
         return (self.pre_obj.size_out, self.post_obj.size_in)
 
     @classmethod
-    def from_connection(cls, c):
+    def from_connection(cls, c, keyspace=None, is_accumulatory=True):
         """Return an IntermediateConnection object for any connections which
         have not already been replaced.  A requirement of any replaced
         connection type is that it has the attribute keyspace and can have
@@ -42,11 +42,11 @@ class IntermediateConnection(object):
 
             # Return a copy of this connection but with less information and
             # the full transform.
-            keyspace = getattr(c, 'keyspace', None)
             return cls(c.pre_obj, c.post_obj, synapse=c.synapse,
                        function=c.function, transform=tr, solver=c.solver,
                        eval_points=c.eval_points, keyspace=keyspace,
-                       learning_rule=c.learning_rule, modulatory=c.modulatory)
+                       learning_rule=c.learning_rule, modulatory=c.modulatory,
+                       is_accumulatory=is_accumulatory)
         return c
 
     def to_connection(self):
