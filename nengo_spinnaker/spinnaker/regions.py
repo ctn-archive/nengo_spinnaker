@@ -1,4 +1,5 @@
 import collections
+import enum
 import numpy as np
 
 
@@ -41,24 +42,25 @@ def Subregion(data, size_words, unfilled):
     return Subregion_(data, size_words, unfilled)
 
 
+MatrixRegionPrepends = enum.Enum('MatrixRegionPrepends',
+                                 'N_ATOMS N_ROWS N_COLUMNS SIZE INDEX')
+
+
 class MatrixRegion(Region):
     """An unpartitioned region of memory representing a matrix.
     """
     partition_index = None  # Not partitioned along any axis
 
     def __init__(self, matrix=None, shape=None, dtype=np.uint32, in_dtcm=True,
-                 unfilled=False, prepend_n_atoms=False,
-                 prepend_full_length=False, formatter=None):
+                 unfilled=False, prepends=list(), formatter=None):
         """Create a new region representing a matrix.
 
         :param matrix: Matrix to represent in this region.
         :param shape: Shape of the matrix, will be taken from the passed matrix
                       if not specified.
         """
-        super(MatrixRegion, self).__init__(
-            in_dtcm=in_dtcm, unfilled=unfilled)
-        self.prepend_n_atoms = prepend_n_atoms
-        self.prepend_full_length = prepend_full_length
+        super(MatrixRegion, self).__init__(in_dtcm=in_dtcm, unfilled=unfilled)
+        self.prepends = prepends
         self.formatter = formatter
 
         # Assert the matrix matches the given shape
@@ -77,9 +79,7 @@ class MatrixRegion(Region):
 
     def sizeof(self, vertex_slice):
         """Get the size of the region for the specified atoms in words."""
-        return (self.size_from_shape(vertex_slice) +
-                (1 if self.prepend_full_length else 0) +
-                (1 if self.prepend_n_atoms else 0))
+        return (self.size_from_shape(vertex_slice) + len(self.prepends))
 
     def __getitem__(self, index):
         return self.matrix
@@ -112,13 +112,18 @@ class MatrixRegion(Region):
                                       dtype=np.uint32)
 
         # Prepend any required additional data
-        prepends = []
-        if self.prepend_n_atoms:
-            prepends.append(vertex_slice.stop - vertex_slice.start)
-        if self.prepend_full_length:
-            prepends.append(flat_data.size)
+        prepend_data = {
+            MatrixRegionPrepends.N_ATOMS: (vertex_slice.stop -
+                                           vertex_slice.start),
+            MatrixRegionPrepends.N_ROWS: data.shape[0],
+            MatrixRegionPrepends.N_COLUMNS: data.shape[1],
+            MatrixRegionPrepends.SIZE: data.size,
+            MatrixRegionPrepends.INDEX: subvertex_index,
+        }
+        prepends = np.array([prepend_data[p] for p in self.prepends],
+                            dtype=self.dtype)
 
-        srd = np.hstack([np.array(prepends, dtype=self.dtype), formatted_data])
+        srd = np.hstack([prepends, formatted_data])
         return Subregion(srd, len(srd), self.unfilled)
 
 

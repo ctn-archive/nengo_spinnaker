@@ -34,6 +34,7 @@ setup(
     description=description,
     long_description=long_description,
     requires=[
+        "enum34",
         "nengo (>=2.0.0)",
         "numpy",
         "PACMAN",

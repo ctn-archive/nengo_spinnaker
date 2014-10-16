@@ -10,8 +10,10 @@ def test_get_sdram_usage_for_atoms():
     """Test that the SDRAM usage for various regions is reported correctly.
     """
     rs = [
-        regions.MatrixRegion(shape=(100, 5), prepend_full_length=True,
-                             prepend_n_atoms=True),
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
         regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5))
@@ -26,8 +28,10 @@ def test_get_dtcm_usage_for_regions():
     """Test that the DTCM usage for various regions is reported correctly.
     """
     rs = [
-        regions.MatrixRegion(shape=(100, 5), prepend_full_length=True,
-                             prepend_n_atoms=True),
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
         regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5))
@@ -43,8 +47,10 @@ def test_get_dtcm_usage_for_regions_non_dtcm_regions():
     some of the regions are not stored in DTCM.
     """
     rs = [
-        regions.MatrixRegion(shape=(100, 5), prepend_full_length=True,
-                             prepend_n_atoms=True),
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
         regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)
@@ -57,8 +63,10 @@ def test_get_dtcm_usage_for_regions_non_dtcm_regions():
 
 def test_get_dtcm_usage_with_other_costs():
     rs = [
-        regions.MatrixRegion(shape=(100, 5), prepend_full_length=True,
-                             prepend_n_atoms=True),
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
         regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)

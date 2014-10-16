@@ -29,18 +29,13 @@ class TestMatrixRegion(object):
         mr = regions.MatrixRegion(np.zeros(100))
         assert mr.sizeof(slice(0, 50)) == 100
 
-    def test_matrix_sizeof_with_full_length(self):
-        mr = regions.MatrixRegion(np.zeros(100), prepend_full_length=True)
-        assert mr.sizeof(slice(0, 50)) == 101
-
-    def test_matrix_sizeof_with_n_atoms(self):
-        mr = regions.MatrixRegion(np.zeros(100), prepend_n_atoms=True)
-        assert mr.sizeof(slice(0, 50)) == 101
-
-    def test_matrix_sizeof_with_n_atoms_and_full_length(self):
-        mr = regions.MatrixRegion(np.zeros(100), prepend_n_atoms=True,
-                                  prepend_full_length=True)
-        assert mr.sizeof(slice(0, 50)) == 102
+    def test_matrix_sizeof_with_prepends(self):
+        mr = regions.MatrixRegion(np.zeros(100), prepends=[
+                regions.MatrixRegionPrepends.N_ATOMS,
+                regions.MatrixRegionPrepends.N_ROWS,
+                regions.MatrixRegionPrepends.N_COLUMNS,
+                regions.MatrixRegionPrepends.SIZE])
+        assert mr.sizeof(slice(0, 50)) == 100 + 4
 
     def test_matrix_sizeof_oversized(self):
         mr = regions.MatrixRegion(np.zeros(100))
@@ -83,7 +78,8 @@ class TestMatrixRegion(object):
 
     def test_create_subregion_with_prepend_n_atoms(self):
         data = np.array([[n]*5 for n in range(100)], dtype=np.uint32)
-        mr = regions.MatrixRegionPartitionedByRows(data, prepend_n_atoms=True)
+        mr = regions.MatrixRegionPartitionedByRows(data, prepends=[
+            regions.MatrixRegionPrepends.N_ATOMS])
         sr = mr.create_subregion(slice(0, 10), 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
@@ -94,8 +90,8 @@ class TestMatrixRegion(object):
 
     def test_create_subregion_with_prepend_full_length(self):
         data = np.array([[n]*5 for n in range(100)], dtype=np.uint32)
-        mr = regions.MatrixRegionPartitionedByRows(data,
-                                                   prepend_full_length=True)
+        mr = regions.MatrixRegionPartitionedByRows(data, prepends=[
+            regions.MatrixRegionPrepends.SIZE])
         sr = mr.create_subregion(slice(0, 10), 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
@@ -106,8 +102,9 @@ class TestMatrixRegion(object):
 
     def test_create_subregion_with_prepend_full_length_n_atoms(self):
         data = np.array([[n]*5 for n in range(100)], dtype=np.uint32)
-        mr = regions.MatrixRegionPartitionedByRows(data, prepend_n_atoms=True,
-                                                   prepend_full_length=True)
+        mr = regions.MatrixRegionPartitionedByRows(data, prepends=[
+            regions.MatrixRegionPrepends.N_ATOMS,
+            regions.MatrixRegionPrepends.SIZE])
         sr = mr.create_subregion(slice(0, 10), 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
@@ -118,20 +115,23 @@ class TestMatrixRegion(object):
         assert not sr.unfilled
 
     def test_size_no_matrix(self):
-        mr = regions.MatrixRegion(shape=(100, 5, 2), prepend_n_atoms=True,
-                                  prepend_full_length=True)
+        mr = regions.MatrixRegion(shape=(100, 5, 2), prepends=[
+            regions.MatrixRegionPrepends.N_ATOMS,
+            regions.MatrixRegionPrepends.SIZE])
         assert mr.sizeof(slice(0, 10)) == 100*5*2 + 2
 
     def test_size_no_matrix_rows(self):
-        mr = regions.MatrixRegionPartitionedByRows(shape=(100, 5),
-                                                   prepend_n_atoms=True,
-                                                   prepend_full_length=True)
+        mr = regions.MatrixRegionPartitionedByRows(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.N_ATOMS,
+            regions.MatrixRegionPrepends.SIZE])
         assert mr.sizeof(slice(0, 10)) == 10*5 + 2
 
     def test_size_no_matrix_columns(self):
-        mr = regions.MatrixRegionPartitionedByColumns(shape=(100, 5),
-                                                      prepend_n_atoms=True,
-                                                      prepend_full_length=True)
+        mr = regions.MatrixRegionPartitionedByColumns(
+            shape=(100, 5), prepends=[
+                regions.MatrixRegionPrepends.N_ATOMS,
+                regions.MatrixRegionPrepends.SIZE
+            ])
         assert mr.sizeof(slice(0, 2)) == 100*2 + 2
 
 
