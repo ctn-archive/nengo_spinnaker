@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 
 import nengo
+from nengo.builder import sample as builder_sample
 from nengo.utils import distributions as dists
 import nengo.utils.builder as builder_utils
 import nengo.utils.numpy as npext
@@ -10,6 +11,9 @@ from nengo.utils.stdlib import checked_call
 from . import connections as ens_conn_utils
 from . import decoders as decoder_utils
 from . import intermediate
+from ..utils.fixpoint import bitsk
+
+from ..spinnaker import regions
 
 
 class IntermediateLIF(intermediate.IntermediateEnsemble):
@@ -44,14 +48,8 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
             eval_points = np.array(ens.eval_points, dtype=np.float64)
 
         # Determine max_rates and intercepts
-        if isinstance(ens.max_rates, dists.Distribution):
-            max_rates = ens.max_rates.sample(ens.n_neurons, rng=rng)
-        else:
-            max_rates = np.array(max_rates)
-        if isinstance(ens.intercepts, dists.Distribution):
-            intercepts = ens.intercepts.sample(ens.n_neurons, rng=rng)
-        else:
-            intercepts = np.array(intercepts)
+        max_rates = builder_sample(ens.max_rates, ens.n_neurons, rng)
+        intercepts = builder_sample(ens.intercepts, ens.n_neurons, rng)
 
         # Generate gains, bias
         gain, bias = ens.neuron_type.gain_bias(max_rates, intercepts)
@@ -241,9 +239,47 @@ class EnsembleLIF(utils.vertices.NengoVertex):
                      pes_region, spikes_region)
         vertex.probes = ens.probes
         return vertex
-
-
-assert False, "Incomplete!"
-class SystemRegion(object):
-    pass
 """
+
+
+class SystemRegion(regions.Region):
+    """Region representing parameters for a LIF ensemble.
+    """
+    def __init__(self, n_input_dimensions, n_output_dimensions,
+                 machine_timestep, t_ref, dt_over_t_rc, record_spikes):
+        """Create a new system region for a LIF ensemble.
+
+        :param n_input_dimensions: Number of input dimensions (TODO: remove)
+        :param n_output_dimensions: Number of output dimensions (TODO: remove)
+        :param machine_timestep: Timestep in microseconds (TODO: remove)
+        :param float t_ref: Refractory period.
+        :param float dt_over_t_rc:
+        :param bool: Record spikes (TODO: Move elsewhere?)
+        """
+        self.n_input_dimensions = n_input_dimensions
+        self.n_output_dimensions = n_output_dimensions
+        self.machine_timestep = machine_timestep
+        self.t_ref_in_ticks = int(t_ref / (machine_timestep * 10**-6))
+        self.dt_over_t_rc = bitsk(dt_over_t_rc)
+        self.record_flags = 0x1 if record_spikes else 0x0
+
+    def sizeof(self, vertex_slice):
+        """Get the size of this region in WORDS."""
+        # Is a constant, 8
+        return 8
+
+    def create_subregion(self, vertex_slice, vertex_index):
+        """Create a subregion for this slice of the vertex.
+        """
+        data = np.array([
+            self.n_input_dimensions,
+            self.n_output_dimensions,
+            vertex_slice.stop - vertex_slice.start,
+            self.machine_timestep,
+            self.t_ref_in_ticks,
+            self.dt_over_t_rc,
+            self.record_flags,
+            1,
+        ], dtype=np.uint32)
+
+        return regions.Subregion(data, len(data), False)
