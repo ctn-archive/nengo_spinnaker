@@ -13,7 +13,7 @@ from . import decoders as decoder_utils
 from . import intermediate
 from ..utils.fixpoint import bitsk
 
-from ..spinnaker import regions
+from ..spinnaker import regions, vertices
 
 
 class IntermediateLIF(intermediate.IntermediateEnsemble):
@@ -126,37 +126,81 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
                    eval_points, decoder_headers, learning_rules)
 
 
-"""
-class EnsembleLIF(utils.vertices.NengoVertex):
-    MODEL_NAME = 'nengo_ensemble'
-    MAX_ATOMS = 128
-    spikes_recording_region = 15
+class SystemRegion(regions.Region):
+    """Region representing parameters for a LIF ensemble.
+    """
+    def __init__(self, n_input_dimensions, n_output_dimensions,
+                 machine_timestep, t_ref, dt_over_t_rc, record_spikes):
+        """Create a new system region for a LIF ensemble.
+
+        :param n_input_dimensions: Number of input dimensions (TODO: remove)
+        :param n_output_dimensions: Number of output dimensions (TODO: remove)
+        :param machine_timestep: Timestep in microseconds (TODO: remove)
+        :param float t_ref: Refractory period.
+        :param float dt_over_t_rc:
+        :param bool: Record spikes (TODO: Move elsewhere?)
+        """
+        self.n_input_dimensions = n_input_dimensions
+        self.n_output_dimensions = n_output_dimensions
+        self.machine_timestep = machine_timestep
+        self.t_ref_in_ticks = int(t_ref / (machine_timestep * 10**-6))
+        self.dt_over_t_rc = bitsk(dt_over_t_rc)
+        self.record_flags = 0x1 if record_spikes else 0x0
+
+    def sizeof(self, vertex_slice):
+        """Get the size of this region in WORDS."""
+        # Is a constant, 8
+        return 8
+
+    def create_subregion(self, vertex_slice, vertex_index):
+        """Create a subregion for this slice of the vertex.
+        """
+        data = np.array([
+            self.n_input_dimensions,
+            self.n_output_dimensions,
+            vertex_slice.stop - vertex_slice.start,
+            self.machine_timestep,
+            self.t_ref_in_ticks,
+            self.dt_over_t_rc,
+            self.record_flags,
+            1,
+        ], dtype=np.uint32)
+
+        return regions.Subregion(data, len(data), False)
+
+
+class EnsembleLIF(vertices.Vertex):
+    executable_path = None  # TODO
 
     def __init__(self, n_neurons, system_region, bias_region, encoders_region,
                  decoders_region, output_keys_region, input_filter_region,
                  input_filter_routing, inhib_filter_region,
                  inhib_filter_routing, gain_region, modulatory_filter_region,
                  modulatory_filter_routing, pes_region, spikes_region):
-        super(EnsembleLIF, self).__init__(n_neurons)
+        regions = [
+            system_region,  # 1
+            bias_region,  # 2
+            encoders_region,  # 3
+            decoders_region,  # 4
+            output_keys_region,  # 5
+            input_filter_region,  # 6
+            input_filter_routing,  # 7
+            inhib_filter_region,  # 8
+            inhib_filter_routing,  # 9
+            gain_region,  # 10
+            modulatory_filter_region,  # 11
+            modulatory_filter_routing,  # 12
+            pes_region,  # 13
+            None,  # 14
+            spikes_region,  # 15
+        ]
+        super(EnsembleLIF, self).__init__(n_neurons, '', regions)
 
-        # Create regions
-        self.regions = [None]*16
-        self.regions[0] = system_region
-        self.regions[1] = bias_region
-        self.regions[2] = encoders_region
-        self.regions[3] = decoders_region
-        self.regions[4] = output_keys_region
-        self.regions[5] = input_filter_region
-        self.regions[6] = input_filter_routing
-        self.regions[7] = inhib_filter_region
-        self.regions[8] = inhib_filter_routing
-        self.regions[9] = gain_region
-        self.regions[10] = modulatory_filter_region
-        self.regions[11] = modulatory_filter_routing
-        self.regions[12] = pes_region
-        self.regions[14] = spikes_region
-        self.probes = list()
+    @classmethod
+    def assemble_from_intermediate(cls, ens, assembler):
+        raise NotImplementedError
 
+"""
     @classmethod
     def assemble(cls, ens, assembler):
         # Prepare the system region
@@ -240,46 +284,3 @@ class EnsembleLIF(utils.vertices.NengoVertex):
         vertex.probes = ens.probes
         return vertex
 """
-
-
-class SystemRegion(regions.Region):
-    """Region representing parameters for a LIF ensemble.
-    """
-    def __init__(self, n_input_dimensions, n_output_dimensions,
-                 machine_timestep, t_ref, dt_over_t_rc, record_spikes):
-        """Create a new system region for a LIF ensemble.
-
-        :param n_input_dimensions: Number of input dimensions (TODO: remove)
-        :param n_output_dimensions: Number of output dimensions (TODO: remove)
-        :param machine_timestep: Timestep in microseconds (TODO: remove)
-        :param float t_ref: Refractory period.
-        :param float dt_over_t_rc:
-        :param bool: Record spikes (TODO: Move elsewhere?)
-        """
-        self.n_input_dimensions = n_input_dimensions
-        self.n_output_dimensions = n_output_dimensions
-        self.machine_timestep = machine_timestep
-        self.t_ref_in_ticks = int(t_ref / (machine_timestep * 10**-6))
-        self.dt_over_t_rc = bitsk(dt_over_t_rc)
-        self.record_flags = 0x1 if record_spikes else 0x0
-
-    def sizeof(self, vertex_slice):
-        """Get the size of this region in WORDS."""
-        # Is a constant, 8
-        return 8
-
-    def create_subregion(self, vertex_slice, vertex_index):
-        """Create a subregion for this slice of the vertex.
-        """
-        data = np.array([
-            self.n_input_dimensions,
-            self.n_output_dimensions,
-            vertex_slice.stop - vertex_slice.start,
-            self.machine_timestep,
-            self.t_ref_in_ticks,
-            self.dt_over_t_rc,
-            self.record_flags,
-            1,
-        ], dtype=np.uint32)
-
-        return regions.Subregion(data, len(data), False)

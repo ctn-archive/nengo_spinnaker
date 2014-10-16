@@ -9,6 +9,7 @@ import random
 
 from .. import lif
 from ...utils.fixpoint import bitsk
+from ... import connection
 
 
 class TestIntermediateLIF(object):
@@ -78,3 +79,29 @@ def test_lif_system_region():
     assert data[5] == bitsk(0.07)  # dt over t_rc
     assert data[6] == 0x1  # not recording spikes
     assert data[7] == 1  # number of inhibitory dimensions
+
+
+def test_vertex_from_intermediate():
+    # Build a simple network
+    model = nengo.Network()
+    with model:
+        ens = nengo.Ensemble(100, 3)
+        a = nengo.Node(lambda t, x: None, size_in=3, size_out=0)
+
+        cs = [
+            nengo.Connection(ens[1:], a[1:]),
+            nengo.Connection(ens[0], a[0], function=lambda x: x**2),
+        ]
+
+    # Create an intermediate ensemble
+    ilif = lif.IntermediateLIF.from_object(ens, cs, 0.001, mock.Mock())
+
+    # Convert the connections to IntermediateConnections
+    conns = [connection.IntermediateConnection.from_connection(c) for c in cs]
+
+    # Assemble the intermediate representation into a vertex
+    asmblr = mock.Mock()
+    lifvertex = lif.EnsembleLIF.assemble_from_intermediate(ilif, asmblr)
+
+    # Ug, test things are correct...
+    raise NotImplementedError
