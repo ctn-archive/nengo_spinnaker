@@ -6,20 +6,24 @@ import nengo
 
 
 class SynapseParameter(object):
-    def __init__(self, is_accumulatory=False):
+    def __init__(self, is_accumulatory=False, is_modulatory=False):
         self.is_accumulatory = is_accumulatory
+        self.is_modulatory = is_modulatory
 
     def __eq__(self, other):
         return (self.__class__ is other.__class__ and
-                self.is_accumulatory == other.is_accumulatory)
+                self.is_accumulatory == other.is_accumulatory and
+                self.is_modulatory == other.is_modulatory)
 
     def __hash__(self):
-        return hash((hash(self.__class__), hash(self.is_accumulatory)))
+        return hash((hash(self.__class__), hash(self.is_accumulatory),
+                     hash(self.is_modulatory)))
 
 
 class LinearFilterSynapseParameter(SynapseParameter):
-    def __init__(self, synapse, is_accumulatory=False):
-        super(LinearFilterSynapseParameter, self).__init__(is_accumulatory)
+    def __init__(self, synapse, is_accumulatory=False, is_modulatory=False):
+        super(LinearFilterSynapseParameter, self).__init__(is_accumulatory,
+                                                           is_modulatory)
         self.num = synapse.num
         self.den = synapse.den
 
@@ -34,8 +38,9 @@ class LinearFilterSynapseParameter(SynapseParameter):
 
 
 class LowpassSynapseParameter(SynapseParameter):
-    def __init__(self, synapse, is_accumulatory=False):
-        super(LowpassSynapseParameter, self).__init__(is_accumulatory)
+    def __init__(self, synapse, is_accumulatory=False, is_modulatory=False):
+        super(LowpassSynapseParameter, self).__init__(is_accumulatory,
+                                                      is_modulatory)
         self.tau = synapse.tau
 
     def __eq__(self, other):
@@ -67,7 +72,7 @@ def get_combined_filters(connections):
     filter_connections = collections.defaultdict(list)
     for c in connections:
         f = _FilterTypes[c.synapse.__class__](
-            c.synapse, getattr(c, 'is_accumulatory', False))
+            c.synapse, getattr(c, 'is_accumulatory', False), c.modulatory)
         filter_connections[f].append(c)
 
     # Create a list of filters and a mapping of connection to filter index.

@@ -17,6 +17,7 @@ def test_get_combined_filters():
         # 3 is a unique filter
         # 4 + 5 share a filter
         # 6 is a unique filter (because it is accumulatory)
+        # 7 is a unique filter (because it is modulatory)
         conns = [
             nengo.Connection(a, b, synapse=0.01),
             nengo.Connection(a, b, transform=0.1, synapse=0.01),
@@ -25,9 +26,10 @@ def test_get_combined_filters():
             nengo.Connection(a, b, synapse=nengo.synapses.Alpha(0.01)),
             nengo.Connection(a, b, synapse=nengo.synapses.Alpha(0.01)),
             nengo.Connection(a, b, synapse=0.01),
+            nengo.Connection(a, b, synapse=0.05, modulatory=True),
         ]
 
-        setattr(conns[-1], 'is_accumulatory', True)
+        setattr(conns[6], 'is_accumulatory', True)
 
     # Construct the minimum set of filters and provide indices from connections
     # into the set of filters.
@@ -35,24 +37,20 @@ def test_get_combined_filters():
 
     # Assert that there are the correct number of filters and that the
     # connection indices are appropriate.
-    assert len(filters) == 5
+    assert len(filters) == 6
+
+    for n in [2, 3, 6, 7]:  # Not shared filters
+        assert filter_indices[conns[n]] not in [
+            i for (c, i) in filter_indices.items() if c is not conns[n]]
+
+    # Shared filters
     assert filter_indices[conns[0]] == filter_indices[conns[1]]
-    assert filter_indices[conns[2]] not in [
-        i for (c, i) in filter_indices.items() if c is not conns[2]]
-    assert filter_indices[conns[3]] not in [
-        i for (c, i) in filter_indices.items() if c is not conns[3]]
     assert filter_indices[conns[4]] == filter_indices[conns[5]]
-    assert filter_indices[conns[6]] not in [
-        i for (c, i) in filter_indices.items() if c is not conns[6]]
 
     # Assert that parameters have been grabbed correctly
-    assert filters[filter_indices[conns[0]]].tau == conns[0].synapse.tau
-    assert not filters[filter_indices[conns[0]]].is_accumulatory
-    assert filters[filter_indices[conns[2]]].tau == conns[2].synapse.tau
-    assert not filters[filter_indices[conns[2]]].is_accumulatory
-    assert filters[filter_indices[conns[3]]].tau == conns[3].synapse.tau
-    assert not filters[filter_indices[conns[3]]].is_accumulatory
-    assert filters[filter_indices[conns[4]]].tau == conns[4].synapse.tau
-    assert not filters[filter_indices[conns[4]]].is_accumulatory
+    for i in [0, 2, 3, 4, 7]:
+        assert filters[filter_indices[conns[i]]].tau == conns[i].synapse.tau
+        assert not filters[filter_indices[conns[i]]].is_accumulatory
+
     assert filters[filter_indices[conns[6]]].tau == conns[6].synapse.tau
     assert filters[filter_indices[conns[6]]].is_accumulatory
