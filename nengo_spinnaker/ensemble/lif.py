@@ -104,7 +104,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         # Build list of learning rule, connection-index tuples
         learning_rules = list()
-        for c in tfses:
+        for c in tfse_map:
             for l in ens_conn_utils.get_learning_rules(c):
                 learning_rules.append((l, tfse_map[c]))
 
