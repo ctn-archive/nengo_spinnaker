@@ -1,8 +1,13 @@
 """Intermediate representations of Ensembles before they are made into
 vertices.
 """
+import collections
 
 import numpy as np
+
+
+IntermediateLearningRule = collections.namedtuple(
+    'IntermediateLearningRule', 'rule decoder_index')
 
 
 class IntermediateEnsemble(object):
@@ -26,7 +31,7 @@ class IntermediateEnsemble(object):
 
         # Output keys
         self.decoder_headers = decoder_headers
-        self.output_keys = None
+        self.output_keys = list()
 
         # Learning rules
         self.learning_rules = learning_rules

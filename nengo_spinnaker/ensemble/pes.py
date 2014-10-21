@@ -1,7 +1,10 @@
 import nengo
+import numpy as np
 
 from ..connection import IntermediateConnection
+from ..utils.fixpoint import bitsk
 from . import connections as ens_conn_utils
+from ..spinnaker import regions
 
 
 def reroute_modulatory_connections(objs, connections, probes):
@@ -66,3 +69,31 @@ def reroute_modulatory_connections(objs, connections, probes):
 
     # Return new lists
     return new_objs, new_connections
+
+
+def make_pes_region(learning_rules, dt, filter_indices):
+    """Create a region containing PES data.
+
+    :param iterable learning_rules: Iterable of the learning rules to construct
+        the region for (non PES rules will be ignored).
+    :param float dt: dt of simulation.
+    :param dict filter_indices: Mapping of connection to filter index.
+    """
+    # Construct the data as a matrix of the appropriate form
+    pes_data = list()
+
+    for l in learning_rules:
+        # Only deal with PES rules
+        if not isinstance(l.rule, nengo.PES):
+            pass
+
+        # Add the data for this learning rule
+        pes_data.append([bitsk(l.rule.learning_rate * dt),
+                         filter_indices[l.rule.error_connection],
+                         p.decoder_index])
+
+    # Convert to appropriate Numpy array and make a region with the number of
+    # rows as the first word.
+    pes_data = np.array(pes_data, dtype=np.uint32)
+    return regions.MatrixRegion(
+        pes_data, prepends=[regions.MatrixRegionPrepends.N_ROWS])

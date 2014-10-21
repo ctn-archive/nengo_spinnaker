@@ -11,7 +11,11 @@ from nengo.utils.stdlib import checked_call
 from . import connections as ens_conn_utils
 from . import decoders as decoder_utils
 from . import intermediate
+from . import pes as pes_utils
+
 from ..utils.fixpoint import bitsk
+from ..utils import filters as filter_utils
+from ..utils import regions as region_utils
 
 from ..spinnaker import regions, vertices
 
@@ -106,7 +110,8 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         learning_rules = list()
         for c in tfse_map:
             for l in ens_conn_utils.get_learning_rules(c):
-                learning_rules.append((l, tfse_map[c]))
+                learning_rules.append(
+                    intermediate.IntermediateLearningRule(l, tfse_map[c]))
 
         # By default compress all decoders
         decoders_to_compress = [True for d in decoders]
@@ -198,22 +203,15 @@ class EnsembleLIF(vertices.Vertex):
 
     @classmethod
     def assemble_from_intermediate(cls, ens, assembler):
-        raise NotImplementedError
-
-"""
-    @classmethod
-    def assemble(cls, ens, assembler):
-        # Prepare the system region
-        system_items = [
-            ens.n_dimensions,
-            len(ens.output_keyspaces),
-            ens.n_neurons,
-            assembler.timestep,
-            int(ens.tau_ref / (assembler.timestep * 10**-6)),
-            utils.fp.bitsk(assembler.dt / ens.tau_rc),
-            0x1 if ens.record_spikes else 0x0,
-            1
-        ]
+        # Create a system region
+        system_region = SystemRegion(
+            n_input_dimensions=ens.n_dimensions,
+            n_output_dimensions=len(ens.output_keys),
+            machine_timestep=assembler.timestep,
+            t_ref=ens.tau_ref,
+            dt_over_t_rc=assembler.dt / ens.tau_rc,
+            record_spikes=ens.record_spikes
+        )
 
         # Prepare the input filtering regions
         # Prepare the inhibitory filtering regions
@@ -225,54 +223,42 @@ class EnsembleLIF(vertices.Vertex):
         input_conns = [c for c in in_conns
                        if c not in inhib_conns and c not in modul_conns]
 
-        (input_filter_region, input_filter_routing, _) =\
-            utils.vertices.make_filter_regions(input_conns, assembler.dt)
-        (inhib_filter_region, inhib_filter_routing, _) =\
-            utils.vertices.make_filter_regions(inhib_conns, assembler.dt)
-        (modul_filter_region, modul_filter_routing, modul_filter_assign) =\
-            utils.vertices.make_filter_regions(modul_conns, assembler.dt)
+        (input_filter_region, input_filter_routing) =\
+            filter_utils.get_filter_regions(input_conns, assembler.dt)
+        (inhib_filter_region, inhib_filter_routing) =\
+            filter_utils.get_filter_regions(inhib_conns, assembler.dt)
+        (modul_filter_region, modul_filter_routing) =\
+            filter_utils.get_filter_regions(modul_conns, assembler.dt)
+        _, modul_filter_assign = filter_utils.get_combined_filters(modul_conns)
 
-        # From list of learning rules, extract list of PES learning rules
-        pes_learning_rules = [l for l in ens.learning_rules
-                              if isinstance(l[0], nengo.PES)]
+        # Assert that only known learning rules are present
+        _learning_types = set(l.rule.__class__ for l in ens.learning_rules)
+        _unsupported = _learning_types - set([nengo.PES])
+        if len(_unsupported) > 0:
+            raise NotImplementedError(
+                'Encountered unsupported learning rule types {:s}'.format(
+                    ', '.join(l.__name__ for l in _unsupported)
+            ))
 
-        # Check no non-supported learning rules were present in original list
-        if len(pes_learning_rules) != len(ens.learning_rules):
-            raise NotImplementedError("Only PES learning rules currently "
-                                      "supported.")
-
-        # Begin PES items with number of learning rules
-        pes_items = [len(pes_learning_rules)]
-        for p in pes_learning_rules:
-            # Generate block of data for this learning rule
-            data = [
-                utils.fp.bitsk(p[0].learning_rate * assembler.dt),
-                modul_filter_assign[p[0].error_connection],
-                p[1]
-            ]
-
-            # Add to PES items
-            pes_items.extend(data)
+        # Create the PES region
+        pes_region = pes_utils.make_pes_region(
+            ens.learning_rules, assembler.dt, modul_filter_assign)
 
         # Generate all the regions in turn, then return a new vertex
         # instance.
         encoders_with_gain = ens.encoders * ens.gains[:, np.newaxis]
         bias_with_di = np.dot(encoders_with_gain, ens.direct_input) + ens.bias
 
-        system_region = utils.vertices.UnpartitionedListRegion(
-            system_items, n_atoms_index=2)
-        bias_region = utils.vertices.MatrixRegionPartitionedByRows(
-            bias_with_di, formatter=utils.fp.bitsk)
-        encoders_region = utils.vertices.MatrixRegionPartitionedByRows(
-            encoders_with_gain, formatter=utils.fp.bitsk)
-        decoders_region = utils.vertices.MatrixRegionPartitionedByRows(
-            ens.decoders, formatter=utils.fp.bitsk)
-        output_keys_region = utils.vertices.UnpartitionedKeysRegion(
-            ens.output_keyspaces)
-        gain_region = utils.vertices.MatrixRegionPartitionedByRows(
-            ens.gains, formatter=utils.fp.bitsk)
-        pes_region = utils.vertices.UnpartitionedListRegion(pes_items)
-        spikes_region = utils.vertices.BitfieldBasedRecordingRegion(
+        bias_region = regions.MatrixRegionPartitionedByRows(
+            bias_with_di, formatter=bitsk)
+        encoders_region = regions.MatrixRegionPartitionedByRows(
+            encoders_with_gain, formatter=bitsk)
+        decoders_region = regions.MatrixRegionPartitionedByRows(
+            ens.decoders, formatter=bitsk)
+        output_keys_region = regions.KeysRegion(ens.output_keys)
+        gain_region = regions.MatrixRegionPartitionedByRows(
+            ens.gains, formatter=bitsk)
+        spikes_region = region_utils.BitfieldBasedRecordingRegion(
             assembler.n_ticks)
 
         vertex = cls(ens.n_neurons, system_region, bias_region,
@@ -283,4 +269,3 @@ class EnsembleLIF(vertices.Vertex):
                      pes_region, spikes_region)
         vertex.probes = ens.probes
         return vertex
-"""

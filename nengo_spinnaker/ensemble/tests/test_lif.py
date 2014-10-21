@@ -100,8 +100,15 @@ def test_vertex_from_intermediate():
     conns = [connection.IntermediateConnection.from_connection(c) for c in cs]
 
     # Assemble the intermediate representation into a vertex
-    asmblr = mock.Mock()
+    asmblr = mock.Mock(spec_set=['timestep', 'dt', 'get_incoming_connections',
+                                 'n_ticks'])
+    asmblr.timestep = 1000
+    asmblr.dt = 0.001
+    asmblr.n_ticks = 0
+    asmblr.get_incoming_connections.side_effect = lambda *args: list()
+
     lifvertex = lif.EnsembleLIF.assemble_from_intermediate(ilif, asmblr)
 
-    # Ug, test things are correct...
-    raise NotImplementedError
+    # Assert that the incoming connections were retrieved for the correct
+    # object.
+    assert asmblr.get_incoming_connections.called_once_with(ilif)
