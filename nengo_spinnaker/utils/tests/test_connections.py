@@ -80,6 +80,28 @@ def test_TransformFunctionKeyspaceConnection():
     assert c1.keyspace is None
 
 
+def test_get_combined_connections_exact_duplicates_not_shared():
+    """Exact a->b duplicates should not be shared as this would serve to halve
+    the connectivity between objects.
+
+    TODO: Increase the transform to account for this?
+    """
+    with nengo.Network() as model:
+        a = nengo.Ensemble(100, 1)
+        b = nengo.Ensemble(100, 1)
+
+        cs = [
+            nengo.Connection(a, b),
+            nengo.Connection(a, b),
+        ]
+
+    # Combine the given connections
+    combined_connection_residues, combined_connection_indices = \
+        connections_utils.get_combined_connections(cs)
+
+    assert len(combined_connection_residues) == 2
+
+
 def test_get_combined_connections():
     """Test that connections can be correctly combined.
     """

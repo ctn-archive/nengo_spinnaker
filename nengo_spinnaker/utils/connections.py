@@ -3,6 +3,7 @@
 
 import collections
 import copy
+import numpy as np
 import nengo
 
 from .. import connection
@@ -41,7 +42,7 @@ def replace_objects_in_connections(connections, replaced_objects):
 
 class TransformFunctionKeyspaceConnection(
     collections.namedtuple('TransformFunctionKeyspace',
-                           'transform function keyspace')):
+                           'transform function keyspace pre_obj post_obj')):
     """Minimum representation of a connection provided to allow trivial
     combination of equivalent connections.
     """
@@ -56,20 +57,37 @@ class TransformFunctionKeyspaceConnection(
 
         return super(TransformFunctionKeyspaceConnection, cls).__new__(
             cls, transform=transform, function=connection.function,
-            keyspace=ks
+            keyspace=ks, pre_obj=connection.pre_obj,
+            post_obj=connection.post_obj
         )
 
     def __eq__(self, other):
-        # Use hashing when comparing elements of this type
-        return hash(self) == hash(other)
+        # Compare all fields:
+        # We check that the pre objs ARE equivalent but that the post objs
+        # AREN'T because we explicitly want that: (A->B) || (A->B) = 2(A->B)
+        # [`||' indicates ``in parallel'].
+        # Additionally, this is a strong requirement for function equivalence -
+        # for example `id(lambda x: x) != id(lambda x: x)` - meaning that we
+        # probably miss out on a lot of opportunities for sharing connections
+        # on ensembles.
+        return all([
+            np.all(self.transform == other.transform),
+            self.function is other.function,
+            self.keyspace == other.keyspace,
+            self.pre_obj is other.pre_obj,
+            self.post_obj is not other.post_obj,
+        ])
 
     def __hash__(self):
         # TODO: Provide a hash for the function to try to avoid replicating
         # connections which are functionally equivalent.  For ensembles this
         # could be hashing the function as evaluated at the given points.
 
-        # Return a hash of the combined data, function and keyspace
-        return hash((self.transform.data, self.function, self.keyspace))
+        # Return a hash of the combined data, function and keyspace.  The post
+        # object is not included because equivalence in hash(post_obj) actually
+        # means the objects are non-equivalent...
+        return hash((self.transform.data, self.function, self.keyspace,
+                     self.pre_obj))
 
 
 def get_combined_connections(
@@ -87,6 +105,10 @@ def get_combined_connections(
     """
     reduced_connections = list()
     connection_map = dict()
+
+    # TODO: Detect the case where there are two identical connections between
+    # the SAME objects and increase the transform accordingly, i.e.
+    # (A->B) || (A->B) => 2(A->B).
 
     for (c, rc) in [(c, reduced_connection_type(c)) for c in connections]:
         if rc not in reduced_connections:
