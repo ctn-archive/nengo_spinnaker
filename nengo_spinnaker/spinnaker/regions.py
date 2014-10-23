@@ -152,13 +152,15 @@ class KeysRegion(Region):
     multicast packets.  If desired a field may be filled in with the subvertex
     index when a subregion is created.
 
-    The region is not partitioned.
+    This region may be partitioned by passing the `partitioned` parameter.  If
+    this is done then one key is written out per atom.
     """
     def __init__(self, keys, fill_in_field=None, extra_fields=list(),
-                 in_dtcm=True, prepend_n_keys=False):
+                 partitioned=False, in_dtcm=True, prepend_n_keys=False):
         super(KeysRegion, self).__init__(
             in_dtcm=in_dtcm, unfilled=False)
         self.prepend_n_keys = prepend_n_keys
+        self.partitioned = partitioned
 
         self.keys = keys
 
@@ -169,22 +171,31 @@ class KeysRegion(Region):
 
         self.fields.extend(extra_fields)
 
+    def _get_n_keys(self, vertex_slice):
+        length = len(self.keys)
+        if self.partitioned:
+            length = min(length, vertex_slice.stop - vertex_slice.start)
+        return length
+
     def sizeof(self, vertex_slice):
         """The size of the region in WORDS.
         """
-        return (len(self.keys) * (len(self.fields)) +
+        length = self._get_n_keys(vertex_slice)
+        return (length * (len(self.fields)) +
                 (1 if self.prepend_n_keys else 0))
 
     def create_subregion(self, vertex_slice, subvertex_index):
         # Create the data for each key
         data = []
-        for k in self.keys:
+        for k in (self.keys if not self.partitioned else
+                  self.keys[vertex_slice]):
             data.extend(f(k, subvertex_index) for f in self.fields)
 
         # Prepend any required additional data
         prepends = []
         if self.prepend_n_keys:
-            prepends.append(len(self.keys))
+            n_keys = self._get_n_keys(vertex_slice)
+            prepends.append(n_keys)
 
         # Create the subregion and return
         srd = np.hstack([np.array(prepends, dtype=np.uint32),

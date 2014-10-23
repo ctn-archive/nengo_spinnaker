@@ -137,12 +137,24 @@ class TestMatrixRegion(object):
 
 # Keys Region Tests
 class TestKeysRegion(object):
-    def test_fill_in_field(self):
+    @pytest.fixture(scope='function')
+    def keys(self):
         # Create a set of keys
-        keys = [mock.Mock() for i in range(12)]
+        keys = [mock.Mock(spec_set=['key']) for i in range(12)]
         for i, k in enumerate(keys):
             k.key.return_value = i
+        return keys
 
+    @pytest.fixture(scope='function')
+    def keys_with_routing(self):
+        # Create a set of keys
+        keys = [mock.Mock(spec_set=['key', 'routing_mask']) for i in range(12)]
+        for i, k in enumerate(keys):
+            k.key.return_value = i
+            k.routing_mask = 0xFFEEFFEE
+        return keys
+
+    def test_fill_in_field(self, keys):
         # Create a new key region
         r = regions.KeysRegion(keys, fill_in_field='i')
 
@@ -160,12 +172,8 @@ class TestKeysRegion(object):
         for i, k in enumerate(keys):
             assert sr_data[i] == k.key.return_value
 
-    def test_subregion_n_entries(self):
-        # Create a set of keys
-        keys = [mock.Mock() for i in range(12)]
-        for i, k in enumerate(keys):
-            k.key.return_value = i
-            k.routing_mask = 0xFFEEFFEE
+    def test_subregion_n_entries(self, keys_with_routing):
+        keys = keys_with_routing
 
         # Create a new key region
         r = regions.KeysRegion(keys, fill_in_field='i',
@@ -182,12 +190,8 @@ class TestKeysRegion(object):
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data[0] == 12
 
-    def test_extra_fields(self):
-        # Create a set of keys
-        keys = [mock.Mock() for i in range(12)]
-        for i, k in enumerate(keys):
-            k.key.return_value = i
-            k.routing_mask = 0xFFFFEEEE
+    def test_extra_fields(self, keys_with_routing):
+        keys = keys_with_routing
 
         # Create a new key region
         r = regions.KeysRegion(keys, fill_in_field='i', extra_fields=[
@@ -204,4 +208,52 @@ class TestKeysRegion(object):
         for i, d in enumerate(sr_data[0::2]):
             assert d == i
         for d in sr_data[1::2]:
-            assert d == 0xFFFFEEEE
+            assert d == 0xFFEEFFEE
+
+    def test_with_partitioning(self, keys):
+        # Create a new keys region that is partitioned
+        r = regions.KeysRegion(keys, partitioned=True, prepend_n_keys=True,
+                               fill_in_field='i')
+
+        # Assert sizing is correct
+        assert r.sizeof(slice(0, 10)) == 10 + 1
+        assert r.sizeof(slice(3, 7)) == 4 + 1
+
+        # Create a subregion and ensure that the keys are used correctly
+        vslice = slice(3,7)
+        sr = r.create_subregion(vslice, 1)
+
+        for k in keys[vslice]:
+            k.key.assert_called_once_with(**{'i': 1})
+
+        # Assert that a Subregion with the correct data is returned
+        sr_data = np.frombuffer(sr.data, dtype=np.uint32)
+        assert sr_data.size == (vslice.stop - vslice.start) + 1
+        assert sr_data[0] == vslice.stop - vslice.start
+        for i, k in enumerate(keys[vslice]):
+            assert sr_data[i+1] == k.key.return_value
+
+    def test_with_partitioning_and_extra_fields(self, keys):
+        # Create a new keys region that is partitioned
+        r = regions.KeysRegion(keys, partitioned=True, prepend_n_keys=True,
+                               fill_in_field='i', extra_fields=[
+                               lambda k, i: i])
+
+        # Assert sizing is correct
+        assert r.sizeof(slice(0, 10)) == 2*10 + 1
+        assert r.sizeof(slice(3, 7)) == 2*4 + 1
+
+        # Create a subregion and ensure that the keys are used correctly
+        vslice = slice(3,7)
+        sr = r.create_subregion(vslice, 0xFEED)
+
+        for k in keys[vslice]:
+            k.key.assert_called_once_with(**{'i': 0xFEED})
+
+        # Assert that a Subregion with the correct data is returned
+        sr_data = np.frombuffer(sr.data, dtype=np.uint32)
+        assert sr_data.size == 2*(vslice.stop - vslice.start) + 1
+        assert sr_data[0] == vslice.stop - vslice.start
+        for i, k in enumerate(keys[vslice]):
+            assert sr_data[1+2*i] == k.key.return_value
+            assert sr_data[1+2*i+1] == 0xFEED
