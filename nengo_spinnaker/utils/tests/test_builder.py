@@ -1,5 +1,6 @@
 import mock
 import nengo
+import numpy as np
 import pytest
 
 from .. import builder as builder_utils
@@ -71,7 +72,12 @@ def test_create_replacement_connection_fail_function(base_model):
     model, (a, b, c) = base_model
     with model:
         c1 = nengo.Connection(a, b, function=lambda x: x**2, synapse=None)
-        c2 = nengo.Connection(b, c, function=lambda x: x**2)
+        try:
+            c2 = nengo.Connection(b, c, function=lambda x: x**2)
+        except ValueError:
+            # Nengo does not allow functions on connections from pass nodes.
+            c2 = IntermediateConnection(b, c, function=lambda x: x**2,
+                                        transform=1.)
 
     with pytest.raises(Exception):  # TODO This should be more specific!
         builder_utils.create_replacement_connection(c1, c2)
