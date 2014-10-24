@@ -1,6 +1,5 @@
 import mock
 import nengo
-import numpy as np
 import pytest
 
 from .. import builder as builder_utils

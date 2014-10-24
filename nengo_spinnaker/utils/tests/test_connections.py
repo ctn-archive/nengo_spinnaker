@@ -86,7 +86,7 @@ def test_get_combined_connections_exact_duplicates_not_shared():
 
     TODO: Increase the transform to account for this?
     """
-    with nengo.Network() as model:
+    with nengo.Network():
         a = nengo.Ensemble(100, 1)
         b = nengo.Ensemble(100, 1)
 

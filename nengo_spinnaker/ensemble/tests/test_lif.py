@@ -9,7 +9,6 @@ import random
 
 from .. import lif
 from ...utils.fixpoint import bitsk
-from ... import connection
 
 
 class TestIntermediateLIF(object):
@@ -96,9 +95,6 @@ def test_vertex_from_intermediate():
     # Create an intermediate ensemble
     ilif = lif.IntermediateLIF.from_object(ens, cs, 0.001, mock.Mock())
 
-    # Convert the connections to IntermediateConnections
-    conns = [connection.IntermediateConnection.from_connection(c) for c in cs]
-
     # Assemble the intermediate representation into a vertex
     asmblr = mock.Mock(spec_set=['timestep', 'dt', 'get_incoming_connections',
                                  'n_ticks'])
@@ -107,7 +103,7 @@ def test_vertex_from_intermediate():
     asmblr.n_ticks = 0
     asmblr.get_incoming_connections.side_effect = lambda *args: list()
 
-    lifvertex = lif.EnsembleLIF.assemble_from_intermediate(ilif, asmblr)
+    lif.EnsembleLIF.assemble_from_intermediate(ilif, asmblr)
 
     # Assert that the incoming connections were retrieved for the correct
     # object.

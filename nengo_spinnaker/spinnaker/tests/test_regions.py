@@ -31,10 +31,10 @@ class TestMatrixRegion(object):
 
     def test_matrix_sizeof_with_prepends(self):
         mr = regions.MatrixRegion(np.zeros(100), prepends=[
-                regions.MatrixRegionPrepends.N_ATOMS,
-                regions.MatrixRegionPrepends.N_ROWS,
-                regions.MatrixRegionPrepends.N_COLUMNS,
-                regions.MatrixRegionPrepends.SIZE])
+            regions.MatrixRegionPrepends.N_ATOMS,
+            regions.MatrixRegionPrepends.N_ROWS,
+            regions.MatrixRegionPrepends.N_COLUMNS,
+            regions.MatrixRegionPrepends.SIZE])
         assert mr.sizeof(slice(0, 50)) == 100 + 4
 
     def test_matrix_sizeof_oversized(self):
@@ -220,7 +220,7 @@ class TestKeysRegion(object):
         assert r.sizeof(slice(3, 7)) == 4 + 1
 
         # Create a subregion and ensure that the keys are used correctly
-        vslice = slice(3,7)
+        vslice = slice(3, 7)
         sr = r.create_subregion(vslice, 1)
 
         for k in keys[vslice]:
@@ -237,14 +237,14 @@ class TestKeysRegion(object):
         # Create a new keys region that is partitioned
         r = regions.KeysRegion(keys, partitioned=True, prepend_n_keys=True,
                                fill_in_field='i', extra_fields=[
-                               lambda k, i: i])
+                                   lambda k, i: i])
 
         # Assert sizing is correct
         assert r.sizeof(slice(0, 10)) == 2*10 + 1
         assert r.sizeof(slice(3, 7)) == 2*4 + 1
 
         # Create a subregion and ensure that the keys are used correctly
-        vslice = slice(3,7)
+        vslice = slice(3, 7)
         sr = r.create_subregion(vslice, 0xFEED)
 
         for k in keys[vslice]:

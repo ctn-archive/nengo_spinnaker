@@ -238,7 +238,8 @@ class EnsembleLIF(vertices.Vertex):
             raise NotImplementedError(
                 'Encountered unsupported learning rule types {:s}'.format(
                     ', '.join(l.__name__ for l in _unsupported)
-            ))
+                )
+            )
 
         # Create the PES region
         pes_region = pes_utils.make_pes_region(

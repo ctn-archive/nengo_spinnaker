@@ -90,7 +90,7 @@ def make_pes_region(learning_rules, dt, filter_indices):
         # Add the data for this learning rule
         pes_data.append([bitsk(l.rule.learning_rate * dt),
                          filter_indices[l.rule.error_connection],
-                         p.decoder_index])
+                         l.decoder_index])
 
     # Convert to appropriate Numpy array and make a region with the number of
     # rows as the first word.

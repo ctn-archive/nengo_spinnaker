@@ -109,15 +109,15 @@ def test_get_filter_regions(sample_network):
 
     # (For testing purposes)
     filters, filter_ids = filter_utils.get_combined_filters(conns)
-    filter_ids_ks = filter_utils.get_keyspace_to_filter_map(filter_ids)
+    filter_utils.get_keyspace_to_filter_map(filter_ids)
 
     # Get the filter regions
     dt = 0.001
     filter_region, filter_routing_region = \
         filter_utils.get_filter_regions(conns, dt)
 
-    # Assert the size of these regions is appropriate
-    # Filter region should be 4 * n_filters (4 words per filter) + 1 (n filters)
+    # Assert the size of these regions is appropriate: Filter region should be
+    # 4 * n_filters (4 words per filter) + 1 (n filters).
     assert filter_region.sizeof(slice(0, 100)) == len(filters) * 4 + 1
 
     # Keys region should be 4 * n_connections (4 words per connection) + 1
