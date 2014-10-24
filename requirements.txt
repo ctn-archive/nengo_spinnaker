@@ -1,2 +1,2 @@
--e git+https://github.com/ctn-waterloo/nengo#egg=nengo
+-e git+https://github.com/nengo/nengo#egg=nengo
 bitarray

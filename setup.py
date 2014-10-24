@@ -43,6 +43,6 @@ setup(
     ],
     extras_require={
         'Spike probing': ['bitarray'],
+        'Tests': ['pytest', 'mock'],
     },
-    test_suite='nengo_spinnaker.test',
 )
