@@ -88,6 +88,15 @@ _FilterTypes = {nengo.synapses.LinearFilter: LinearFilterFilterParameter,
                 nengo.synapses.Alpha: AlphaFilterParameter, }
 
 
+def get_filter_from_connection(connection):
+    """Return a filter object representing the connection.
+    """
+    return _FilterTypes[connection.synapse.__class__].from_synapse(
+        connection.width, connection.synapse,
+        getattr(connection, 'is_accumulatory', True), connection.modulatory
+    )
+
+
 def get_combined_filters(connections):
     """Return the minimum set of filters required to filter given connections.
 
@@ -96,12 +105,7 @@ def get_combined_filters(connections):
     # Create a dictionary of filter to connections
     filter_connections = collections.defaultdict(list)
     for c in connections:
-        f = _FilterTypes[c.synapse.__class__].from_synapse(
-            c.width,
-            c.synapse,
-            getattr(c, 'is_accumulatory', True),
-            c.modulatory
-        )
+        f = get_filter_from_connection(c)
         filter_connections[f].append(c)
 
     # Create a list of filters and a mapping of connection to filter index.
