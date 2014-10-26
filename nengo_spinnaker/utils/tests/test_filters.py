@@ -129,8 +129,8 @@ def test_filter_region():
     """
     # Create 2 filter entries
     filters = [
-        filter_utils.LowpassFilterParameter(1, 0.05, True, False),
-        filter_utils.LowpassFilterParameter(2, 0.01, False, False),
+        connection.LowpassFilterParameter(1, 0.05, True, False),
+        connection.LowpassFilterParameter(2, 0.01, False, False),
     ]
 
     # Create the filter region

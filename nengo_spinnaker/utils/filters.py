@@ -2,90 +2,11 @@
 """
 
 import collections
-import nengo
 import numpy as np
 
 from . import fixpoint as fp
+from ..connection import _FilterTypes, LowpassFilterParameter
 from ..spinnaker import regions
-
-
-class FilterParameter(object):
-    """Base class for filter types."""
-    def __init__(self, width, is_accumulatory=True, is_modulatory=False):
-        # TODO: Is width actually required?  Keep it to maintain compatibility
-        #       current C code, but investigate removing it if we can.
-        self.width = width
-        self.is_accumulatory = is_accumulatory
-        self.is_modulatory = is_modulatory
-
-    @classmethod
-    def from_synapse(cls, synapse, is_accumulatory=True, is_modulatory=False):
-        raise NotImplementedError
-
-    def __eq__(self, other):
-        return (self.__class__ is other.__class__ and
-                self.is_accumulatory == other.is_accumulatory and
-                self.is_modulatory == other.is_modulatory and
-                self.width == other.width)
-
-    def __hash__(self):
-        return hash((hash(self.__class__), hash(self.is_accumulatory),
-                     hash(self.is_modulatory), hash(self.width)))
-
-
-class LinearFilterFilterParameter(FilterParameter):
-    def __init__(self, width, num, den, is_accumulatory=True,
-                 is_modulatory=False):
-        super(LinearFilterFilterParameter, self).__init__(
-            width, is_accumulatory, is_modulatory)
-        self.num = num
-        self.den = den
-
-    @classmethod
-    def from_synapse(cls, width, synapse, is_accumulatory=True,
-                     is_modulatory=False):
-        return cls(width, synapse.num, synapse.den, is_accumulatory,
-                   is_modulatory)
-
-    def __eq__(self, other):
-        return (super(LinearFilterFilterParameter, self).__eq__(other) and
-                self.num == other.num and
-                self.den == other.den)
-
-    def __hash__(self):
-        return hash((super(LinearFilterFilterParameter, self).__hash__(),
-                     hash(self.num), hash(self.den)))
-
-
-class LowpassFilterParameter(FilterParameter):
-    def __init__(self, width, tau, is_accumulatory=True, is_modulatory=False):
-        super(LowpassFilterParameter, self).__init__(width, is_accumulatory,
-                                                     is_modulatory)
-        self.tau = tau if tau is not None else 0.
-
-    @classmethod
-    def from_synapse(cls, width, synapse, is_accumulatory=True,
-                     is_modulatory=False):
-        return cls(width, synapse.tau, is_accumulatory, is_modulatory)
-
-    def __eq__(self, other):
-        return (super(LowpassFilterParameter, self).__eq__(other) and
-                self.tau == other.tau)
-
-    def __hash__(self):
-        return hash((super(LowpassFilterParameter, self).__hash__(),
-                     hash(self.tau)))
-
-
-class AlphaFilterParameter(LowpassFilterParameter):
-    # Obviously this is a different type, but it has the same parameters as the
-    # lowpass and so can derive from it safely (DRY).
-    pass
-
-
-_FilterTypes = {nengo.synapses.LinearFilter: LinearFilterFilterParameter,
-                nengo.Lowpass: LowpassFilterParameter,
-                nengo.synapses.Alpha: AlphaFilterParameter, }
 
 
 def get_filter_from_connection(connection):

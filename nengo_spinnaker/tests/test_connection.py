@@ -12,6 +12,10 @@ from ..connection import (
 )
 
 
+def comparison_ids(items):
+    return ((i, j) for i in range(len(items)) for j in range(i+1, len(items)))
+
+
 # Tests for the connection builder
 class TestGenericConnectionBuilder(object):
     @pytest.fixture
@@ -281,21 +285,37 @@ class TestTargetObject(object):
             assert (hash(rcs[i]) == hash(rcs[j])) is he, (i, j)
 
 
+class TestLinearFilterParameter(object):
+    def test_eq(self):
+        filters = [
+            connection.LinearFilterParameter(2, 0.03, 1.0),
+            connection.LinearFilterParameter(1, 0.03, 1.0),
+            connection.LinearFilterParameter(2, 0.03, 1.0, is_accumulatory=False),
+        ]
+        i_s = comparison_ids(filters)
+
+        for (i, j) in i_s:
+            assert filters[i] != filters[j], (i, j)
+            assert hash(filters[i]) != hash(filters[j]), (i, j)
+
+
+class TestLowpassFilterParameter(object):
+    def test_eq(self):
+        filters = [
+            connection.LowpassFilterParameter(2, 0.03),
+            connection.LowpassFilterParameter(1, 0.03),
+            connection.LowpassFilterParameter(2, 0.03, is_accumulatory=False),
+        ]
+        i_s = comparison_ids(filters)
+
+        for (i, j) in i_s:
+            assert filters[i] != filters[j], (i, j)
+            assert hash(filters[i]) != hash(filters[j]), (i, j)
+
+
 class TestBuildConnectionTrees(object):
     """Test that connection trees can be built correctly.
     """
-    def test_get_reduced_connection_assertion(self):
-        # Test that any attempt to get reduced connections for a Nengo
-        # connection fails.  Only intermediate connections should be
-        # accepted as this guarantees a full transform.
-        with nengo.Network():
-            a = nengo.Ensemble(100, 1)
-            b = nengo.Ensemble(100, 1)
-            c = nengo.Connection(a, b)
-
-        with pytest.raises(TypeError):
-            connection.get_reduced_outgoing_connection(c)
-
     def test_get_reduced_outgoing_connection_obj(self):
         # Test that getting reduced connections for connections between objects
         # which are not Ensembles results in the correct reduced types and
@@ -310,7 +330,7 @@ class TestBuildConnectionTrees(object):
         ic = IntermediateConnection.from_connection(c, keyspace=ks)
 
         # Get the reduced connections
-        outgoing = connection.get_reduced_outgoing_connection(ic)
+        outgoing = ic.get_reduced_outgoing_connection()
 
         # Check the outgoing component
         assert isinstance(outgoing, OutgoingReducedConnection)
@@ -335,7 +355,7 @@ class TestBuildConnectionTrees(object):
         ic = IntermediateConnection.from_connection(c, keyspace=ks)
 
         # Get the reduced connections
-        outgoing = connection.get_reduced_outgoing_connection(ic)
+        outgoing = ic.get_reduced_outgoing_connection()
 
         # Check the outgoing component
         assert isinstance(outgoing, OutgoingReducedEnsembleConnection)

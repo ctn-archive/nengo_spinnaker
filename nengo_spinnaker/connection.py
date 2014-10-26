@@ -78,6 +78,30 @@ class IntermediateConnection(object):
         return '<IntermediateConnection({}, {})>'.format(self.pre_obj,
                                                          self.post_obj)
 
+    def get_reduced_outgoing_connection(self):
+        """Convert the IntermediateConnection into a reduced representation.
+        """
+        # Generate the outgoing component, depending on the nature of the
+        # originating object.
+        if not isinstance(self.pre_obj, nengo.Ensemble):
+            return OutgoingReducedConnection(
+                self.transform, self.function, self.keyspace)
+        else:
+            if self.learning_rule is not None:
+                # Check the learning rule affects transmission and include it.
+                raise NotImplementedError
+            return OutgoingReducedEnsembleConnection(
+                self.transform, self.function, self.keyspace, self.eval_points,
+                self.solver)
+
+    def get_reduced_incoming_connections(self):
+        """Convert the IntermediateConnection into reduced representations.
+
+        Return a list of tuples representing the originating object, the
+        reduced outgoing connection and the reduced incoming connections.
+        """
+        raise NotImplementedError
+
 
 class NengoEdge(PacmanPartitionableEdge):
     def __init__(self, prevertex, postvertex, keyspace):
@@ -227,6 +251,94 @@ class Target(object):
         return hash((self.target_object, self.port))
 
 
+class FilterParameter(object):
+    """Base class for filter types."""
+    def __init__(self, width, is_accumulatory=True, is_modulatory=False):
+        # TODO: Is width actually required?  Keep it to maintain compatibility
+        #       current C code, but investigate removing it if we can.
+        self.width = width
+        self.is_accumulatory = is_accumulatory
+        self.is_modulatory = is_modulatory
+
+    @classmethod
+    def from_synapse(cls, synapse, is_accumulatory=True, is_modulatory=False):
+        raise NotImplementedError
+
+    def __eq__(self, other):
+        return all([
+            self.__class__ is other.__class__,
+            self.is_accumulatory == other.is_accumulatory,
+            self.is_modulatory == other.is_modulatory,
+            self.width == other.width,
+        ])
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __hash__(self):
+        return hash((hash(self.__class__), hash(self.is_accumulatory),
+                     hash(self.is_modulatory), hash(self.width)))
+
+
+class LinearFilterParameter(FilterParameter):
+    def __init__(self, width, num, den, is_accumulatory=True,
+                 is_modulatory=False):
+        super(LinearFilterParameter, self).__init__(
+            width, is_accumulatory, is_modulatory)
+        self.num = num
+        self.den = den
+
+    @classmethod
+    def from_synapse(cls, width, synapse, is_accumulatory=True,
+                     is_modulatory=False):
+        return cls(width, synapse.num, synapse.den, is_accumulatory,
+                   is_modulatory)
+
+    def __eq__(self, other):
+        return all([
+            super(LinearFilterParameter, self).__eq__(other),
+            self.num == other.num,
+            self.den == other.den,
+        ])
+
+    def __hash__(self):
+        return hash((super(LinearFilterParameter, self).__hash__(),
+                     hash(self.num), hash(self.den)))
+
+
+class LowpassFilterParameter(FilterParameter):
+    def __init__(self, width, tau, is_accumulatory=True, is_modulatory=False):
+        super(LowpassFilterParameter, self).__init__(width, is_accumulatory,
+                                                     is_modulatory)
+        self.tau = tau if tau is not None else 0.
+
+    @classmethod
+    def from_synapse(cls, width, synapse, is_accumulatory=True,
+                     is_modulatory=False):
+        return cls(width, synapse.tau, is_accumulatory, is_modulatory)
+
+    def __eq__(self, other):
+        return all([
+            super(LowpassFilterParameter, self).__eq__(other),
+            self.tau == other.tau
+        ])
+
+    def __hash__(self):
+        return hash((super(LowpassFilterParameter, self).__hash__(),
+                     hash(self.tau)))
+
+
+class AlphaFilterParameter(LowpassFilterParameter):
+    # Obviously this is a different type, but it has the same parameters as the
+    # lowpass and so can derive from it safely (DRY).
+    pass
+
+
+_FilterTypes = {nengo.synapses.LinearFilter: LinearFilterParameter,
+                nengo.Lowpass: LowpassFilterParameter,
+                nengo.synapses.Alpha: AlphaFilterParameter, }
+
+
 class IncomingReducedConnection(object):
     """Represents the limited information required to receive data.
 
@@ -252,24 +364,3 @@ class IncomingReducedConnection(object):
 
     def __hash__(self):
         return hash((self.target, self.filter_object))
-
-
-def get_reduced_outgoing_connection(connection):
-    """Get the reduced representation of the outgoing part of this connection.
-    """
-    # Fail unless we know that the connection provides all required details
-    if not isinstance(connection, IntermediateConnection):
-        raise TypeError(connection)
-
-    # Generate the outgoing component, depending on the nature of the
-    # originating object.
-    if not isinstance(connection.pre_obj, nengo.Ensemble):
-        return OutgoingReducedConnection(
-            connection.transform, connection.function, connection.keyspace)
-    else:
-        if connection.learning_rule is not None:
-            # TODO Check the learning rule affects transmission and include it
-            raise NotImplementedError
-        return OutgoingReducedEnsembleConnection(
-            connection.transform, connection.function, connection.keyspace,
-            connection.eval_points, connection.solver)
