@@ -26,8 +26,8 @@ def test_intermediate_global_inhibition_connection():
     assert f.width == 1
 
     ir = ic.get_reduced_incoming_connection()
-    assert (ir.incoming.target.port is
-            connection.EnsemblePorts.GLOBAL_INHIBITION)
+    assert (ir.target.port is connection.EnsemblePorts.GLOBAL_INHIBITION)
+    assert ir.filter_object == f
 
 
 def test_process_global_inhibition_connections():

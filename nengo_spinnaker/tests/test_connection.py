@@ -126,6 +126,14 @@ class TestIntermediateConnection(object):
         assert f.tau == synapse.tau
         assert f.width == post_obj.size_in
 
+    def test_objview(self):
+        with nengo.Network():
+            a = nengo.Ensemble(100, 2)
+            b = nengo.Ensemble(100, 2)
+
+        ic = IntermediateConnection(a[0], b[1])
+        assert np.all(ic.transform == [[0, 0], [1, 0]])
+
     def test_required_transform_shape(self):
         # TODO Remove the method this relates to?
         pre_obj = mock.Mock(spec_set=['size_out'])
@@ -399,10 +407,74 @@ class TestBuildConnectionTrees(object):
 
         # Get the reduced connection
         inc = ic.get_reduced_incoming_connection()
-        assert inc.origin is a
-        assert inc.outgoing == ic.get_reduced_outgoing_connection()
-        assert inc.incoming.target.target_object is b
-        assert inc.incoming.target.port is connection.StandardPorts.INPUT
-        assert isinstance(inc.incoming.filter_object,
-                          connection.LowpassFilterParameter)
-        assert inc.incoming.filter_object.tau == 0.01
+        assert inc.target.target_object is b
+        assert inc.target.port is connection.StandardPorts.INPUT
+        assert isinstance(inc.filter_object, connection.LowpassFilterParameter)
+        assert inc.filter_object.tau == 0.01
+
+    def test_build_connection_tree_simple(self):
+        """Test that building a tree works correctly for a simple network, and
+        that it can be manipulated to get transmitting connections or receiving
+        connections for a given object (and port).
+        """
+        with nengo.Network():
+            a = nengo.Ensemble(100, 2)
+            b = nengo.Ensemble(100, 2)
+            c = nengo.Ensemble(100, 1)
+            d = nengo.Ensemble(100, 2)
+
+            cs = [
+                nengo.Connection(a, b),
+                nengo.Connection(a, d),
+                nengo.Connection(a[0], c),
+                nengo.Connection(b[1], c),
+            ]
+
+        # Swap out all connection objects
+        conns = [IntermediateConnection.from_connection(_c) for _c in cs]
+
+        # Build the connection tree
+        conn_tree = connection.build_connection_trees(conns)
+
+        # Check the connection tree
+        assert len(conn_tree) == 2  # 2 root objects
+        assert len(conn_tree[a]) == 2  # 2 (unique) connections from a
+        assert len(conn_tree[b]) == 1  # 1 connection from b
+
+        for outconn in conn_tree[a]:
+            if np.all(outconn.transform == [[1, 0]]):
+                # Connection from a->c
+                assert len(conn_tree[a][outconn]) == 1
+
+                inconn = conn_tree[a][outconn][0]
+                assert inconn.target.target_object is c
+                assert inconn.target.port is connection.StandardPorts.INPUT
+
+            elif (np.all(outconn.transform == np.eye(2)) or
+                  outconn.transform == 1.):
+                # Connection from a->(b, d)
+                assert len(conn_tree[a][outconn]) == 2
+
+                for inconn in conn_tree[a][outconn]:
+                    assert any(inconn.target.target_object is x for x in
+                               [d, b])
+
+            else:
+                assert False, "Some unknown connection appeared."
+
+        # Check connection tree utilities
+        # Assert that incoming connections be correctly retrieved
+        in_b = connection.get_incoming_connections_from_tree(conn_tree, b)
+        in_c = connection.get_incoming_connections_from_tree(conn_tree, c)
+        in_d = connection.get_incoming_connections_from_tree(conn_tree, d)
+
+        assert list(in_b.keys()) == [connection.StandardPorts.INPUT]
+        assert list(in_c.keys()) == [connection.StandardPorts.INPUT]
+        assert list(in_d.keys()) == [connection.StandardPorts.INPUT]
+
+        assert (list(in_b[connection.StandardPorts.INPUT].keys()) ==
+                [connection.LowpassFilterParameter(2, 0.005)])
+        assert (list(in_c[connection.StandardPorts.INPUT].keys()) ==
+                [connection.LowpassFilterParameter(1, 0.005)])
+        assert (list(in_d[connection.StandardPorts.INPUT].keys()) ==
+                [connection.LowpassFilterParameter(2, 0.005)])

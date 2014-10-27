@@ -107,7 +107,7 @@ class IntermediateGlobalInhibitionConnection(
 
         # Swap out the port on the receiving object so that it points at the
         # global inhibition port.
-        ic.incoming.target.port = connection.EnsemblePorts.GLOBAL_INHIBITION
+        ic.target.port = connection.EnsemblePorts.GLOBAL_INHIBITION
 
         return ic
 

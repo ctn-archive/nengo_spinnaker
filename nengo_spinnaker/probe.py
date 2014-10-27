@@ -13,17 +13,14 @@ def insert_decoded_output_probes(objs, connections, probes):
     # Add new objects and connections for 'decoded output' probes
     for probe in probes:
         if probe.attr == 'decoded_output' or probe.attr == 'output':
-            p = IntermediateProbe(probe.size_in, probe.sample_every, probe)
+            p = IntermediateProbe(probe.size_in, probe.sample_every, probe,
+                                  probe.label)
 
             # Create a new connection for this Node, if there is no transform
             # on the connection then we can create one on the assumption that
             # size_in and size_out are equivalent.
-            conn_args = probe.conn_args
-            if 'transform' not in conn_args:
-                assert probe.target.size_out == p.size_in
-                conn_args['transform'] = np.eye(p.size_in)
-            c = utils.builder.IntermediateConnection(probe.target, p,
-                                                     **probe.conn_args)
+            c = utils.builder.IntermediateConnection(
+                probe.target, p, synapse=probe.synapse, solver=probe.solver)
 
             # Add the new probe object and connection object
             objs.append(p)
@@ -40,6 +37,7 @@ class IntermediateProbe(object):
         self.label = label
 
 
+"""
 class DecodedValueProbe(utils.vertices.NengoVertex):
     MODEL_NAME = 'nengo_value_sink'
     MAX_ATOMS = 1
@@ -75,3 +73,4 @@ class DecodedValueProbe(utils.vertices.NengoVertex):
 
         return cls(system_region, input_filter_region, input_filter_routing,
                    recording_region, probe.probe)
+"""

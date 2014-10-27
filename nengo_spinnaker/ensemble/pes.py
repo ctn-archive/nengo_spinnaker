@@ -1,3 +1,4 @@
+import collections
 import nengo
 import numpy as np
 
@@ -7,68 +8,96 @@ from . import connections as ens_conn_utils
 from ..spinnaker import regions
 
 
-def reroute_modulatory_connections(objs, connections, probes):
-    new_objs = list(objs)
-    new_connections = list()
+PESInstance = collections.namedtuple('PESInstance', 'learning_rate width')
 
-    # Loop through connections and their associated learning rules
-    replaced_connections = list()
-    for c in connections:
-        intermediate_c = None
-        replaced_learning_rules = list()
 
-        for l in ens_conn_utils.get_learning_rules(c):
-            # If learning rule is PES
-            if isinstance(l, nengo.PES):
-                # Create an intermediate connection
-                # To replace error connection
-                e = IntermediateConnection.from_connection(l.error_connection)
+class IntermediatePESConnection(IntermediateConnection):
+    """Intermediate connection representing a PES modulatory connection.
+    """
+    def __init__(self, pre_obj, post_obj, synapse=None, function=None,
+                 transform=1., solver=None, eval_points=None, keyspace=None,
+                 is_accumulatory=True, learning_rule=None, modulatory=False,
+                 pes_instance=None):
+        super(IntermediatePESConnection, self).__init__(
+            pre_obj, post_obj, synapse=synapse, function=function,
+            transform=transform, solver=solver, eval_points=eval_points,
+            keyspace=keyspace, is_accumulatory=is_accumulatory,
+            learning_rule=learning_rule, modulatory=modulatory
+        )
+        self.pes_instance = pes_instance
 
-                # Reroute this so it terminates at connection's pre-object
-                e.post_obj = c.pre_obj
+    @classmethod
+    def from_connection(cls, c, pes_instance, keyspace=None,
+                        is_accumulatory=True):
+        if isinstance(c, nengo.Connection):
+            # Get the full transform
+            tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
 
-                # Add original error connection to list of
-                # Connections that have been replaced
-                replaced_connections.append(l.error_connection)
+            # Return a copy of this connection but with less information and
+            # the full transform.
+            return cls(c.pre_obj, c.post_obj, synapse=c.synapse,
+                       function=c.function, transform=tr, solver=c.solver,
+                       eval_points=c.eval_points, keyspace=keyspace,
+                       learning_rule=c.learning_rule, modulatory=c.modulatory,
+                       is_accumulatory=is_accumulatory,
+                       pes_instance=pes_instance)
+        return c
 
-                # Add error connection to output
-                new_connections.append(e)
 
-                # If intermediate version of connection hasn't been created
-                # Create one from c and wipe its exiting list of learning rules
-                if intermediate_c is None:
-                    intermediate_c = IntermediateConnection.from_connection(c)
-                    intermediate_c.learning_rule = list()
+class IntermediatePESModulatoryConnection(IntermediatePESConnection):
+    """Intermediate connection representing a PES modulatory connection.
+    """
+    def get_reduced_incoming_connection(self):
+        """Get the reduced incoming connection for the modulatory signal.
+        """
+        # As in the parent, but with the target port set to the PES instance
+        ic = super(IntermediatePESModulatoryConnection, self).\
+            get_reduced_incoming_connection()
+        ic.target.port = self.pes_instance
 
-                # Create new learning rule using intermediate error connection
-                intermediate_c.learning_rule.append(
-                    nengo.PES(e, l.learning_rate))
+        # And with the filter width set to the width of the PES connection
+        ic.filter_object.width = self.pes_instance.width
 
-                # Add original learning rule to list list
-                # Of learning rules that have been replaced
-                replaced_learning_rules.append(l)
+        return ic
 
-        # If this connection's been replaced
-        if intermediate_c is not None:
-            # Add learning rules from original connection that
-            # Haven't been replaced to intermediate connection
-            intermediate_c.learning_rule.extend(
-                [l for l in ens_conn_utils.get_learning_rules(c)
-                    if l not in replaced_learning_rules])
 
-            # Add original to list
-            replaced_connections.append(c)
+def process_pes_connections(objs, conns, probes):
+    """Reroute PES modulatory connections.
+    """
+    new_conns = list()
+    replaced_conns = list()
 
-            # Add intermediate connection to output
-            new_connections.append(intermediate_c)
+    for c in conns:
+        if not isinstance(c.learning_rule, nengo.PES):
+            # Defer dealing with connections that don't have a PES learning
+            # rule attached.
+            continue
 
-    # Add connections from original list that
-    # Haven't been replaced to output list
-    new_connections.extend(
-        [c for c in connections if c not in replaced_connections])
+        # This connection has a PES learning rule.  Begin by creating a PES
+        # instance that PES connections can refer to.
+        pes_instance = PESInstance(c.learning_rule.learning_rate,
+                                   c.post_obj.size_in)
 
-    # Return new lists
-    return new_objs, new_connections
+        # Create a new connection representing the PES connection itself
+        pes_connection = IntermediatePESConnection.from_connection(
+            c, pes_instance=pes_instance)
+
+        # Now reroute the modulatory connection
+        mod_conn = c.learning_rule.error_connection
+        new_mod_conn = IntermediatePESModulatoryConnection.from_connection(
+            mod_conn, pes_instance=pes_instance)
+        new_mod_conn.post_obj = c.pre_obj
+
+        # Add the new connections and mark which connections we've replaced.
+        new_conns.append(pes_connection)
+        new_conns.append(new_mod_conn)
+        replaced_conns.append(c)
+        replaced_conns.append(c.learning_rule.error_connection)
+
+    # Loop over all connections and add those which we haven't already replaced
+    new_conns.extend(c for c in conns if c not in replaced_conns)
+
+    return objs, new_conns
 
 
 def make_pes_region(learning_rules, dt, filter_indices):

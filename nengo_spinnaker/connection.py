@@ -19,8 +19,7 @@ from pacman.model.partitionable_graph.partitionable_edge import (
     PartitionableEdge as PacmanPartitionableEdge)
 
 
-IncomingConnectionElement = collections.namedtuple(
-    'IncomingConnectionElement', 'origin outgoing incoming')
+FunctionInfo = collections.namedtuple('FunctionInfo', 'function size')
 
 
 class IntermediateConnection(object):
@@ -29,11 +28,25 @@ class IntermediateConnection(object):
     def __init__(self, pre_obj, post_obj, synapse=None, function=None,
                  transform=1., solver=None, eval_points=None, keyspace=None,
                  is_accumulatory=True, learning_rule=None, modulatory=False):
-        self.pre_obj = pre_obj
-        self.post_obj = post_obj
+        # Handle sliced connections correctly
+        if isinstance(pre_obj, nengo.base.ObjView):
+            self.pre_obj = pre_obj.obj
+            self.pre_slice = pre_obj.slice
+        else:
+            self.pre_obj = pre_obj
+            self.pre_slice = slice(None, None, None)
+
+        if isinstance(post_obj, nengo.base.ObjView):
+            self.post_obj = post_obj.obj
+            self.post_slice = post_obj.slice
+        else:
+            self.post_obj = post_obj
+            self.post_slice = slice(None, None, None)
+
+        self.transform = np.array(transform)
+
         self.synapse = synapse
         self.function = function
-        self.transform = transform
         self.solver = solver
         self.eval_points = eval_points
         self.keyspace = keyspace
@@ -42,8 +55,16 @@ class IntermediateConnection(object):
         self.learning_rule = learning_rule
         self.modulatory = modulatory
 
-        self.pre_slice = slice(None, None, None)
-        self.post_slice = slice(None, None, None)
+        if any(sl != slice(None) for sl in [self.pre_slice, self.post_slice]):
+            # ***YUCK***
+            # Determine the size requirements of the function
+            if self.function is not None:
+                raise NotImplementedError
+            else:
+                self.function_info = FunctionInfo(None, None)
+
+            self.transform = nengo.utils.builder.full_transform(
+                self, allow_scalars=False)
 
     def _required_transform_shape(self):
         # TODO This is no longer required?
@@ -103,12 +124,8 @@ class IntermediateConnection(object):
     def get_reduced_incoming_connection(self):
         """Convert the IntermediateConnection into a reduced representation.
         """
-        # Creates only one element specifying the reduced connection element
-        # for this connection alone.
-        irc = IncomingReducedConnection(Target(self.post_obj),
-                                        self._get_filter())
-        return IncomingConnectionElement(
-            self.pre_obj, self.get_reduced_outgoing_connection(), irc)
+        return IncomingReducedConnection(Target(self.post_obj),
+                                         self._get_filter())
 
     def _get_filter(self):
         try:
@@ -317,6 +334,10 @@ class LowpassFilterParameter(FilterParameter):
         return hash((super(LowpassFilterParameter, self).__hash__(),
                      hash(self.tau)))
 
+    def __repr__(self):
+        return "LowpassFilterParameter({:d}, {:.3f}, {}, {})".format(
+            self.width, self.tau, self.is_accumulatory, self.is_modulatory)
+
 
 _filter_types = {nengo.Lowpass: LowpassFilterParameter, }
 
@@ -346,3 +367,80 @@ class IncomingReducedConnection(object):
 
     def __hash__(self):
         return hash((self.target, self.filter_object))
+
+
+def build_connection_trees(connections):
+    """Constructs the connection trees for the model.
+
+    The connection "tree" consists of a set of root nodes, each of which
+    represents an object which transmits data to other objects.  The first set
+    of branches represents outgoing connections from each object, these will be
+    automatically merged and reduced.  The final lists of leaves represent each
+    object, port and filter which receives the data transmitted over each
+    connection.
+    """
+    # For example, the model:
+    #
+    #     (a) --CONN1-> (b)
+    #      | \           |
+    #      |  \-CONN1----/
+    #      |
+    #      \--CONN2---> (c)
+    #
+    # Will result in a "forest":
+    #
+    #     a -----> (CONN1) -----> b.INPUT
+    #       \              \----> b.INPUT
+    #        \---> (CONN2) -----> c.INPUT
+    #
+    # Meaning that each packet `a' transmits over CONN1 will be "received
+    # twice" by `b', packets transmitted by `a' over CONN2 will only be
+    # received by `c'.
+
+    # Create the empty tree
+    # The leaves of this tree are NOT sets because packets may be processed
+    # twice by the same filter.
+    tree = collections.defaultdict(lambda : collections.defaultdict(list))
+
+    # For each connection generate the outgoing and incoming connections and
+    # add to the dictionary.
+    for c in connections:
+        # Get the reduced outgoing and incoming connection parts
+        outgoing = c.get_reduced_outgoing_connection()
+        incoming = c.get_reduced_incoming_connection()
+
+        # Add these connections to the tree
+        tree[c.pre_obj][outgoing].append(incoming)
+
+    return tree
+
+
+def get_incoming_connections_from_tree(conn_tree, obj):
+    """Retrieve the reduced incoming connections for a given object.
+
+    A dictionary of incoming connections by port will be generated, each entry
+    will be a map of filters to a list of outgoing connections which feed it.
+    """
+    # This is implemented as a leaf walk on the connection tree which adds each
+    # leaf which represents a connection terminating at `obj' to the dict of
+    # port filters.
+    # The leaves of this new tree are NOT sets because packets may be processed
+    # twice by the same filter.
+    tree = collections.defaultdict(lambda : collections.defaultdict(list))
+
+    # Iterate over all originating nodes,
+    for (_, outgoing_conns) in conn_tree.iteritems():
+        # and all outgoing connections,
+        for (outgoing, ins) in outgoing_conns.iteritems():
+            # and all incoming connections.
+            for incoming in ins:
+                # If this incoming connection refers to the target object then
+                # there is a connection arriving at this object.
+                target_obj = incoming.target.target_object
+                port = incoming.target.port
+
+                if target_obj is obj:
+                    # Store a reference to the outgoing connection which
+                    # terminates at this port and filter.
+                    tree[port][incoming.filter_object].append(outgoing)
+    return tree

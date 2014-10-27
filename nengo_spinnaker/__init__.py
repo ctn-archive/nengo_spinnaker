@@ -9,7 +9,6 @@ from ensemble import pes
 Builder.register_object_transform(ensemble.build.build_ensembles)
 # Builder.register_connectivity_transform(
 #     probe.insert_decoded_output_probes)
-Builder.register_connectivity_transform(pes.reroute_modulatory_connections)
 
 # Register assembler methods with the assembler
 from .assembler import Assembler
