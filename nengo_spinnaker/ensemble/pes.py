@@ -4,7 +4,6 @@ import numpy as np
 
 from ..connection import IntermediateConnection
 from ..utils.fixpoint import bitsk
-from . import connections as ens_conn_utils
 from ..spinnaker import regions
 
 

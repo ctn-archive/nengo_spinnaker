@@ -400,7 +400,7 @@ def build_connection_trees(connections):
     # Create the empty tree
     # The leaves of this tree are NOT sets because packets may be processed
     # twice by the same filter.
-    tree = collections.defaultdict(lambda : collections.defaultdict(list))
+    tree = collections.defaultdict(lambda: collections.defaultdict(list))
 
     # For each connection generate the outgoing and incoming connections and
     # add to the dictionary.
@@ -426,7 +426,7 @@ def get_incoming_connections_from_tree(conn_tree, obj):
     # port filters.
     # The leaves of this new tree are NOT sets because packets may be processed
     # twice by the same filter.
-    tree = collections.defaultdict(lambda : collections.defaultdict(list))
+    tree = collections.defaultdict(lambda: collections.defaultdict(list))
 
     # Iterate over all originating nodes,
     for (_, outgoing_conns) in conn_tree.iteritems():

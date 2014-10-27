@@ -3,7 +3,6 @@
 # Register transform functions with the builder
 from .builder import Builder
 import ensemble.build
-from ensemble import pes
 # import probe
 
 Builder.register_object_transform(ensemble.build.build_ensembles)
