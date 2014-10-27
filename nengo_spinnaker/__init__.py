@@ -5,7 +5,7 @@ from .builder import Builder
 import ensemble.build
 # import probe
 
-Builder.register_object_transform(ensemble.build.build_ensembles)
+# Builder.register_object_transform(ensemble.build.build_ensembles)
 # Builder.register_connectivity_transform(
 #     probe.insert_decoded_output_probes)
 
