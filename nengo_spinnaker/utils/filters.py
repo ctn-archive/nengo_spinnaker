@@ -5,14 +5,14 @@ import collections
 import numpy as np
 
 from . import fixpoint as fp
-from ..connection import _FilterTypes, LowpassFilterParameter
+from ..connection import _filter_types, LowpassFilterParameter
 from ..spinnaker import regions
 
 
 def get_filter_from_connection(connection):
     """Return a filter object representing the connection.
     """
-    return _FilterTypes[connection.synapse.__class__].from_synapse(
+    return _filter_types[connection.synapse.__class__].from_synapse(
         connection.width, connection.synapse,
         getattr(connection, 'is_accumulatory', True), connection.modulatory
     )

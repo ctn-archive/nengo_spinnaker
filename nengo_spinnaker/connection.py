@@ -10,12 +10,17 @@ Generally, performing an operation on the tree results in the creation of a new
 tree.  Only certain changes are allowed to alter the structure of the tree.
 """
 
+import collections
 import enum
 import nengo
 import numpy as np
 
 from pacman.model.partitionable_graph.partitionable_edge import (
     PartitionableEdge as PacmanPartitionableEdge)
+
+
+IncomingConnectionElement = collections.namedtuple(
+    'IncomingConnectionElement', 'origin outgoing incoming')
 
 
 class IntermediateConnection(object):
@@ -41,6 +46,7 @@ class IntermediateConnection(object):
         self.post_slice = slice(None, None, None)
 
     def _required_transform_shape(self):
+        # TODO This is no longer required?
         return (self.pre_obj.size_out, self.post_obj.size_in)
 
     @classmethod
@@ -94,13 +100,22 @@ class IntermediateConnection(object):
                 self.transform, self.function, self.keyspace, self.eval_points,
                 self.solver)
 
-    def get_reduced_incoming_connections(self):
-        """Convert the IntermediateConnection into reduced representations.
-
-        Return a list of tuples representing the originating object, the
-        reduced outgoing connection and the reduced incoming connections.
+    def get_reduced_incoming_connection(self):
+        """Convert the IntermediateConnection into a reduced representation.
         """
-        raise NotImplementedError
+        # Creates only one element specifying the reduced connection element
+        # for this connection alone.
+        irc = IncomingReducedConnection(Target(self.post_obj),
+                                        self._get_filter())
+        return IncomingConnectionElement(
+            self.pre_obj, self.get_reduced_outgoing_connection(), irc)
+
+    def _get_filter(self):
+        try:
+            return _filter_types[self.synapse.__class__].from_synapse(
+                self.width, self.synapse, self.is_accumulatory)
+        except KeyError:
+            raise NotImplementedError(self.synapse.__class__)
 
 
 class NengoEdge(PacmanPartitionableEdge):
@@ -255,7 +270,8 @@ class FilterParameter(object):
     """Base class for filter types."""
     def __init__(self, width, is_accumulatory=True, is_modulatory=False):
         # TODO: Is width actually required?  Keep it to maintain compatibility
-        #       current C code, but investigate removing it if we can.
+        #       current C code, but investigate removing it if we can.  Ideally
+        #       width is inherently part of the port filter sits on.
         self.width = width
         self.is_accumulatory = is_accumulatory
         self.is_modulatory = is_modulatory
@@ -280,32 +296,6 @@ class FilterParameter(object):
                      hash(self.is_modulatory), hash(self.width)))
 
 
-class LinearFilterParameter(FilterParameter):
-    def __init__(self, width, num, den, is_accumulatory=True,
-                 is_modulatory=False):
-        super(LinearFilterParameter, self).__init__(
-            width, is_accumulatory, is_modulatory)
-        self.num = num
-        self.den = den
-
-    @classmethod
-    def from_synapse(cls, width, synapse, is_accumulatory=True,
-                     is_modulatory=False):
-        return cls(width, synapse.num, synapse.den, is_accumulatory,
-                   is_modulatory)
-
-    def __eq__(self, other):
-        return all([
-            super(LinearFilterParameter, self).__eq__(other),
-            self.num == other.num,
-            self.den == other.den,
-        ])
-
-    def __hash__(self):
-        return hash((super(LinearFilterParameter, self).__hash__(),
-                     hash(self.num), hash(self.den)))
-
-
 class LowpassFilterParameter(FilterParameter):
     def __init__(self, width, tau, is_accumulatory=True, is_modulatory=False):
         super(LowpassFilterParameter, self).__init__(width, is_accumulatory,
@@ -328,15 +318,7 @@ class LowpassFilterParameter(FilterParameter):
                      hash(self.tau)))
 
 
-class AlphaFilterParameter(LowpassFilterParameter):
-    # Obviously this is a different type, but it has the same parameters as the
-    # lowpass and so can derive from it safely (DRY).
-    pass
-
-
-_FilterTypes = {nengo.synapses.LinearFilter: LinearFilterParameter,
-                nengo.Lowpass: LowpassFilterParameter,
-                nengo.synapses.Alpha: AlphaFilterParameter, }
+_filter_types = {nengo.Lowpass: LowpassFilterParameter, }
 
 
 class IncomingReducedConnection(object):

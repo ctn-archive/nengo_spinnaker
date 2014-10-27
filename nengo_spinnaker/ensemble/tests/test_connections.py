@@ -1,10 +1,33 @@
 """Tests for Ensemble build utilities.
 """
 
+import mock
 import nengo
 import numpy as np
 
 from .. import connections as ensemble_connection_utils
+from ... import connection
+
+
+def test_intermediate_global_inhibition_connection():
+    """Test that filters are returned correctly with width=1, and that the port
+    is the global inhibition port.
+    """
+    pre_obj = mock.Mock(spec_set=[])
+    post_obj = mock.Mock(spec_set=['size_in'])
+    post_obj.size_in = 5
+
+    ic = ensemble_connection_utils.IntermediateGlobalInhibitionConnection(
+        pre_obj, post_obj, nengo.Lowpass(0.05))
+
+    f = ic._get_filter()
+    assert isinstance(f, connection.LowpassFilterParameter)
+    assert f.tau == ic.synapse.tau
+    assert f.width == 1
+
+    ir = ic.get_reduced_incoming_connection()
+    assert (ir.incoming.target.port is
+            connection.EnsemblePorts.GLOBAL_INHIBITION)
 
 
 def test_process_global_inhibition_connections():

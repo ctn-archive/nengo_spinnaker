@@ -105,6 +105,38 @@ class TestGenericConnectionBuilder(object):
         assert ne is None
 
 
+class TestIntermediateConnection(object):
+    def test_get_filter_fail(self):
+        ic = IntermediateConnection(mock.Mock(), mock.Mock(), mock.Mock())
+        with pytest.raises(NotImplementedError) as excinfo:
+            ic._get_filter()
+            assert excinfo is mock.Mock
+
+    def test_get_filter(self):
+        pre_obj = mock.Mock(spec_set=[])
+        post_obj = mock.Mock(spec_set=['size_in'])
+        post_obj.size_in = 5
+
+        synapse = nengo.Lowpass(0.03)
+
+        ic = IntermediateConnection(pre_obj, post_obj, synapse)
+
+        f = ic._get_filter()
+        assert isinstance(f, connection.LowpassFilterParameter)
+        assert f.tau == synapse.tau
+        assert f.width == post_obj.size_in
+
+    def test_required_transform_shape(self):
+        # TODO Remove the method this relates to?
+        pre_obj = mock.Mock(spec_set=['size_out'])
+        pre_obj.size_out = 5
+        post_obj = mock.Mock(spec_set=['size_in'])
+        post_obj.size_in = 4
+
+        ic = IntermediateConnection(pre_obj, post_obj)
+        assert ic._required_transform_shape() == (5, 4)
+
+
 class TestOutgoingReducedConnection(object):
     def test_eq(self):
         # Create some reduced connections and test for equivalence
@@ -285,20 +317,6 @@ class TestTargetObject(object):
             assert (hash(rcs[i]) == hash(rcs[j])) is he, (i, j)
 
 
-class TestLinearFilterParameter(object):
-    def test_eq(self):
-        filters = [
-            connection.LinearFilterParameter(2, 0.03, 1.0),
-            connection.LinearFilterParameter(1, 0.03, 1.0),
-            connection.LinearFilterParameter(2, 0.03, 1.0, is_accumulatory=False),
-        ]
-        i_s = comparison_ids(filters)
-
-        for (i, j) in i_s:
-            assert filters[i] != filters[j], (i, j)
-            assert hash(filters[i]) != hash(filters[j]), (i, j)
-
-
 class TestLowpassFilterParameter(object):
     def test_eq(self):
         filters = [
@@ -365,3 +383,26 @@ class TestBuildConnectionTrees(object):
         assert outgoing.solver is c.solver
         assert np.all(outgoing.eval_points == c.eval_points)
         assert outgoing.transmitter_learning_rule is None
+
+    def test_get_reduced_incoming_connection(self):
+        with nengo.Network():
+            a = nengo.Ensemble(100, 1)
+            b = nengo.Ensemble(100, 1)
+            c = nengo.Connection(
+                a, b, function=lambda x: x**2, synapse=0.01,
+                eval_points=np.linspace(-1., 1.)[:, np.newaxis],
+            )
+
+        # Create the intermediate connection
+        ks = mock.Mock()
+        ic = IntermediateConnection.from_connection(c, keyspace=ks)
+
+        # Get the reduced connection
+        inc = ic.get_reduced_incoming_connection()
+        assert inc.origin is a
+        assert inc.outgoing == ic.get_reduced_outgoing_connection()
+        assert inc.incoming.target.target_object is b
+        assert inc.incoming.target.port is connection.StandardPorts.INPUT
+        assert isinstance(inc.incoming.filter_object,
+                          connection.LowpassFilterParameter)
+        assert inc.incoming.filter_object.tau == 0.01

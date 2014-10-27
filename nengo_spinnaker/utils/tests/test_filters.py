@@ -8,6 +8,13 @@ from .. import filters as filter_utils
 from ..fixpoint import bitsk
 
 
+class AlphaFilterParameter(connection.LowpassFilterParameter):
+    pass
+
+
+connection._filter_types[nengo.synapses.Alpha] = AlphaFilterParameter
+
+
 @pytest.fixture(scope='function')
 def sample_network():
     model = nengo.Network()

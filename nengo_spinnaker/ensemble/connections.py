@@ -98,6 +98,27 @@ class IntermediateGlobalInhibitionConnection(
         return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr,
                    c.solver, c.eval_points, keyspace)
 
+    def get_reduced_incoming_connection(self):
+        """Get the reduced connection representing this connection.
+        """
+        # Get the standard reduced incoming connections
+        ic = super(IntermediateGlobalInhibitionConnection, self).\
+            get_reduced_incoming_connection()
+
+        # Swap out the port on the receiving object so that it points at the
+        # global inhibition port.
+        ic.incoming.target.port = connection.EnsemblePorts.GLOBAL_INHIBITION
+
+        return ic
+
+    def _get_filter(self):
+        """Return the filter required by the connection."""
+        # Use the given filter but modify the width to match the required port
+        # size.
+        f = super(IntermediateGlobalInhibitionConnection, self)._get_filter()
+        f.width = 1
+        return f
+
 
 def get_learning_rules(connection):
     if is_iterable(connection.learning_rule):
