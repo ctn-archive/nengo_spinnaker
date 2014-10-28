@@ -245,12 +245,6 @@ def test_generate_data_for_placements(tmpdir):
         assert ww.value == expected_value
 
 
-def test_generate_data_for_placements_multiple_chips(tmpdir):
-    # Generate placements for multiple chips, ensure that the memory is still
-    # managed correctly.
-    assert False, "Test not written."
-
-
 def test_empty_memory_exception(tmpdir):
     """Test that an exception is thrown if there is insufficient memory."""
     sv = vertices.PlacedVertex(

@@ -456,7 +456,7 @@ def get_objects_from_connection_trees(connection_tree):
     """Return a list of objects which are contained within the connection tree.
     """
     objects = set()
-    
+
     # For each originating object and set of outgoing connections
     for (o, conns) in connection_tree.items():
         # Add the object

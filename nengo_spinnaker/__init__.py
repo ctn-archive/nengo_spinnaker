@@ -1,7 +1,6 @@
 # from .simulator import Simulator  # noqa
 
 # Register transform functions with the builder
-from .builder import Builder
 import ensemble.build
 # import probe
 
