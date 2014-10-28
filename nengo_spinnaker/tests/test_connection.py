@@ -478,3 +478,7 @@ class TestBuildConnectionTrees(object):
                 [connection.LowpassFilterParameter(1, 0.005)])
         assert (list(in_d[connection.StandardPorts.INPUT].keys()) ==
                 [connection.LowpassFilterParameter(2, 0.005)])
+
+        # Check that objects can be successfully be retrieved from the tree
+        assert (set([a, b, c, d]) ==
+                set(connection.get_objects_from_connection_trees(conn_tree)))

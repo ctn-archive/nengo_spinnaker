@@ -282,6 +282,9 @@ class Target(object):
     def __hash__(self):
         return hash((self.target_object, self.port))
 
+    def __str__(self):
+        return "{}.{}".format(self.target_object, self.port)
+
 
 class FilterParameter(object):
     """Base class for filter types."""
@@ -368,6 +371,9 @@ class IncomingReducedConnection(object):
     def __hash__(self):
         return hash((self.target, self.filter_object))
 
+    def __repr__(self):
+        return "<{} {:s}>".format(self.__class__.__name__, self.target)
+
 
 def build_connection_trees(connections):
     """Constructs the connection trees for the model.
@@ -444,3 +450,24 @@ def get_incoming_connections_from_tree(conn_tree, obj):
                     # terminates at this port and filter.
                     tree[port][incoming.filter_object].append(outgoing)
     return tree
+
+
+def get_objects_from_connection_trees(connection_tree):
+    """Return a list of objects which are contained within the connection tree.
+    """
+    objects = set()
+    
+    # For each originating object and set of outgoing connections
+    for (o, conns) in connection_tree.items():
+        # Add the object
+        objects.add(o)
+
+        # For each set of incoming connections branching of an outgoing
+        # connection.
+        for iconns in conns.values():
+            # For each incoming connection
+            for c in iconns:
+                # Add the target object of that connection
+                objects.add(c.target.target_object)
+
+    return list(objects)
