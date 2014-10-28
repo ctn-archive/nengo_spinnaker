@@ -13,7 +13,7 @@ def sample_model():
         a = nengo.Ensemble(100, 3, label='a')
         b = nengo.Ensemble(100, 3, label='b')
 
-        with nengo.Network() as inner_model:
+        with nengo.Network():
             c = nengo.Ensemble(100, 3, label='c')
 
         c1 = nengo.Connection(a, c)
@@ -102,6 +102,22 @@ class TestBuilderTransforms(object):
         d = D()
         Builder.build_obj(d)
         a_builder.assert_called_with(d)
+
+    def test_decorators(self, reset_builder):
+        """Check that creating functions with the Builder decorators adds them
+        to the list of methods to apply.
+        """
+        @Builder.network_transform
+        def test_network_transform(objs, conns, probes):
+            raise NotImplementedError
+
+        assert [test_network_transform] == Builder.network_transforms
+
+        @Builder.object_builder(mock.Mock)
+        def test_object_builder(obj, *args):
+            raise NotImplementedError
+
+        assert {mock.Mock: test_object_builder} == Builder.object_transforms
 
 
 def test_convert_remaining_connections():

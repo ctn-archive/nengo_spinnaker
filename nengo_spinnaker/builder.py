@@ -3,11 +3,12 @@ import copy
 import logging
 import math
 import nengo
-from nengo.utils.builder import objs_and_connections
+from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 
 from .connection import (IntermediateConnection, build_connection_trees,
                          get_objects_from_connection_trees, Target)
 from .spinnaker.keyspaces import create_keyspace
+from .utils import builder as builder_utils
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,13 @@ class Builder(object):
         cls.object_transforms[object_type] = builder
 
     @classmethod
+    def network_transform(cls, f):
+        """Decorator that adds the function as a network transform.
+        """
+        cls.add_network_transform(f)
+        return f
+
+    @classmethod
     def build_obj(cls, obj, *args):
         """Build a given object, or if no builder exists return it unchanged.
         """
@@ -43,6 +51,15 @@ class Builder(object):
         else:
             # Otherwise just return the object unchanged
             return obj
+
+    @classmethod
+    def object_builder(cls, object_type):
+        """Decorator that adds the function as an object builder.
+        """
+        def obj_builder(f):
+            cls.add_object_builder(object_type, f)
+            return f
+        return obj_builder
 
     @classmethod
     def build(cls, network, config=None):
@@ -74,7 +91,7 @@ class Builder(object):
 
         # Assign this keyspace to all connections which have no keyspace
         logger.info("Build step 6/8: Applying default keyspace")
-        connection_trees = _apply_default_keyspace(default_keyspace, c_trees)
+        c_trees = _apply_default_keyspace(default_keyspace, c_trees)
 
         # Build all objects
         logger.info("Build step 7/8: Building objects")
@@ -95,6 +112,14 @@ class Builder(object):
         return c_trees
 
 
+# Register a new network transform that removes all passthrough Nodes
+@Builder.network_transform
+def remove_passnodes(objs, conns, probes):
+    return remove_passthrough_nodes(
+        objs, conns, builder_utils.create_replacement_connection)
+
+
+# Utility functions used by the Builder
 def _convert_remaining_connections(connections):
     """Replace all Nengo Connections with IntermediateConnections.
     """
@@ -140,9 +165,9 @@ def _build_keyspace(connection_tree, subobject_bits=7):
     # than relying on the filter width.
     d_bits = int(
         math.log(
-           1 + max(k.filter_object.width for i in connection_tree.values() for
-                   j in i.values() for k in j),
-           2)
+            1 + max(k.filter_object.width for i in connection_tree.values() for
+                    j in i.values() for k in j),
+            2)
     )
 
     padding = 32 - sum([x_bits, o_bits, s_bits, i_bits, d_bits])
@@ -155,8 +180,8 @@ def _build_keyspace(connection_tree, subobject_bits=7):
                          ('_', padding),  # Padding
                          ('i', i_bits),   # Connection ID
                          ('d', d_bits)],  # Component index (dimension)
-                         'xosi',          # Fields used in routing
-                         'xoi'            # Fields used in filter routing
+        'xosi',          # Fields used in routing
+        'xoi'            # Fields used in filter routing
     )
 
 

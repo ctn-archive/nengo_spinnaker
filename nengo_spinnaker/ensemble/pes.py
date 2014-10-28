@@ -2,6 +2,7 @@ import collections
 import nengo
 import numpy as np
 
+from ..builder import Builder
 from ..connection import IntermediateConnection
 from ..utils.fixpoint import bitsk
 from ..spinnaker import regions
@@ -60,6 +61,7 @@ class IntermediatePESModulatoryConnection(IntermediatePESConnection):
         return ic
 
 
+@Builder.network_transform
 def process_pes_connections(objs, conns, probes):
     """Reroute PES modulatory connections.
     """
