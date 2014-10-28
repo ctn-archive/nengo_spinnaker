@@ -81,9 +81,21 @@ class Builder(object):
         logger.info("Build step 3/8: Replacing connections")
         conns = _convert_remaining_connections(conns)
 
-        # Build the connectivity tree
+        # Build the connectivity tree, by this point there should be NO
+        # instances of Node -> Node connections present in the connection list:
+        # if there are, they will be removed now.  Any Node -> Node connections
+        # which are required should have been modified during the network
+        # transformation stage, it is assumed that any remaining Node -> Node
+        # connections may be simulated on host rather than on SpiNNaker.
         logger.info("Build step 4/8: Building connectivity tree")
-        c_trees = build_connection_trees(conns)
+        c_trees = build_connection_trees(
+            c for c in conns if (not isinstance(c.pre_obj, nengo.Node) and
+                                 not isinstance(c.post_obj, nengo.Node))
+        )
+
+        for c in [c for c in conns if not(isinstance(c.pre_obj, nengo.Node) or
+                                          isinstance(c.post_obj, nengo.Node))]:
+            logger.info('Connection {} will be simulated on host.'.format(c))
 
         # From this build the keyspace
         logger.info("Build step 5/8: Generating default keyspace")
