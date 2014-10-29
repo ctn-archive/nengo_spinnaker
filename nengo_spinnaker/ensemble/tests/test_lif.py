@@ -8,21 +8,38 @@ import pytest
 import random
 
 from .. import lif
+from ...connection import IntermediateConnection, build_connection_trees
 from ...utils.fixpoint import bitsk
 
 
-class TestIntermediateLIF(object):
-    """Ensure that an Intermediate LIF can correctly be constructed from a
-    pre-existing Nengo Ensemble.
-    """
-    def test_from_object_fail(self):
-        model = nengo.Network()
-        with model:
-            a = nengo.Ensemble(100, 1, neuron_type=nengo.neurons.Direct())
+def test_build():
+    # Build a simple network
+    model = nengo.Network()
+    with model:
+        ens = nengo.Ensemble(100, 3)
+        ens.eval_points = np.random.uniform(size=(100, 3))
+        a = nengo.Node(lambda t, x: None, size_in=3, size_out=0)
 
-        # Incorrect Neuron type
-        with pytest.raises(AssertionError):
-            lif.IntermediateLIF.from_object(a, list(), 0.001, mock.Mock())
+        cs = [
+            nengo.Connection(ens[1:], a[1:]),
+            nengo.Connection(ens[0], a[0], function=lambda x: x**2),
+        ]
+
+    # Create the connection tree for this network
+    new_cs = [IntermediateConnection.from_connection(c) for c in cs]
+    ctree = build_connection_trees(new_cs)
+
+    config = mock.Mock()
+
+    # Now create a new LIF intermediate
+    rng = np.random.RandomState(1105)
+    ilif = lif.IntermediateLIF.build(
+        ensemble=ens, connection_trees=ctree, config=config, rngs={ens: rng},
+        direct_input=np.zeros(3), record_spikes=False
+    )
+
+    # Make some assertions about the new Intermediate LIF object
+    raise NotImplementedError
 
 
 def test_lif_system_region():
@@ -78,33 +95,3 @@ def test_lif_system_region():
     assert data[5] == bitsk(0.07)  # dt over t_rc
     assert data[6] == 0x1  # not recording spikes
     assert data[7] == 1  # number of inhibitory dimensions
-
-
-def test_vertex_from_intermediate():
-    # Build a simple network
-    model = nengo.Network()
-    with model:
-        ens = nengo.Ensemble(100, 3)
-        a = nengo.Node(lambda t, x: None, size_in=3, size_out=0)
-
-        cs = [
-            nengo.Connection(ens[1:], a[1:]),
-            nengo.Connection(ens[0], a[0], function=lambda x: x**2),
-        ]
-
-    # Create an intermediate ensemble
-    ilif = lif.IntermediateLIF.from_object(ens, cs, 0.001, mock.Mock())
-
-    # Assemble the intermediate representation into a vertex
-    asmblr = mock.Mock(spec_set=['timestep', 'dt', 'get_incoming_connections',
-                                 'n_ticks'])
-    asmblr.timestep = 1000
-    asmblr.dt = 0.001
-    asmblr.n_ticks = 0
-    asmblr.get_incoming_connections.side_effect = lambda *args: list()
-
-    lif.EnsembleLIF.assemble_from_intermediate(ilif, asmblr)
-
-    # Assert that the incoming connections were retrieved for the correct
-    # object.
-    assert asmblr.get_incoming_connections.called_once_with(ilif)

@@ -1,10 +1,8 @@
 import numpy as np
-import warnings
 
 import nengo
 from nengo.builder import sample as builder_sample
 from nengo.utils import distributions as dists
-import nengo.utils.builder as builder_utils
 import nengo.utils.numpy as npext
 from nengo.utils.stdlib import checked_call
 
@@ -30,59 +28,39 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         self.tau_ref = tau_ref
 
     @classmethod
-    def from_object(cls, ens, out_conns, dt, rng):
-        assert isinstance(ens.neuron_type, nengo.neurons.LIF)
-        assert isinstance(ens, nengo.Ensemble)
-
-        rng = np.random.RandomState(ens.seed)
-
-        # Generate evaluation points
-        if isinstance(ens.eval_points, dists.Distribution):
-            n_points = ens.n_eval_points
-            if n_points is None:
-                n_points = builder_utils.default_n_eval_points(ens.n_neurons,
-                                                               ens.dimensions)
-            eval_points = ens.eval_points.sample(n_points, ens.dimensions, rng)
-            eval_points *= ens.radius
-        else:
-            if (ens.eval_points is not None and
-                    ens.eval_points.shape[0] != ens.n_eval_points):
-                warnings.warn("Number of eval points doesn't match "
-                              "n_eval_points.  Ignoring n_eval_points.")
-            eval_points = np.array(ens.eval_points, dtype=np.float64)
+    def build(cls, ensemble, connection_trees, config, rngs, direct_input,
+              record_spikes):
+        """Build a single LIF ensemble into an intermediate form.
+        """
+        # Get the rng for this object
+        rng = rngs[ensemble]
 
         # Determine max_rates and intercepts
-        max_rates = builder_sample(ens.max_rates, ens.n_neurons, rng)
-        intercepts = builder_sample(ens.intercepts, ens.n_neurons, rng)
+        max_rates = builder_sample(ensemble.max_rates, ensemble.n_neurons, rng)
+        intercepts = builder_sample(ensemble.intercepts, ensemble.n_neurons,
+                                    rng)
 
         # Generate gains, bias
-        gain, bias = ens.neuron_type.gain_bias(max_rates, intercepts)
+        gain, bias = ensemble.neuron_type.gain_bias(max_rates, intercepts)
 
         # Generate encoders
-        if isinstance(ens.encoders, dists.Distribution):
-            encoders = ens.encoders.sample(ens.n_neurons, ens.dimensions,
-                                           rng=rng)
+        if isinstance(ensemble.encoders, dists.Distribution):
+            encoders = ensemble.encoders.sample(
+                ensemble.n_neurons, ensemble.dimensions, rng=rng)
         else:
-            encoders = npext.array(ens.encoders, min_dims=2, dtype=np.float64)
+            encoders = npext.array(ensemble.encoders, min_dims=2,
+                                   dtype=np.float64)
             encoders /= npext.norm(encoders, axis=1, keepdims=True)
 
         # Generate decoders for outgoing connections
         decoders = list()
-        tfses, tfse_map = \
-            ens_conn_utils.get_combined_outgoing_ensemble_connections(
-                out_conns)
 
         def build_decoder(function, evals, solver):
             """Internal function for building a single decoder."""
-            if evals is None:
-                evals = npext.array(eval_points, min_dims=2)
-            else:
-                evals = npext.array(evals, min_dims=2)
-
             assert solver is None or not solver.weights
 
-            x = np.dot(evals, encoders.T / ens.radius)
-            activities = ens.neuron_type.rates(x, gain, bias)
+            x = np.dot(evals, encoders.T / ensemble.radius)
+            activities = ensemble.neuron_type.rates(x, gain, bias)
 
             if function is None:
                 targets = evals
@@ -102,33 +80,27 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         decoder_builder = decoder_utils.DecoderBuilder(build_decoder)
 
         # Build each of the decoders in turn
-        for tfse in tfses:
-            decoders.append(decoder_builder.get_transformed_decoder(
-                tfse.function, tfse.transform, tfse.eval_points, tfse.solver))
+        decoders_to_compress = list()
+        for c in connection_trees[ensemble]:
+            # Build the decoder
+            decoders.append(
+                decoder_builder.get_transformed_decoder(
+                    c.function, c.transform.T, c.eval_points, c.solver
+                )
+            )
 
-        # Build list of learning rule, connection-index tuples
-        learning_rules = list()
-        for c in tfse_map:
-            for l in ens_conn_utils.get_learning_rules(c):
-                learning_rules.append(
-                    intermediate.IntermediateLearningRule(l, tfse_map[c]))
-
-        # By default compress all decoders
-        decoders_to_compress = [True for d in decoders]
-
-        # Turn off compression for all decoders associated with learning rules
-        for l in learning_rules:
-            decoders_to_compress[l[1]] = False
+            # Keep track of which decoders we can compress
+            decoders_to_compress.append(
+                True if c.transmitter_learning_rule is None else False)
 
         # Compress and merge the decoders
         (decoder_headers, decoders) =\
             decoder_utils.get_combined_compressed_decoders(
                 decoders, compress=decoders_to_compress)
-        decoders /= dt
 
-        return cls(ens.n_neurons, gain, bias, encoders, decoders,
-                   ens.neuron_type.tau_rc, ens.neuron_type.tau_ref,
-                   eval_points, decoder_headers, learning_rules)
+        return cls(ensemble.n_neurons, gain, bias, encoders, decoders,
+                   ensemble.neuron_type.tau_rc, ensemble.neuron_type.tau_ref,
+                   ensemble.eval_points, decoder_headers)
 
 
 class SystemRegion(regions.Region):

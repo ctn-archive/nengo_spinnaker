@@ -156,18 +156,22 @@ def test_build_ensembles():
         ]
 
     # Call build ensembles on this model
-    (objs, conns) = ensemble_build.build_ensembles([a, b, c], cs, [p])
+    rngs = {a: np.random.RandomState(123), b: np.random.RandomState(456)}
+    (objs, conns) = ensemble_build.build_ensembles([a, b, c], cs, [p], rngs)
 
-    # Assert the objects are the same
+    # Assert the objects are the same, and that eval_points have been created
+    # for the ensembles.
     assert len(objs) == 3
     for o in objs:
         if isinstance(o, ensemble_build.PlaceholderEnsemble):
             if o.ens is a:
                 assert np.all(o.direct_input == np.zeros(1))
                 assert o.record_spikes is False
+                assert o.ens.eval_points.shape[1] == o.ens.size_out
             elif o.ens is b:
                 assert np.all(o.direct_input == [0.5, 0.3])
                 assert o.record_spikes is True
+                assert o.ens.eval_points.shape[1] == o.ens.size_out
             else:
                 assert False, "Unknown object appeared."
         else:

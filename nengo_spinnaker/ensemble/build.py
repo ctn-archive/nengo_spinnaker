@@ -4,7 +4,10 @@
 import nengo
 import numpy as np
 
-from . import pes
+import nengo.utils.builder as builder_utils
+from nengo.utils import distributions as dists
+
+from . import lif, pes
 from . import connections as ensemble_connection_utils
 from ..builder import Builder
 from ..utils import connections as connection_utils
@@ -25,7 +28,7 @@ class PlaceholderEnsemble(object):
 
 
 @Builder.network_transform
-def build_ensembles(objects, connections, probes):
+def build_ensembles(objects, connections, probes, rngs):
     """Build Ensembles into a very reduced form which can be further built
     later.
     """
@@ -40,6 +43,26 @@ def build_ensembles(objects, connections, probes):
 
     # Separate out the set of Ensembles from the set of other objects
     ensembles, new_objects = split_out_ensembles(objects)
+
+    # Generate evaluation points for Ensembles
+    for ens in ensembles:
+        if isinstance(ens.eval_points, dists.Distribution):
+            n_points = ens.n_eval_points
+            if n_points is None:
+                n_points = builder_utils.default_n_eval_points(
+                    ens.n_neurons, ens.dimensions)
+            eval_points = ens.eval_points.sample(
+                n_points, ens.dimensions, rngs[ens])
+            eval_points *= ens.radius
+        else:
+            if all([ens.eval_points is not None,
+                    ens.eval_points.shape[0] != ens.n_eval_points]):
+                warnings.warn(
+                    "Number of eval points doesn't match n_eval_points. "
+                    "Ignoring n_eval_points."
+                )
+            eval_points = np.array(ens.eval_points, dtype=np.float64)
+        ens.eval_points = eval_points
 
     # Replace Ensembles with a placeholder that can be elaborated upon later.
     replaced_ensembles = create_placeholder_ensembles(ensembles)
@@ -62,7 +85,9 @@ def build_ensembles(objects, connections, probes):
     return new_objects, new_connections
 
 
-ensemble_build_fns = {}
+ensemble_build_fns = {
+    nengo.neurons.LIF: lif.IntermediateLIF.build,
+}
 
 
 @Builder.object_builder(PlaceholderEnsemble)
