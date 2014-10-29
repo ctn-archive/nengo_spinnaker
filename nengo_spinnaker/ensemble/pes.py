@@ -2,7 +2,6 @@ import collections
 import nengo
 import numpy as np
 
-from ..builder import Builder
 from ..connection import IntermediateConnection
 from ..utils.fixpoint import bitsk
 from ..spinnaker import regions

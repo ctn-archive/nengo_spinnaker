@@ -1,11 +1,10 @@
 """Tools for building Nengo Ensemble objects into intermediate representations.
 """
 
-import collections
 import nengo
 import numpy as np
 
-from . import intermediate, lif, pes
+from . import pes
 from . import connections as ensemble_connection_utils
 from ..builder import Builder
 from ..utils import connections as connection_utils

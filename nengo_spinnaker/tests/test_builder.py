@@ -136,7 +136,7 @@ def test_get_seed():
     assert builder._get_seed(obj1, rng) is obj1.seed
     rng.randint.assert_called_with(np.iinfo(np.int32).max)
 
-    x = builder._get_seed(obj2, rng)
+    builder._get_seed(obj2, rng)
     assert rng.randint.call_count == 2
 
 

@@ -10,7 +10,6 @@ from ..connections import IntermediateGlobalInhibitionConnection
 
 from .. import build as ensemble_build
 from ...connection import IntermediateConnection
-from ..intermediate import IntermediateEnsemble
 
 
 def test_split_out_ensembles():

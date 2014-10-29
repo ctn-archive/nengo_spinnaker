@@ -1,7 +1,7 @@
 # from .simulator import Simulator  # noqa
 
 # Register transform functions with the builder
-import ensemble.build
+import ensemble.build  # noqa
 # import probe
 
 # Builder.register_object_transform(ensemble.build.build_ensembles)

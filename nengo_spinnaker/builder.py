@@ -269,6 +269,7 @@ def _replace_objects_in_connection_trees(replacements, connection_tree):
 
     return tree
 
+
 def _get_seed(obj, rng):
     # Copy of function from Nengo reference.
     seed = rng.randint(np.iinfo(np.int32).max)
