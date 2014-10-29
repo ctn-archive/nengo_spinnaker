@@ -1,29 +1,49 @@
 """Tools for building Nengo Ensemble objects into intermediate representations.
 """
 
+import collections
 import nengo
 import numpy as np
 
-from . import intermediate, lif
+from . import intermediate, lif, pes
 from . import connections as ensemble_connection_utils
+from ..builder import Builder
 from ..utils import connections as connection_utils
 
 
-def build_ensembles(objects, connections, probes, dt, rng):
-    """Build Ensembles and related connections into intermediate
-    representation form.
+class PlaceholderEnsemble(object):
+    __slots__ = ['ens', 'direct_input', 'record_spikes', 'probes']
+
+    def __init__(self, ens, record_spikes=False):
+        self.direct_input = np.zeros(ens.size_in)
+        self.ens = ens
+        self.record_spikes = record_spikes
+        self.probes = list()
+
+    @property
+    def size_in(self):
+        return self.ens.size_in
+
+
+@Builder.network_transform
+def build_ensembles(objects, connections, probes):
+    """Build Ensembles into a very reduced form which can be further built
+    later.
     """
     # Sort out GlobalInhibitionConnections
     (objects, connections) = \
         ensemble_connection_utils.process_global_inhibition_connections(
             objects, connections, probes)
 
+    # Process PES connections
+    (objects, connections) = pes.process_pes_connections(objects, connections,
+                                                         probes)
+
     # Separate out the set of Ensembles from the set of other objects
     ensembles, new_objects = split_out_ensembles(objects)
 
-    # Replace Ensembles with an appropriate type of IntermediateEnsemble, add
-    # these new objects to the list of final objects.
-    replaced_ensembles = replace_ensembles(ensembles, dt, rng)
+    # Replace Ensembles with a placeholder that can be elaborated upon later.
+    replaced_ensembles = create_placeholder_ensembles(ensembles)
     new_objects.extend(replaced_ensembles.values())
 
     # Replace Connections which connected into or out of these objects with new
@@ -36,10 +56,31 @@ def build_ensembles(objects, connections, probes, dt, rng):
     apply_probing(replaced_ensembles, probes)
 
     # Add direct inputs, remove unnecessary connections
-    remove_connections = include_constant_inputs(connections)
-    new_connections = [c for c in connections if c not in remove_connections]
+    remove_connections = include_constant_inputs(new_connections)
+    for r in remove_connections:
+        new_connections.remove(r)
 
     return new_objects, new_connections
+
+
+ensemble_build_fns = {}
+
+
+@Builder.object_builder(PlaceholderEnsemble)
+def build_ensemble(placeholder, connection_trees, config, seed):
+    """Build a single placeholder into an Intermediate Ensemble.
+    """
+    try:
+        return ensemble_build_fns[placeholder.ens.neuron_type.__class__](
+            placeholder.ens, connection_trees, config, seed,
+            placeholder.direct_input, placeholder.record_spikes
+        )
+    except KeyError:
+        # The given neuron type is not supported
+        raise NotImplementedError(
+            "nengo_spinnaker does not currently support neurons of type '{}'"
+            .format(placeholder.ens.neuron_type.__class__.__name__)
+        )
 
 
 def split_out_ensembles(objects):
@@ -51,25 +92,13 @@ def split_out_ensembles(objects):
     return ensembles, others
 
 
-def replace_ensembles(ensembles, connections, dt, rng):
-    """Replace Ensembles with intermediate representations of Ensembles.
-
-    :returns dict: Map of ensembles to intermediate ensemble representation.
+def create_placeholder_ensembles(ensembles):
+    """Replace Ensembles with placeholders that can be further refined later.
     """
     replaced_ensembles = dict()
 
-    for ensemble in ensembles:
-        # Build the appropriate intermediate representation for the Ensemble
-        if isinstance(ensemble.neuron_type, nengo.neurons.LIF):
-            # Get the set of outgoing connections for this Ensemble so that
-            # decoders can be solved for.
-            out_conns = [c for c in connections if c.pre_obj is ensemble]
-            replaced_ensembles[ensemble] = \
-                lif.IntermediateLIF.from_object(ensemble, out_conns, dt, rng)
-        else:
-            raise NotImplementedError(
-                "nengo_spinnaker does not currently support '{}' neurons."
-                .format(ensemble.neuron_type.__class__.__name__))
+    for ens in ensembles:
+        replaced_ensembles[ens] = PlaceholderEnsemble(ens, record_spikes=False)
 
     return replaced_ensembles
 
@@ -77,20 +106,26 @@ def replace_ensembles(ensembles, connections, dt, rng):
 def apply_probing(replaced_ensembles, probes):
     """Apply probes to the replaced Ensembles.
     """
-    for p in probes:
-        # Ignore probes for targets that are not ensembles
-        if p.target not in replaced_ensembles:
-            continue
+    # Build a map of neurons to placeholder
+    neurons = {k.neurons: v for (k, v) in replaced_ensembles.items()}
 
-        # Apply spike probing
-        if p.attr == 'spikes':
-            replaced_ensembles[p.target].record_spikes = True
-        else:
+    for p in probes:
+        if p.target in neurons:
+            # Spike probing
+            if p.attr == 'output':
+                neurons[p.target].record_spikes = True
+            else:
+                raise NotImplementedError(
+                    "Probing {} for {} objects is not currently supported.".
+                    format(p.attr, p.target.__class__.__name__)
+                )
+            neurons[p.target].probes.append(p)
+        elif p.target in replaced_ensembles:
+            # Voltage / other probing
             raise NotImplementedError(
                 "Probing {} for {} objects is not currently supported.".
                 format(p.attr, p.target.__class__.__name__)
             )
-        replaced_ensembles[p.target].probes.append(p)
 
 
 def include_constant_inputs(connections):
@@ -106,7 +141,7 @@ def include_constant_inputs(connections):
     remove_connections = list()
 
     for c in connections:
-        if (isinstance(c.post_obj, intermediate.IntermediateEnsemble) and
+        if (isinstance(c.post_obj, PlaceholderEnsemble) and
                 isinstance(c.pre_obj, nengo.Node) and not
                 callable(c.pre_obj.output)):
             # This Node just forms direct input, add it to direct input and

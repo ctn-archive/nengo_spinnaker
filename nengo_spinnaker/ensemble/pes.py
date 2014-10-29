@@ -61,7 +61,6 @@ class IntermediatePESModulatoryConnection(IntermediatePESConnection):
         return ic
 
 
-@Builder.network_transform
 def process_pes_connections(objs, conns, probes):
     """Reroute PES modulatory connections.
     """
