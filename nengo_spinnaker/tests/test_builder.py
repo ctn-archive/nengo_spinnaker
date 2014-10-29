@@ -1,6 +1,7 @@
 import collections
 import mock
 import nengo
+import numpy as np
 import pytest
 
 from ..builder import Builder
@@ -87,21 +88,26 @@ class TestBuilderTransforms(object):
         Builder.add_object_builder(A, a_builder)
 
         # Now try to build an instance of each object
+        c_trees = mock.Mock(name='Connection tree')
+        config = mock.Mock(name='Config')
+        seed = mock.Mock(name='Seed')
+
         a = A()
-        Builder.build_obj(a)
-        a_builder.assert_called_with(a)
+        Builder.build_obj(a, c_trees, config, seed)
+        a_builder.assert_called_with(a, c_trees, config, seed)
 
         b = B()
-        Builder.build_obj(b)
-        a_builder.assert_called_with(b)
+        Builder.build_obj(b, c_trees, config, seed)
+        a_builder.assert_called_with(b, c_trees, config, seed)
 
+        # No builder, pass through
         c = C()
-        d = Builder.build_obj(c)  # No builder, pass through
+        d = Builder.build_obj(c, c_trees, config, seed)
         assert d is c
 
         d = D()
-        Builder.build_obj(d)
-        a_builder.assert_called_with(d)
+        Builder.build_obj(d, c_trees, config, seed)
+        a_builder.assert_called_with(d, c_trees, config, seed)
 
     def test_decorators(self, reset_builder):
         """Check that creating functions with the Builder decorators adds them
@@ -118,6 +124,20 @@ class TestBuilderTransforms(object):
             raise NotImplementedError
 
         assert {mock.Mock: test_object_builder} == Builder.object_transforms
+
+
+def test_get_seed():
+    """Test utility for getting seeds.
+    """
+    rng = mock.Mock(spec_set=['randint'])
+    obj1 = mock.Mock(spec_set=['seed'])
+    obj2 = mock.Mock(spec_set=[])
+
+    assert builder._get_seed(obj1, rng) is obj1.seed
+    rng.randint.assert_called_with(np.iinfo(np.int32).max)
+
+    x = builder._get_seed(obj2, rng)
+    assert rng.randint.call_count == 2
 
 
 def test_convert_remaining_connections():

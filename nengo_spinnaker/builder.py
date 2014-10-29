@@ -4,6 +4,7 @@ import logging
 import math
 import nengo
 from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
+import numpy as np
 
 from .connection import (IntermediateConnection, build_connection_trees,
                          get_objects_from_connection_trees, Target)
@@ -41,13 +42,14 @@ class Builder(object):
         return f
 
     @classmethod
-    def build_obj(cls, obj, *args):
+    def build_obj(cls, obj, connection_trees, config, seed):
         """Build a given object, or if no builder exists return it unchanged.
         """
         # Work through the MRO to find a build function
         for c in obj.__class__.__mro__:
             if c in cls.object_transforms:
-                return cls.object_transforms[c](obj, *args)
+                return cls.object_transforms[c](obj, connection_trees, config,
+                                                seed)
         else:
             # Otherwise just return the object unchanged
             return obj
@@ -105,15 +107,19 @@ class Builder(object):
         logger.info("Build step 6/8: Applying default keyspace")
         c_trees = _apply_default_keyspace(default_keyspace, c_trees)
 
-        # Build all objects
+        # Build all objects, including assigning them all seeds
         logger.info("Build step 7/8: Building objects")
         connected_objects = get_objects_from_connection_trees(c_trees)
+
+        rng = np.random.RandomState(_get_seed(network, np.random))
+        seeds = {obj: _get_seed(obj, rng) for obj in connected_objects}
+
         replaced_objects = dict()
 
         for obj in connected_objects:
             logger.debug("Building {}".format(obj))
-            replaced_objects[obj] = cls.build_obj(
-                obj, c_trees, network, config)
+            replaced_objects[obj] = cls.build_obj(obj, c_trees, config,
+                                                  seeds[obj])
 
         # Replace built objects in the connection tree
         logger.info("Build step 8/8: Add built objects to connectivity tree")
@@ -262,3 +268,8 @@ def _replace_objects_in_connection_trees(replacements, connection_tree):
                 tree[new_obj][oc].append(new_ic)
 
     return tree
+
+def _get_seed(obj, rng):
+    # Copy of function from Nengo reference.
+    seed = rng.randint(np.iinfo(np.int32).max)
+    return getattr(obj, 'seed', seed)
