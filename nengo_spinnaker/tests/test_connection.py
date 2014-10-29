@@ -392,6 +392,35 @@ class TestBuildConnectionTrees(object):
         assert np.all(outgoing.eval_points == c.eval_points)
         assert outgoing.transmitter_learning_rule is None
 
+    def test_get_reduced_outgoing_connection_ens_evals(self):
+        # Test that getting reduced connections for connections between objects
+        # which are not Ensembles results in the correct reduced types and
+        # parameters.
+        # If the connection has no evaluation points then try to grab the eval
+        # points from the pre_obj.
+        with nengo.Network():
+            a = nengo.Ensemble(100, 1)
+            b = nengo.Ensemble(100, 1)
+            c = nengo.Connection(a, b, function=lambda x: x**2, synapse=0.01,)
+
+            a.eval_points = np.linspace(-1., 1.)[:, None]
+
+        # Create the intermediate connection
+        ks = mock.Mock()
+        ic = IntermediateConnection.from_connection(c, keyspace=ks)
+
+        # Get the reduced connections
+        outgoing = ic.get_reduced_outgoing_connection()
+
+        # Check the outgoing component
+        assert isinstance(outgoing, OutgoingReducedEnsembleConnection)
+        assert np.all(outgoing.transform == c.transform)
+        assert outgoing.function is c.function
+        assert outgoing.keyspace is ks
+        assert outgoing.solver is c.solver
+        assert np.all(outgoing.eval_points == a.eval_points)
+        assert outgoing.transmitter_learning_rule is None
+
     def test_get_reduced_incoming_connection(self):
         with nengo.Network():
             a = nengo.Ensemble(100, 1)
@@ -422,6 +451,11 @@ class TestBuildConnectionTrees(object):
             b = nengo.Ensemble(100, 2)
             c = nengo.Ensemble(100, 1)
             d = nengo.Ensemble(100, 2)
+
+            a.eval_points = np.random.uniform(size=(100, 2))
+            b.eval_points = np.random.uniform(size=(100, 2))
+            c.eval_points = np.random.uniform(size=(100, 1))
+            d.eval_points = np.random.uniform(size=(100, 2))
 
             cs = [
                 nengo.Connection(a, b),

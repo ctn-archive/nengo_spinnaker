@@ -117,8 +117,16 @@ class IntermediateConnection(object):
             if self.learning_rule is not None:
                 # Check the learning rule affects transmission and include it.
                 raise NotImplementedError
+
+            # Try to get the eval points (TODO Neaten this a bit)
+            eval_points = self.eval_points
+            if eval_points is None:
+                assert self.pre_obj.eval_points is not None
+                eval_points = np.array(self.pre_obj.eval_points)
+            assert self.pre_obj.size_out == eval_points.shape[1]
+
             return OutgoingReducedEnsembleConnection(
-                self.transform, self.function, self.keyspace, self.eval_points,
+                self.transform, self.function, self.keyspace, eval_points,
                 self.solver)
 
     def get_reduced_incoming_connection(self):
