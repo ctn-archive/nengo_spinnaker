@@ -42,14 +42,14 @@ class Builder(object):
         return f
 
     @classmethod
-    def build_obj(cls, obj, connection_trees, config, seed):
+    def build_obj(cls, obj, connection_trees, config, rngs):
         """Build a given object, or if no builder exists return it unchanged.
         """
         # Work through the MRO to find a build function
         for c in obj.__class__.__mro__:
             if c in cls.object_transforms:
-                return cls.object_transforms[c](obj, connection_trees, config,
-                                                seed)
+                return cls.object_transforms[c](
+                    obj, connection_trees, config, rngs)
         else:
             # Otherwise just return the object unchanged
             return obj
@@ -71,11 +71,16 @@ class Builder(object):
         logger.info("Build step 1/8: Flattening network hierarchy")
         (objs, conns) = objs_and_connections(network)
 
+        # Create seeds for all objects
+        rng = np.random.RandomState(_get_seed(network, np.random))
+        rngs = {obj: np.random.RandomState(_get_seed(obj, rng)) for obj in
+                objs}
+
         # Apply all connectivity transforms
         logger.info("Build step 2/8: Applying network transforms")
         for transform in cls.network_transforms:
             logger.debug("Applying network transform {}".format(transform))
-            (objs, conns) = transform(objs, conns, network.probes)
+            (objs, conns) = transform(objs, conns, network.probes, rngs)
 
         # Convert all remaining Nengo connections into their intermediate
         # forms.  Some Nengo connections may have already been replaced by one
@@ -107,19 +112,15 @@ class Builder(object):
         logger.info("Build step 6/8: Applying default keyspace")
         c_trees = _apply_default_keyspace(default_keyspace, c_trees)
 
-        # Build all objects, including assigning them all seeds
+        # Build all objects
         logger.info("Build step 7/8: Building objects")
         connected_objects = get_objects_from_connection_trees(c_trees)
-
-        rng = np.random.RandomState(_get_seed(network, np.random))
-        seeds = {obj: _get_seed(obj, rng) for obj in connected_objects}
 
         replaced_objects = dict()
 
         for obj in connected_objects:
             logger.debug("Building {}".format(obj))
-            replaced_objects[obj] = cls.build_obj(obj, c_trees, config,
-                                                  seeds[obj])
+            replaced_objects[obj] = cls.build_obj(obj, c_trees, config, rngs)
 
         # Replace built objects in the connection tree
         logger.info("Build step 8/8: Add built objects to connectivity tree")
@@ -132,7 +133,7 @@ class Builder(object):
 
 # Register a new network transform that removes all passthrough Nodes
 @Builder.network_transform
-def remove_passnodes(objs, conns, probes):
+def remove_passnodes(objs, conns, probes, rngs):
     return remove_passthrough_nodes(
         objs, conns, builder_utils.create_replacement_connection)
 

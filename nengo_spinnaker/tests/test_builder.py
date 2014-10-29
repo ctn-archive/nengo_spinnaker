@@ -1,4 +1,5 @@
 import collections
+import copy
 import mock
 import nengo
 import numpy as np
@@ -14,8 +15,12 @@ def sample_model():
         a = nengo.Ensemble(100, 3, label='a')
         b = nengo.Ensemble(100, 3, label='b')
 
+        a.eval_points = np.random.uniform(size=(100, 3))
+        b.eval_points = np.random.uniform(size=(100, 3))
+
         with nengo.Network():
             c = nengo.Ensemble(100, 3, label='c')
+            c.eval_points = np.random.uniform(size=(100, 3))
 
         c1 = nengo.Connection(a, c)
         c2 = nengo.Connection(c, b)
@@ -29,11 +34,19 @@ class TestBuilderTransforms(object):
     """Check that the builder can apply transform functions.
     """
     @pytest.fixture(scope='function')
-    def reset_builder(self):
+    def reset_builder(self, request):
         """Reset the Builder to its empty state.
         """
+        old_net_transforms = Builder.network_transforms[:]
+        old_obj_transforms = copy.copy(Builder.object_transforms)
+
         Builder.network_transforms = list()
         Builder.object_transforms = dict()
+
+        def restore():
+            Builder.network_transforms = old_net_transforms
+            Builder.object_transforms = old_obj_transforms
+        request.addfinalizer(restore)
 
     def test_network_transform(self, reset_builder, sample_model):
         """Test that a network transform can be registered and will be applied
@@ -42,7 +55,7 @@ class TestBuilderTransforms(object):
         """
         # Create a fake network transform
         network_transform = mock.Mock()
-        network_transform.side_effect = lambda os, cs, ps: (os, cs)
+        network_transform.side_effect = lambda os, cs, ps, ss: (os, cs)
 
         # Register the transform and ensure that the builder calls it
         Builder.add_network_transform(network_transform)
@@ -57,6 +70,7 @@ class TestBuilderTransforms(object):
         called_objs = network_transform.call_args[0][0]
         called_conns = network_transform.call_args[0][1]
         called_probes = network_transform.call_args[0][2]
+        called_seeds = network_transform.call_args[0][3]
 
         # Check that all the objects were present
         assert sorted(called_objs) == sorted([a, b, c])
@@ -66,6 +80,10 @@ class TestBuilderTransforms(object):
 
         # Check that the probe was present
         assert called_probes == [p]
+
+        # Check seeds were present for all objects
+        for x in (a, b, c):
+            assert x in called_seeds
 
     def test_object_build(self, reset_builder):
         """Test that objects are built correctly."""
@@ -108,6 +126,25 @@ class TestBuilderTransforms(object):
         d = D()
         Builder.build_obj(d, c_trees, config, seed)
         a_builder.assert_called_with(d, c_trees, config, seed)
+
+    def test_object_build_gets_seeds(self, reset_builder):
+        with nengo.Network() as model:
+            a = nengo.Ensemble(100, 1)
+            b = nengo.Ensemble(100, 1)
+            a.eval_points = b.eval_points = np.random.uniform(size=(100, 1))
+            c = nengo.Connection(a, b)
+
+        # Create and add a mock ensemble builder
+        ens_builder = mock.Mock()
+        ens_builder.side_effect = lambda obj, cs, conf, seeds: obj
+        Builder.add_object_builder(nengo.Ensemble, ens_builder)
+
+        # Build the network, and then ensure that the same seeds are passed
+        Builder.build(model)
+        assert ens_builder.call_count == 2
+        assert (ens_builder.call_args_list[0][0][3] ==
+                ens_builder.call_args_list[1][0][3])
+        assert set(ens_builder.call_args_list[0][0][3].keys()) == set([a, b])
 
     def test_decorators(self, reset_builder):
         """Check that creating functions with the Builder decorators adds them
@@ -328,3 +365,15 @@ def test_replace_objects_in_connection_trees():
     assert new_ic.target.target_object is new_b
 
     assert tree[a][oc][0].target.target_object is b  # Check the original
+
+
+def test_runthrough():
+    # As a final test check that we can actually run through the builder in its
+    # unmodified state...
+    with nengo.Network(label='test') as model:
+        a = nengo.Ensemble(100, 2)
+        b = nengo.Ensemble(100, 1)
+
+        c = nengo.Connection(a[0], b)
+
+    conn_tree = Builder.build(model)  # noqa
