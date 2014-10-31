@@ -3,7 +3,7 @@ import nengo
 import pytest
 
 from .. import builder as builder_utils
-from ...connection import IntermediateConnection
+from ...connections.intermediate import IntermediateConnection
 
 
 @pytest.fixture(scope='function')

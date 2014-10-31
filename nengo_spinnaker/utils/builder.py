@@ -3,7 +3,7 @@ import numpy as np
 import nengo
 from nengo.utils.builder import full_transform
 
-from ..connection import IntermediateConnection
+from ..connections.intermediate import IntermediateConnection
 
 
 def create_replacement_connection(c_in, c_out):

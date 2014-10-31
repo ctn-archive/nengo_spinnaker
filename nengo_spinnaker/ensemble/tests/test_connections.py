@@ -6,7 +6,7 @@ import nengo
 import numpy as np
 
 from .. import connections as ensemble_connection_utils
-from ... import connection
+from ...connections.reduced import LowpassFilterParameter, GlobalInhibitionPort
 
 
 def test_intermediate_global_inhibition_connection():
@@ -21,13 +21,15 @@ def test_intermediate_global_inhibition_connection():
         pre_obj, post_obj, nengo.Lowpass(0.05))
 
     f = ic._get_filter()
-    assert isinstance(f, connection.LowpassFilterParameter)
+    assert isinstance(f, LowpassFilterParameter)
     assert f.tau == ic.synapse.tau
-    assert f.width == 1
 
     ir = ic.get_reduced_incoming_connection()
-    assert (ir.target.port is connection.EnsemblePorts.GLOBAL_INHIBITION)
+    assert (ir.target.port is GlobalInhibitionPort)
     assert ir.filter_object == f
+
+    orc = ic.get_reduced_outgoing_connection()
+    assert orc.width == 1
 
 
 def test_process_global_inhibition_connections():

@@ -1,14 +1,13 @@
 """Connection utilities required solely by Ensembles.
 """
 
-import collections
 import nengo
 import numpy as np
 
 from nengo.utils.compat import is_iterable
 
-from .. import connection
-from ..utils import connections as connection_utils
+from ..connections.intermediate import IntermediateConnection
+from ..connections.reduced import GlobalInhibitionPort
 
 
 def process_global_inhibition_connections(objs, connections, probes):
@@ -29,8 +28,7 @@ def process_global_inhibition_connections(objs, connections, probes):
     return objs, new_connections
 
 
-class IntermediateGlobalInhibitionConnection(
-        connection.IntermediateConnection):
+class IntermediateGlobalInhibitionConnection(IntermediateConnection):
     """Representation of a connection which is a global inhibition connection.
     """
     @classmethod
@@ -58,7 +56,7 @@ class IntermediateGlobalInhibitionConnection(
 
         # Swap out the port on the receiving object so that it points at the
         # global inhibition port.
-        ic.target.port = connection.EnsemblePorts.GLOBAL_INHIBITION
+        ic.target.port = GlobalInhibitionPort
 
         return ic
 
@@ -67,7 +65,6 @@ class IntermediateGlobalInhibitionConnection(
         # Use the given filter but modify the width to match the required port
         # size.
         f = super(IntermediateGlobalInhibitionConnection, self)._get_filter()
-        f.width = 1
         return f
 
 

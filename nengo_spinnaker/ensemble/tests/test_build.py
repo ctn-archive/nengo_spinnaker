@@ -9,7 +9,7 @@ import pytest
 from ..connections import IntermediateGlobalInhibitionConnection
 
 from .. import build as ensemble_build
-from ...connection import IntermediateConnection
+from ...connections.intermediate import IntermediateConnection
 
 
 def test_split_out_ensembles():

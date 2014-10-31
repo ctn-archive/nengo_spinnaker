@@ -1,13 +1,11 @@
-import collections
-import copy
 import logging
 import math
 import nengo
 from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 import numpy as np
 
-from .connection import (IntermediateConnection, build_connection_trees,
-                         get_objects_from_connection_trees, Target)
+from .connections.intermediate import IntermediateConnection
+from .connections.connection_tree import ConnectionTree
 from .spinnaker.keyspaces import create_keyspace
 from .utils import builder as builder_utils
 
@@ -95,7 +93,7 @@ class Builder(object):
         # transformation stage, it is assumed that any remaining Node -> Node
         # connections may be simulated on host rather than on SpiNNaker.
         logger.info("Build step 4/8: Building connectivity tree")
-        c_trees = build_connection_trees(
+        c_trees = ConnectionTree.from_intermediate_connections(
             c for c in conns if (not isinstance(c.pre_obj, nengo.Node) and
                                  not isinstance(c.post_obj, nengo.Node))
         )
@@ -110,11 +108,11 @@ class Builder(object):
 
         # Assign this keyspace to all connections which have no keyspace
         logger.info("Build step 6/8: Applying default keyspace")
-        c_trees = _apply_default_keyspace(default_keyspace, c_trees)
+        c_trees = c_trees.get_new_tree_with_applied_keyspace(default_keyspace)
 
         # Build all objects
         logger.info("Build step 7/8: Building objects")
-        connected_objects = get_objects_from_connection_trees(c_trees)
+        connected_objects = c_trees.get_objects()
 
         replaced_objects = dict()
 
@@ -124,8 +122,7 @@ class Builder(object):
 
         # Replace built objects in the connection tree
         logger.info("Build step 8/8: Add built objects to connectivity tree")
-        c_trees = _replace_objects_in_connection_trees(replaced_objects,
-                                                       c_trees)
+        c_trees = c_trees.get_new_tree_with_replaced_objects(replaced_objects)
 
         # Return the connection tree
         return c_trees
@@ -175,19 +172,23 @@ def _build_keyspace(connection_tree, subobject_bits=7):
     # assume that a field cannot have length 0, relax this requirement.
     # TODO Exclude connections that already have keyspaces from these
     # calculations.
-    x_bits = 1
-    o_bits = int(math.log(len(connection_tree) + 1, 2))
-    s_bits = subobject_bits
-    i_bits = int(math.log(max(len(v) for v in connection_tree.items()) + 1, 2))
+    objs = connection_tree.get_objects()
+    num_o = 0
+    max_i = 0
+    max_d = 0
 
-    # TODO Add width to outgoing reduced connections to make this nicer, rather
-    # than relying on the filter width.
-    d_bits = int(
-        math.log(
-            1 + max(k.filter_object.width for i in connection_tree.values() for
-                    j in i.values() for k in j),
-            2)
-    )
+    for o in objs:
+        out_conns = connection_tree.get_outgoing_connections(o)
+        if len(out_conns) > 0:
+            num_o += 1
+            max_i = max(max_i, len(out_conns))
+            max_d = max(max_d, max(c.width for c in out_conns))
+
+    x_bits = 1
+    o_bits = int(math.log(num_o + 1, 2))
+    s_bits = subobject_bits
+    i_bits = int(math.log(max_i + 1, 2))
+    d_bits = int(math.log(max_d + 1, 2))
 
     padding = 32 - sum([x_bits, o_bits, s_bits, i_bits, d_bits])
 
@@ -202,73 +203,6 @@ def _build_keyspace(connection_tree, subobject_bits=7):
         'xosi',          # Fields used in routing
         'xoi'            # Fields used in filter routing
     )
-
-
-def _apply_default_keyspace(keyspace, connection_tree):
-    """Apply a keyspace taken from a given template to all connections without.
-
-    Returns a copy of the given connection tree with all connections that had
-    None as their keyspace replaced with new keyspaces derived from the
-    default.  This should be the last time that keyspaces are modified.
-    Additionally, any keyspaces that had the object field ('o') unset are
-    replaced with a keyspace with this field set appropriately.
-    """
-    # Create a new connection tree
-    tree = collections.defaultdict(lambda: collections.defaultdict(list))
-
-    # Iterate over all objects and outgoing connections
-    for i, (obj, oconns) in enumerate(connection_tree.items()):
-        # Create the keyspace for connections from this object
-        core_ks = keyspace(o=i)
-
-        # Apply a unique keyspace to all connections from this core that don't
-        # already have assigned keyspaces.
-        for j, c in enumerate(o for o in oconns if o.keyspace is None):
-            new_c = copy.copy(c)
-            c_ks = core_ks(i=j)
-            new_c.keyspace = c_ks
-
-            tree[obj][new_c] = copy.copy(connection_tree[obj][c])
-
-        # Modify all connections that already have keyspaces.
-        for j, c in enumerate(o for o in oconns if o.keyspace is not None):
-            new_c = copy.copy(c)
-
-            # Add the object ID for the connection if this hasn't already been
-            # filled in.
-            if not c.keyspace.is_set_o:
-                new_c.keyspace = c.keyspace(o=i)
-
-            tree[obj][new_c] = copy.copy(connection_tree[obj][c])
-
-    return tree
-
-
-def _replace_objects_in_connection_trees(replacements, connection_tree):
-    """Return a new connection tree with various objects replaced.
-
-    :param dict replacements: A dict mapping objects to replaced objects.
-    :return: A new connectivity tree containing the replaced objects.
-    """
-    # Create a new connection tree
-    tree = collections.defaultdict(lambda: collections.defaultdict(list))
-
-    # Loop over all objects and outgoing connections
-    for (obj, oconns) in connection_tree.items():
-        # Get the replaced originating object
-        new_obj = replacements[obj]
-
-        # Loop over all incoming connections
-        for (oc, inconns) in oconns.items():
-            for ic in inconns:
-                # Copy and replace the incoming connection
-                new_ic = copy.copy(ic)
-                new_ic.target = Target(replacements[ic.target.target_object],
-                                       ic.filter_object)
-
-                tree[new_obj][oc].append(new_ic)
-
-    return tree
 
 
 def _get_seed(obj, rng):

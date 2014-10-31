@@ -4,11 +4,11 @@
 import mock
 import nengo
 import numpy as np
-import pytest
 import random
 
 from .. import lif
-from ...connection import IntermediateConnection, build_connection_trees
+from ...connections.connection_tree import ConnectionTree
+from ...connections.intermediate import IntermediateConnection
 from ...utils.fixpoint import bitsk
 
 
@@ -27,13 +27,13 @@ def test_build():
 
     # Create the connection tree for this network
     new_cs = [IntermediateConnection.from_connection(c) for c in cs]
-    ctree = build_connection_trees(new_cs)
+    ctree = ConnectionTree.from_intermediate_connections(new_cs)
 
     config = mock.Mock()
 
     # Now create a new LIF intermediate
     rng = np.random.RandomState(1105)
-    ilif = lif.IntermediateLIF.build(
+    lif.IntermediateLIF.build(
         ensemble=ens, connection_trees=ctree, config=config, rngs={ens: rng},
         direct_input=np.zeros(3), record_spikes=False
     )

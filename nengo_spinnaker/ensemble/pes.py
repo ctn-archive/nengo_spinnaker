@@ -2,7 +2,7 @@ import collections
 import nengo
 import numpy as np
 
-from ..connection import IntermediateConnection
+from ..connections.intermediate import IntermediateConnection
 from ..utils.fixpoint import bitsk
 from ..spinnaker import regions
 

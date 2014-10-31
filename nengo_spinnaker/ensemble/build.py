@@ -3,6 +3,7 @@
 
 import nengo
 import numpy as np
+import warnings
 
 import nengo.utils.builder as builder_utils
 from nengo.utils import distributions as dists

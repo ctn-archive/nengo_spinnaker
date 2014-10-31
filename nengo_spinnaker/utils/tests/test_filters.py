@@ -3,16 +3,17 @@ import nengo
 import numpy as np
 import pytest
 
-from ... import connection
+from ...connections.reduced import LowpassFilterParameter, _filter_types
+from ...connections.intermediate import IntermediateConnection
 from .. import filters as filter_utils
 from ..fixpoint import bitsk
 
 
-class AlphaFilterParameter(connection.LowpassFilterParameter):
+class AlphaFilterParameter(LowpassFilterParameter):
     pass
 
 
-connection._filter_types[nengo.synapses.Alpha] = AlphaFilterParameter
+_filter_types[nengo.synapses.Alpha] = AlphaFilterParameter
 
 
 @pytest.fixture(scope='function')
@@ -40,7 +41,7 @@ def sample_network():
             nengo.Connection(a, b, synapse=0.05, modulatory=True),
         ]
 
-        conns = [connection.IntermediateConnection.from_connection(c) for c in
+        conns = [IntermediateConnection.from_connection(c) for c in
                  cs]
         conns[6].is_accumulatory = False
 
@@ -136,8 +137,8 @@ def test_filter_region():
     """
     # Create 2 filter entries
     filters = [
-        connection.LowpassFilterParameter(1, 0.05, True, False),
-        connection.LowpassFilterParameter(2, 0.01, False, False),
+        LowpassFilterParameter(1, 0.05, True, False),
+        LowpassFilterParameter(2, 0.01, False, False),
     ]
 
     # Create the filter region

@@ -5,7 +5,7 @@ import collections
 import numpy as np
 
 from . import fixpoint as fp
-from ..connection import _filter_types, LowpassFilterParameter
+from ..connections.reduced import _filter_types, LowpassFilterParameter
 from ..spinnaker import regions
 
 

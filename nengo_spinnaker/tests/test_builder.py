@@ -1,4 +1,3 @@
-import collections
 import copy
 import mock
 import nengo
@@ -6,7 +5,8 @@ import numpy as np
 import pytest
 
 from ..builder import Builder
-from .. import builder, connection
+from .. import builder
+from ..connections.connection_tree import ConnectionTree
 
 
 @pytest.fixture(scope='function')
@@ -132,7 +132,7 @@ class TestBuilderTransforms(object):
             a = nengo.Ensemble(100, 1)
             b = nengo.Ensemble(100, 1)
             a.eval_points = b.eval_points = np.random.uniform(size=(100, 1))
-            c = nengo.Connection(a, b)
+            nengo.Connection(a, b)
 
         # Create and add a mock ensemble builder
         ens_builder = mock.Mock()
@@ -198,7 +198,7 @@ def test_build_keyspace(sample_model):
     # Get the model and build the connection tree
     model, (a, b, c), (c1, c2), (p,) = sample_model
     new_conns = builder._convert_remaining_connections([c1, c2])
-    tree = connection.build_connection_trees(new_conns)
+    tree = ConnectionTree.from_intermediate_connections(new_conns)
 
     # Build the keyspace
     ks = builder._build_keyspace(tree, subobject_bits=7)
@@ -212,177 +212,6 @@ def test_build_keyspace(sample_model):
     assert ks.__filter_fields__ == 'xoi'
 
 
-def test_apply_default_keyspace(sample_model):
-    # Get the model and build the connection tree
-    model, (a, b, c), (c1, c2), (p,) = sample_model
-    new_conns = builder._convert_remaining_connections([c1, c2])
-
-    # Create the connection tree
-    tree = connection.build_connection_trees(new_conns)
-
-    # Create mock keyspaces
-    ks = mock.Mock()
-    core_ks = {
-        0: mock.Mock(),
-        1: mock.Mock(),
-    }
-    c0c0 = mock.Mock()
-    c1c0 = mock.Mock()
-    ks.side_effect = lambda o: core_ks[o]
-    core_ks[0].return_value = c0c0
-    core_ks[1].return_value = c1c0
-
-    # Apply default keyspaces, ensuring the calls are appropriate
-    new_tree = builder._apply_default_keyspace(ks, tree)
-
-    assert ks.call_count == 2
-    assert core_ks[0].call_count == 1
-    assert core_ks[1].call_count == 1
-
-    # Check the new tree to ensure that keyspaces are assigned only once
-    assigned_ks = collections.defaultdict(list)
-    for conns in new_tree.values():
-        for _c in conns:
-            assigned_ks[_c.keyspace].append(_c)
-
-    assert len(assigned_ks) == 2
-    assert len(assigned_ks[c0c0]) == 1
-    assert len(assigned_ks[c1c0]) == 1
-
-    # Assert that a new tree has been returned, but that the referents are the
-    # same
-    assert tree is not new_tree
-    assert a in new_tree
-    assert c in new_tree
-
-    for (obj, outconns) in new_tree.items():
-        if obj is a:
-            assert len(outconns) == 1
-            for in_conns in outconns.values():
-                for i in in_conns:
-                    assert i.target.target_object is c
-        elif obj is c:
-            assert len(outconns) == 1
-            for in_conns in outconns.values():
-                for i in in_conns:
-                    assert i.target.target_object is b
-        else:
-            assert False, "Unexpected object ({}) in tree.".format(obj)
-
-def test_apply_default_keyspace_ignore_given_ks(sample_model):
-    # Get the model and build the connection tree
-    model, (a, b, c), (c1, c2), (p,) = sample_model
-    new_conns = builder._convert_remaining_connections([c1, c2])
-
-    # Add a new connection with a given keyspace to ensure that it is not
-    # overwritten.
-    preks_with_o = mock.Mock(name='ExistingKeyspaceWithO')
-    preks = mock.Mock(name='ExistingKeyspace')
-    preks.return_value = preks_with_o
-    preks.is_set_o = False
-    new_conns.append(
-        connection.IntermediateConnection(b, c, synapse=nengo.Lowpass(0.05),
-                                          keyspace=preks)
-    )
-
-    # Create the connection tree
-    tree = connection.build_connection_trees(new_conns)
-
-    # Create mock keyspace
-    ks = mock.Mock()
-
-    # Apply default keyspaces, ensuring the calls are appropriate
-    new_tree = builder._apply_default_keyspace(ks, tree)
-
-    # Check that the pre-provided keyspace was called correctly.
-    assert any([mock.call(o=i) in preks.mock_calls for i in range(3)])
-
-    # Check the new tree to ensure that keyspaces are assigned only once
-    assigned_ks = collections.defaultdict(list)
-    for conns in new_tree.values():
-        for c in conns:
-            assigned_ks[c.keyspace].append(c)
-
-    assert len(assigned_ks[preks_with_o]) == 1
-
-    # Assert that a new tree has been returned...
-    assert tree is not new_tree
-
-
-def test_apply_default_keyspace_ignore_given_ks_no_fill(sample_model):
-    # Get the model and build the connection tree
-    model, (a, b, c), (c1, c2), (p,) = sample_model
-    new_conns = builder._convert_remaining_connections([c1, c2])
-
-    # Add a new connection with a given keyspace to ensure that it is not
-    # overwritten.
-    preks = mock.Mock(name='ExistingKeyspace')
-    preks.is_set_o = True
-    new_conns.append(
-        connection.IntermediateConnection(b, c, synapse=nengo.Lowpass(0.05),
-                                          keyspace=preks)
-    )
-
-    # Create the connection tree
-    tree = connection.build_connection_trees(new_conns)
-
-    # Create mock keyspace
-    ks = mock.Mock()
-
-    # Apply default keyspaces, ensuring the calls are appropriate
-    new_tree = builder._apply_default_keyspace(ks, tree)
-
-    # Check that the pre-provided keyspace was called correctly.
-    assert not preks.called
-
-    # Check the new tree to ensure that keyspaces are assigned only once
-    assigned_ks = collections.defaultdict(list)
-    for conns in new_tree.values():
-        for c in conns:
-            assigned_ks[c.keyspace].append(c)
-
-    assert len(assigned_ks[preks]) == 1
-
-    # Assert that a new tree has been returned...
-    assert tree is not new_tree
-
-
-def test_replace_objects_in_connection_trees():
-    """Create a mock connection tree and assert that objects are replaced
-    correctly.
-    """
-    # Create a mock tree, add some objects and assert that they are replaced
-    # correctly.
-    tree = collections.defaultdict(lambda: collections.defaultdict(list))
-
-    a = mock.Mock(name='A')
-    b = mock.Mock(name='B')
-
-    oc = connection.OutgoingReducedConnection(1.0, None)
-    ic = connection.IncomingReducedConnection(connection.Target(b), None)
-
-    tree[a][oc].append(ic)
-
-    # Replacement objects
-    new_a = mock.Mock(name='New A')
-    new_b = mock.Mock(name='New B')
-    repls = {a: new_a, b: new_b}
-
-    # Replace the objects
-    new_tree = builder._replace_objects_in_connection_trees(repls, tree)
-
-    # Assert new tree is correct
-    assert new_tree is not tree
-    assert len(new_tree) == 1
-    assert len(new_tree[new_a]) == 1
-    new_oc = new_tree[new_a].keys()[0]
-    assert len(new_tree[new_a][new_oc]) == 1
-    new_ic = new_tree[new_a][new_oc][0]
-    assert new_ic.target.target_object is new_b
-
-    assert tree[a][oc][0].target.target_object is b  # Check the original
-
-
 def test_runthrough():
     # As a final test check that we can actually run through the builder in its
     # unmodified state...
@@ -390,6 +219,6 @@ def test_runthrough():
         a = nengo.Ensemble(100, 2, label='a')
         b = nengo.Ensemble(100, 1, label='b')
 
-        c = nengo.Connection(a[0], b)
+        nengo.Connection(a[0], b)
 
     conn_tree = Builder.build(model)  # noqa

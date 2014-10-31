@@ -2,7 +2,7 @@ import mock
 import nengo
 
 from .. import pes
-from ... import connection
+from ...connections.reduced import LowpassFilterParameter
 
 
 class TestIntermediatePESModulatoryConnection(object):
@@ -50,7 +50,7 @@ class TestIntermediatePESModulatoryConnection(object):
         assert incoming.target.target_object is post_obj
         assert incoming.target.port is pes_instance
         assert isinstance(incoming.filter_object,
-                          connection.LowpassFilterParameter)
+                          LowpassFilterParameter)
         assert incoming.filter_object.tau == 0.05
         assert incoming.filter_object.width == 5
 

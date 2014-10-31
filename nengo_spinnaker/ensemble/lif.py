@@ -81,7 +81,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         # Build each of the decoders in turn
         decoders_to_compress = list()
-        for c in connection_trees[ensemble]:
+        for c in connection_trees.get_outgoing_connections(ensemble):
             # Build the decoder
             decoders.append(
                 decoder_builder.get_transformed_decoder(
