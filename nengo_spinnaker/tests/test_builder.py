@@ -242,16 +242,32 @@ def test_apply_default_keyspace(sample_model):
     # Check the new tree to ensure that keyspaces are assigned only once
     assigned_ks = collections.defaultdict(list)
     for conns in new_tree.values():
-        for c in conns:
-            assigned_ks[c.keyspace].append(c)
+        for _c in conns:
+            assigned_ks[_c.keyspace].append(_c)
 
     assert len(assigned_ks) == 2
     assert len(assigned_ks[c0c0]) == 1
     assert len(assigned_ks[c1c0]) == 1
 
-    # Assert that a new tree has been returned...
+    # Assert that a new tree has been returned, but that the referents are the
+    # same
     assert tree is not new_tree
+    assert a in new_tree
+    assert c in new_tree
 
+    for (obj, outconns) in new_tree.items():
+        if obj is a:
+            assert len(outconns) == 1
+            for in_conns in outconns.values():
+                for i in in_conns:
+                    assert i.target.target_object is c
+        elif obj is c:
+            assert len(outconns) == 1
+            for in_conns in outconns.values():
+                for i in in_conns:
+                    assert i.target.target_object is b
+        else:
+            assert False, "Unexpected object ({}) in tree.".format(obj)
 
 def test_apply_default_keyspace_ignore_given_ks(sample_model):
     # Get the model and build the connection tree
@@ -371,8 +387,8 @@ def test_runthrough():
     # As a final test check that we can actually run through the builder in its
     # unmodified state...
     with nengo.Network(label='test') as model:
-        a = nengo.Ensemble(100, 2)
-        b = nengo.Ensemble(100, 1)
+        a = nengo.Ensemble(100, 2, label='a')
+        b = nengo.Ensemble(100, 1, label='b')
 
         c = nengo.Connection(a[0], b)
 

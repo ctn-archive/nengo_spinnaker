@@ -228,7 +228,7 @@ def _apply_default_keyspace(keyspace, connection_tree):
             c_ks = core_ks(i=j)
             new_c.keyspace = c_ks
 
-            tree[obj][new_c] = copy.deepcopy(connection_tree[obj][c])
+            tree[obj][new_c] = copy.copy(connection_tree[obj][c])
 
         # Modify all connections that already have keyspaces.
         for j, c in enumerate(o for o in oconns if o.keyspace is not None):
@@ -239,7 +239,7 @@ def _apply_default_keyspace(keyspace, connection_tree):
             if not c.keyspace.is_set_o:
                 new_c.keyspace = c.keyspace(o=i)
 
-            tree[obj][new_c] = copy.deepcopy(connection_tree[obj][c])
+            tree[obj][new_c] = copy.copy(connection_tree[obj][c])
 
     return tree
 
