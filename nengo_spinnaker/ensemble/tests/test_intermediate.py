@@ -17,7 +17,6 @@ def test_init_intermediate_ensemble():
             bias=np.zeros(100),
             encoders=np.zeros((100, 2)),
             decoders=np.zeros((2, 100)),
-            eval_points=None,
             decoder_headers=list(),
             learning_rules=list()
         )
@@ -30,7 +29,6 @@ def test_init_intermediate_ensemble():
             bias=np.zeros(1),
             encoders=np.zeros((100, 2)),
             decoders=np.zeros((2, 100)),
-            eval_points=None,
             decoder_headers=list(),
             learning_rules=list()
         )
@@ -43,7 +41,6 @@ def test_init_intermediate_ensemble():
             bias=np.zeros(100),
             encoders=np.zeros((1, 2)),
             decoders=np.zeros((2, 100)),
-            eval_points=None,
             decoder_headers=list(),
             learning_rules=list()
         )
@@ -55,7 +52,6 @@ def test_init_intermediate_ensemble():
         bias=np.zeros(100),
         encoders=np.zeros((100, 2)),
         decoders=np.zeros((2, 100)),
-        eval_points=None,
         decoder_headers=list(),
         learning_rules=list()
     )

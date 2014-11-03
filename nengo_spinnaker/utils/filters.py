@@ -13,8 +13,7 @@ def get_filter_from_connection(connection):
     """Return a filter object representing the connection.
     """
     return _filter_types[connection.synapse.__class__].from_synapse(
-        connection.width, connection.synapse,
-        getattr(connection, 'is_accumulatory', True), connection.modulatory
+        connection.synapse, getattr(connection, 'is_accumulatory', True)
     )
 
 
@@ -48,7 +47,7 @@ def get_keyspace_to_filter_map(filter_indices):
     return {c.keyspace: v for (c, v) in filter_indices.items()}
 
 
-def get_filter_regions(connections, dt):
+def get_filter_regions(connections, dt, width):
     """Return the filter and routing region for the given connections.
 
     Returns a tuple of (filter region, routing region).
@@ -57,10 +56,11 @@ def get_filter_regions(connections, dt):
     filters, filter_ids = get_combined_filters(connections)
 
     # Create and return the appropriate regions
-    return make_filter_region(filters, dt), make_routing_region(filter_ids)
+    return (make_filter_region(filters, dt, width),
+            make_routing_region(filter_ids))
 
 
-def make_filter_region(filters, dt):
+def make_filter_region(filters, dt, width):
     """Return a region representing parameters for incoming value filters.
 
     TODO: Support more than just 1st order low-pass filters.
@@ -78,7 +78,7 @@ def make_filter_region(filters, dt):
     # Get the accumulator masks for the filters and the widths of the filters
     masks = np.array([0x0 if f.is_accumulatory else 0xffffffff for f in
                       filters], dtype=np.uint32)
-    widths = np.array([f.width for f in filters], dtype=np.uint32)
+    widths = np.array([width] * len(filters), dtype=np.uint32)
 
     # Stack these columns to make the full filter matrix
     f_matrix = np.vstack([fpc, fpd, masks, widths]).T

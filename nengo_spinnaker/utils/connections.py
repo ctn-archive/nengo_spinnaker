@@ -1,9 +1,7 @@
 """Utils for working with connections.
 """
 
-import collections
 import copy
-import numpy as np
 import nengo
 
 from ..connections.intermediate import IntermediateConnection

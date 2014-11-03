@@ -29,7 +29,6 @@ def sample_network():
         # 3 is a unique filter
         # 4 + 5 share a filter
         # 6 is a unique filter (because it is accumulatory)
-        # 7 is a unique filter (because it is modulatory)
         cs = [
             nengo.Connection(a, b, synapse=0.01),
             nengo.Connection(a, b, transform=0.1, synapse=0.01),
@@ -38,7 +37,6 @@ def sample_network():
             nengo.Connection(a, b, synapse=nengo.synapses.Alpha(0.01)),
             nengo.Connection(a, b, synapse=nengo.synapses.Alpha(0.01)),
             nengo.Connection(a, b, synapse=0.01),
-            nengo.Connection(a, b, synapse=0.05, modulatory=True),
         ]
 
         conns = [IntermediateConnection.from_connection(c) for c in
@@ -59,9 +57,9 @@ def test_get_combined_filters(sample_network):
 
     # Assert that there are the correct number of filters and that the
     # connection indices are appropriate.
-    assert len(filters) == 6
+    assert len(filters) == 5
 
-    for n in [2, 3, 6, 7]:  # Not shared filters
+    for n in [2, 3, 6]:  # Not shared filters
         assert filter_indices[conns[n]] not in [
             i for (c, i) in filter_indices.items() if c is not conns[n]]
 
@@ -70,7 +68,7 @@ def test_get_combined_filters(sample_network):
     assert filter_indices[conns[4]] == filter_indices[conns[5]]
 
     # Assert that parameters have been grabbed correctly
-    for i in [0, 2, 3, 4, 7]:
+    for i in [0, 2, 3, 4]:
         assert filters[filter_indices[conns[i]]].tau == conns[i].synapse.tau
         assert filters[filter_indices[conns[i]]].is_accumulatory
 
@@ -122,7 +120,7 @@ def test_get_filter_regions(sample_network):
     # Get the filter regions
     dt = 0.001
     filter_region, filter_routing_region = \
-        filter_utils.get_filter_regions(conns, dt)
+        filter_utils.get_filter_regions(conns, dt, 1)
 
     # Assert the size of these regions is appropriate: Filter region should be
     # 4 * n_filters (4 words per filter) + 1 (n filters).
@@ -137,13 +135,14 @@ def test_filter_region():
     """
     # Create 2 filter entries
     filters = [
-        LowpassFilterParameter(1, 0.05, True, False),
-        LowpassFilterParameter(2, 0.01, False, False),
+        LowpassFilterParameter(0.05, True),
+        LowpassFilterParameter(0.01, False),
     ]
 
     # Create the filter region
     dt = 0.01
-    filter_region = filter_utils.make_filter_region(filters, dt)
+    width = 2
+    filter_region = filter_utils.make_filter_region(filters, dt, width=width)
 
     # Check the size is correct
     assert filter_region.sizeof(slice(0, 1000)) == 2*4 + 1
@@ -158,7 +157,7 @@ def test_filter_region():
         assert data[1 + 4*i] == bitsk(np.exp(-dt / f.tau))
         assert data[2 + 4*i] == bitsk(1. - np.exp(-dt / f.tau))
         assert data[3 + 4*i] == 0x0 if f.is_accumulatory else 0xffffffff
-        assert data[4 + 4*i] == f.width
+        assert data[4 + 4*i] == width
 
 
 def test_filter_routing_region():

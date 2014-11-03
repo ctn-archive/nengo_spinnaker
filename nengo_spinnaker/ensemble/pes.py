@@ -13,39 +13,33 @@ PESInstance = collections.namedtuple('PESInstance', 'learning_rate width')
 class IntermediatePESConnection(IntermediateConnection):
     """Intermediate connection representing a PES modulatory connection.
     """
-    def __init__(self, pre_obj, post_obj, synapse=None, function=None,
-                 transform=1., solver=None, eval_points=None, keyspace=None,
-                 is_accumulatory=True, learning_rule=None, modulatory=False,
-                 pes_instance=None):
-        super(IntermediatePESConnection, self).__init__(
-            pre_obj, post_obj, synapse=synapse, function=function,
-            transform=transform, solver=solver, eval_points=eval_points,
-            keyspace=keyspace, is_accumulatory=is_accumulatory,
-            learning_rule=learning_rule, modulatory=modulatory
-        )
-        self.pes_instance = pes_instance
+    def __init__(self, *args, **kwargs):
+        self.pes_instance = kwargs.pop('pes_instance', None)
+        super(IntermediatePESConnection, self).__init__(*args, **kwargs)
 
     @classmethod
     def from_connection(cls, c, pes_instance, keyspace=None,
                         is_accumulatory=True):
         if isinstance(c, nengo.Connection):
-            # Get the full transform
-            tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
-
-            # Return a copy of this connection but with less information and
-            # the full transform.
-            return cls(c.pre_obj, c.post_obj, synapse=c.synapse,
-                       function=c.function, transform=tr, solver=c.solver,
-                       eval_points=c.eval_points, keyspace=keyspace,
-                       learning_rule=c.learning_rule, modulatory=c.modulatory,
-                       is_accumulatory=is_accumulatory,
-                       pes_instance=pes_instance)
+            c = super(IntermediatePESConnection, cls).from_connection(
+                c, keyspace=keyspace, is_accumulatory=is_accumulatory)
+        c.pes_instance = pes_instance
         return c
 
 
 class IntermediatePESModulatoryConnection(IntermediatePESConnection):
     """Intermediate connection representing a PES modulatory connection.
     """
+    def get_reduced_outgoing_connection(self):
+        """Get the reduced outgoing connection for the modulatory signal.
+        """
+        # As in the parent, but set the width to the width of the PES signal
+        oc = super(IntermediatePESModulatoryConnection, self).\
+            get_reduced_outgoing_connection()
+        oc.width = self.pes_instance.width
+
+        return oc
+
     def get_reduced_incoming_connection(self):
         """Get the reduced incoming connection for the modulatory signal.
         """
@@ -53,9 +47,6 @@ class IntermediatePESModulatoryConnection(IntermediatePESConnection):
         ic = super(IntermediatePESModulatoryConnection, self).\
             get_reduced_incoming_connection()
         ic.target.port = self.pes_instance
-
-        # And with the filter width set to the width of the PES connection
-        ic.filter_object.width = self.pes_instance.width
 
         return ic
 
@@ -67,14 +58,14 @@ def process_pes_connections(objs, conns, probes):
     replaced_conns = list()
 
     for c in conns:
-        if not isinstance(c.learning_rule, nengo.PES):
+        if not isinstance(c.learning_rule_type, nengo.PES):
             # Defer dealing with connections that don't have a PES learning
             # rule attached.
             continue
 
         # This connection has a PES learning rule.  Begin by creating a PES
         # instance that PES connections can refer to.
-        pes_instance = PESInstance(c.learning_rule.learning_rate,
+        pes_instance = PESInstance(c.learning_rule_type.learning_rate,
                                    c.post_obj.size_in)
 
         # Create a new connection representing the PES connection itself
@@ -82,7 +73,7 @@ def process_pes_connections(objs, conns, probes):
             c, pes_instance=pes_instance)
 
         # Now reroute the modulatory connection
-        mod_conn = c.learning_rule.error_connection
+        mod_conn = c.learning_rule_type.error_connection
         new_mod_conn = IntermediatePESModulatoryConnection.from_connection(
             mod_conn, pes_instance=pes_instance)
         new_mod_conn.post_obj = c.pre_obj
@@ -91,7 +82,7 @@ def process_pes_connections(objs, conns, probes):
         new_conns.append(pes_connection)
         new_conns.append(new_mod_conn)
         replaced_conns.append(c)
-        replaced_conns.append(c.learning_rule.error_connection)
+        replaced_conns.append(c.learning_rule_type.error_connection)
 
     # Loop over all connections and add those which we haven't already replaced
     new_conns.extend(c for c in conns if c not in replaced_conns)

@@ -1,6 +1,3 @@
-import mock
-import nengo
-import numpy as np
 import random
 
 from .. import connections as connections_utils

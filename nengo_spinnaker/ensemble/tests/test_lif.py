@@ -6,6 +6,7 @@ import nengo
 import numpy as np
 import random
 
+from ..placeholder import PlaceholderEnsemble
 from .. import lif
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
@@ -16,9 +17,10 @@ def test_build():
     # Build a simple network
     model = nengo.Network()
     with model:
-        ens = nengo.Ensemble(100, 3)
+        ens = nengo.Ensemble(100, 3, label="Ensemble")
         ens.eval_points = np.random.uniform(size=(100, 3))
-        a = nengo.Node(lambda t, x: None, size_in=3, size_out=0)
+        a = nengo.Ensemble(100, 3, label="A")
+        a.eval_points = np.random.uniform(size=(100, 3))
 
         cs = [
             nengo.Connection(ens[1:], a[1:]),
@@ -27,19 +29,30 @@ def test_build():
 
     # Create the connection tree for this network
     new_cs = [IntermediateConnection.from_connection(c) for c in cs]
+
+    p_ens = PlaceholderEnsemble(ens)
+    p_a = PlaceholderEnsemble(a)
+
+    for i in range(len(new_cs)):
+        new_cs[i].pre_obj = p_ens
+        new_cs[i].post_obj = p_a
+
     ctree = ConnectionTree.from_intermediate_connections(new_cs)
 
     config = mock.Mock()
 
     # Now create a new LIF intermediate
     rng = np.random.RandomState(1105)
-    lif.IntermediateLIF.build(
-        ensemble=ens, connection_trees=ctree, config=config, rngs={ens: rng},
-        direct_input=np.zeros(3), record_spikes=False
-    )
+    ilif = lif.IntermediateLIF.build(
+        p_ens, connection_trees=ctree, config=config, rng=rng)
 
     # Make some assertions about the new Intermediate LIF object
-    raise NotImplementedError
+    assert ilif.n_neurons == ens.n_neurons
+    assert ilif.tau_rc == ens.neuron_type.tau_rc
+    assert ilif.tau_ref == ens.neuron_type.tau_ref
+    assert len(ilif.decoder_headers) == 3
+    assert ilif.encoders.shape == (100, 3)
+    assert ilif.decoders.shape == (100, 3)
 
 
 def test_lif_system_region():

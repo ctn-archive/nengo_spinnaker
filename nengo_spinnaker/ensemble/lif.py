@@ -1,7 +1,7 @@
 import numpy as np
 
 import nengo
-from nengo.builder import sample as builder_sample
+from nengo.builder.ensemble import sample as builder_sample
 from nengo.utils import distributions as dists
 import nengo.utils.numpy as npext
 from nengo.utils.stdlib import checked_call
@@ -20,20 +20,19 @@ from ..spinnaker import regions, vertices
 
 class IntermediateLIF(intermediate.IntermediateEnsemble):
     def __init__(self, n_neurons, gains, bias, encoders, decoders, tau_rc,
-                 tau_ref, eval_points, decoder_headers, learning_rules):
+                 tau_ref, decoder_headers, learning_rules):
         super(IntermediateLIF, self).__init__(
-            n_neurons, gains, bias, encoders, decoders, eval_points,
-            decoder_headers, learning_rules)
+            n_neurons, gains, bias, encoders, decoders, decoder_headers,
+            learning_rules)
         self.tau_rc = tau_rc
         self.tau_ref = tau_ref
 
     @classmethod
-    def build(cls, ensemble, connection_trees, config, rngs, direct_input,
-              record_spikes):
+    def build(cls, placeholder, connection_trees, config, rng):
         """Build a single LIF ensemble into an intermediate form.
         """
-        # Get the rng for this object
-        rng = rngs[ensemble]
+        ensemble = placeholder.ens
+        direct_input = placeholder.direct_input
 
         # Determine max_rates and intercepts
         max_rates = builder_sample(ensemble.max_rates, ensemble.n_neurons, rng)
@@ -63,7 +62,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
             activities = ensemble.neuron_type.rates(x, gain, bias)
 
             if function is None:
-                targets = evals
+                targets = evals[:,:]
             else:
                 (value, _) = checked_call(function, evals[0])
                 function_size = np.asarray(value).size
@@ -81,11 +80,11 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         # Build each of the decoders in turn
         decoders_to_compress = list()
-        for c in connection_trees.get_outgoing_connections(ensemble):
+        for c in connection_trees.get_outgoing_connections(placeholder):
             # Build the decoder
             decoders.append(
                 decoder_builder.get_transformed_decoder(
-                    c.function, c.transform.T, c.eval_points, c.solver
+                    c.function, c.transform, c.eval_points, c.solver
                 )
             )
 
@@ -100,7 +99,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         return cls(ensemble.n_neurons, gain, bias, encoders, decoders,
                    ensemble.neuron_type.tau_rc, ensemble.neuron_type.tau_ref,
-                   ensemble.eval_points, decoder_headers)
+                   decoder_headers, list())
 
 
 class SystemRegion(regions.Region):

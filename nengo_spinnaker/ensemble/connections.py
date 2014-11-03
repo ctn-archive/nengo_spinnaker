@@ -47,6 +47,18 @@ class IntermediateGlobalInhibitionConnection(IntermediateConnection):
         return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr,
                    c.solver, c.eval_points, keyspace)
 
+    def get_reduced_outgoing_connection(self):
+        """Get the reduced outgoing connection representing this connection.
+        """
+        # Get the standard reduced outgoing connection
+        oc = super(IntermediateGlobalInhibitionConnection, self).\
+            get_reduced_outgoing_connection()
+
+        # Swap out the width of the connection to be 1.
+        oc.width = 1
+
+        return oc
+
     def get_reduced_incoming_connection(self):
         """Get the reduced connection representing this connection.
         """
@@ -69,9 +81,9 @@ class IntermediateGlobalInhibitionConnection(IntermediateConnection):
 
 
 def get_learning_rules(connection):
-    if is_iterable(connection.learning_rule):
-        return tuple(connection.learning_rule)
-    elif connection.learning_rule is not None:
-        return (connection.learning_rule,)
+    if is_iterable(connection.learning_rule_type):
+        return tuple(connection.learning_rule_type)
+    elif connection.learning_rule_type is not None:
+        return (connection.learning_rule_type,)
     else:
         return ()

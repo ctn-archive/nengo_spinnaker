@@ -6,15 +6,17 @@ from .reduced import (
     IncomingReducedConnection, Target, _filter_types,
 )
 
+from ..ensemble.placeholder import PlaceholderEnsemble
+
 
 class IntermediateConnection(object):
     """Intermediate representation of a connection object.
     """
-    _expected_ensemble_type = nengo.Ensemble
+    _expected_ensemble_type = (nengo.Ensemble, PlaceholderEnsemble)
 
     def __init__(self, pre_obj, post_obj, synapse=None, function=None,
                  transform=1., solver=None, eval_points=None, keyspace=None,
-                 is_accumulatory=True, learning_rule=None):
+                 is_accumulatory=True, learning_rule_type=None):
         self.pre_obj = pre_obj
         self.post_obj = post_obj
 
@@ -26,7 +28,7 @@ class IntermediateConnection(object):
         self.keyspace = keyspace
         self.width = post_obj.size_in
         self.is_accumulatory = is_accumulatory
-        self.learning_rule = learning_rule
+        self.learning_rule_type = learning_rule_type
 
     @classmethod
     def from_connection(cls, c, keyspace=None, is_accumulatory=True):
@@ -49,7 +51,7 @@ class IntermediateConnection(object):
         return cls(c.pre_obj, c.post_obj, synapse=c.synapse,
                    function=c.function, transform=tr, solver=c.solver,
                    eval_points=c.eval_points, keyspace=keyspace,
-                   learning_rule=c.learning_rule,
+                   learning_rule_type=c.learning_rule_type,
                    is_accumulatory=is_accumulatory)
 
     def __repr__(self):  # pragma: no cover
@@ -65,7 +67,7 @@ class IntermediateConnection(object):
             return OutgoingReducedConnection(
                 self.width, self.transform, self.function, self.keyspace)
         else:
-            if self.learning_rule is not None:
+            if self.learning_rule_type is not None:
                 # Check the learning rule affects transmission and include it.
                 raise NotImplementedError
 

@@ -219,6 +219,6 @@ def test_runthrough():
         a = nengo.Ensemble(100, 2, label='a')
         b = nengo.Ensemble(100, 1, label='b')
 
-        nengo.Connection(a[0], b)
+        nengo.Connection(a[0], b, function=lambda x: x**2)
 
     conn_tree = Builder.build(model)  # noqa

@@ -27,8 +27,13 @@ def create_replacement_connection(c_in, c_out):
         raise Exception('Cannot remove a Node with a '
                         'function being computed on it')
 
-    # compute the combined transform
-    transform = np.dot(full_transform(c_out), full_transform(c_in))
+    # Compute the combined transform
+    full_out = (full_transform(c_out) if isinstance(c_out, nengo.Connection)
+                else c_out.transform)
+    full_in = (full_transform(c_in) if isinstance(c_in, nengo.Connection)
+               else c_in.transform)
+    transform = np.dot(full_out, full_in)
+
     # check if the transform is 0 (this happens a lot
     #  with things like identity transforms)
     if np.all(transform == 0):

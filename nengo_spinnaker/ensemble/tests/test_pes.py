@@ -18,16 +18,16 @@ class TestIntermediatePESModulatoryConnection(object):
 
             error_conn = nengo.Connection(error, ens, modulatory=True)
             comm_channel = nengo.Connection(ens, observer)
-            comm_channel.learning_rule = nengo.PES(error_conn, 0.5)
+            comm_channel.learning_rule_type = nengo.PES(error_conn, 0.5)
 
         # Check that we can create an appropriate intermediate PES connection
         pes_instance = pes.PESInstance(
-            comm_channel.learning_rule.learning_rate, observer.size_in)
+            comm_channel.learning_rule_type.learning_rate, observer.size_in)
         ic = pes.IntermediatePESModulatoryConnection.from_connection(
             error_conn, pes_instance=pes_instance)
         assert ic.pes_instance is pes_instance
 
-    def test_get_reduced_incoming_connection(self):
+    def test_get_reduced_connections(self):
         # Create a new PES instance which should be referenced by the port of
         # reduced incoming connection.
         pes_instance = pes.PESInstance(0.3, 5)
@@ -52,8 +52,11 @@ class TestIntermediatePESModulatoryConnection(object):
         assert isinstance(incoming.filter_object,
                           LowpassFilterParameter)
         assert incoming.filter_object.tau == 0.05
-        assert incoming.filter_object.width == 5
 
+        # Assert the modulatory connection results in an appropriate reduced
+        # outgoing connection.
+        outgoing = ic.get_reduced_outgoing_connection()
+        assert outgoing.width == 5
 
 class TestProcessPesConnections(object):
     """Test that PES connections are rerouted and modified correctly.
@@ -71,7 +74,7 @@ class TestProcessPesConnections(object):
 
             error_conn = nengo.Connection(error, ens, modulatory=True)
             comm_channel = nengo.Connection(ens, observer)
-            comm_channel.learning_rule = nengo.PES(error_conn, 0.5)
+            comm_channel.learning_rule_type = nengo.PES(error_conn, 0.5)
 
         # Call process_pes_connections and ensure that the results are sensible
         objs, conns = pes.process_pes_connections(

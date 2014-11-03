@@ -12,7 +12,7 @@ IntermediateLearningRule = collections.namedtuple(
 
 class IntermediateEnsemble(object):
     def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 eval_points, decoder_headers, learning_rules, label=None):
+                 decoder_headers, learning_rules, label=None):
         self.n_neurons = n_neurons
         self.label = label
 

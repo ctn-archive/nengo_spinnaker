@@ -131,7 +131,8 @@ def test_create_replacement_connection_ks_combine_fail(base_model):
 
 def test_create_replacement_connection_type_combine_1(base_model):
     class FalseConnectionTypeA(IntermediateConnection):
-        pass
+        pre_slice = slice(None)
+        post_slice = slice(None)
 
     # Assert type selected from first connection
     model, (a, b, c) = base_model

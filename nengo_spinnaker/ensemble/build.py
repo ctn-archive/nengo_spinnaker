@@ -9,23 +9,10 @@ import nengo.utils.builder as builder_utils
 from nengo.utils import distributions as dists
 
 from . import lif, pes
+from .placeholder import PlaceholderEnsemble
 from . import connections as ensemble_connection_utils
 from ..builder import Builder
 from ..utils import connections as connection_utils
-
-
-class PlaceholderEnsemble(object):
-    __slots__ = ['ens', 'direct_input', 'record_spikes', 'probes']
-
-    def __init__(self, ens, record_spikes=False):
-        self.direct_input = np.zeros(ens.size_in)
-        self.ens = ens
-        self.record_spikes = record_spikes
-        self.probes = list()
-
-    @property
-    def size_in(self):
-        return self.ens.size_in
 
 
 @Builder.network_transform
@@ -45,6 +32,9 @@ def build_ensembles(objects, connections, probes, rngs):
     # Separate out the set of Ensembles from the set of other objects
     ensembles, new_objects = split_out_ensembles(objects)
 
+    # Replace Ensembles with a placeholder that can be elaborated upon later.
+    replaced_ensembles = create_placeholder_ensembles(ensembles)
+
     # Generate evaluation points for Ensembles
     for ens in ensembles:
         if isinstance(ens.eval_points, dists.Distribution):
@@ -63,10 +53,8 @@ def build_ensembles(objects, connections, probes, rngs):
                     "Ignoring n_eval_points."
                 )
             eval_points = np.array(ens.eval_points, dtype=np.float64)
-        ens.eval_points = eval_points
+        replaced_ensembles[ens].eval_points = eval_points
 
-    # Replace Ensembles with a placeholder that can be elaborated upon later.
-    replaced_ensembles = create_placeholder_ensembles(ensembles)
     new_objects.extend(replaced_ensembles.values())
 
     # Replace Connections which connected into or out of these objects with new
@@ -92,20 +80,17 @@ ensemble_build_fns = {
 
 
 @Builder.object_builder(PlaceholderEnsemble)
-def build_ensemble(placeholder, connection_trees, config, seed):
+def build_ensemble(placeholder, connection_trees, config, rngs):
     """Build a single placeholder into an Intermediate Ensemble.
     """
-    try:
-        return ensemble_build_fns[placeholder.ens.neuron_type.__class__](
-            placeholder.ens, connection_trees, config, seed,
-            placeholder.direct_input, placeholder.record_spikes
-        )
-    except KeyError:
-        # The given neuron type is not supported
+    if placeholder.ens.neuron_type.__class__ not in ensemble_build_fns:
+        # Neuron type not supported
         raise NotImplementedError(
-            "nengo_spinnaker does not currently support neurons of type '{}'"
-            .format(placeholder.ens.neuron_type.__class__.__name__)
-        )
+            "nengo_spinnaker does not currently support neurons of type"
+            " '{}'".format(placeholder.ens.neuron_type.__class__.__name__))
+
+    return ensemble_build_fns[placeholder.ens.neuron_type.__class__](
+        placeholder, connection_trees, config, rngs[placeholder.ens])
 
 
 def split_out_ensembles(objects):

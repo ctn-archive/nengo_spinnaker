@@ -121,17 +121,17 @@ def test_build_placeholder():
 
     ctree = mock.Mock()
     config = mock.Mock()
-    seed = 0xBEEEFFFF
+    rngs = {ens1: mock.Mock(), ens2: mock.Mock()}
 
     placeholder1 = ensemble_build.PlaceholderEnsemble(ens1, True)
     placeholder2 = ensemble_build.PlaceholderEnsemble(ens2, False)
 
-    ensemble_build.build_ensemble(placeholder1, ctree, config, seed)
+    ensemble_build.build_ensemble(placeholder1, ctree, config, rngs)
     ensemble_build.ensemble_build_fns[FakeNeuronType1].assert_called_once_with(
-        ens1, ctree, config, seed, placeholder1.direct_input, True)
+        placeholder1, ctree, config, rngs[ens1])
 
     with pytest.raises(NotImplementedError) as excinfo:
-        ensemble_build.build_ensemble(placeholder2, ctree, config, seed)
+        ensemble_build.build_ensemble(placeholder2, ctree, config, rngs)
 
         assert FakeNeuronType2.__name__ in str(excinfo.value)
 
@@ -167,11 +167,11 @@ def test_build_ensembles():
             if o.ens is a:
                 assert np.all(o.direct_input == np.zeros(1))
                 assert o.record_spikes is False
-                assert o.ens.eval_points.shape[1] == o.ens.size_out
+                assert o.eval_points.shape[1] == o.ens.size_out
             elif o.ens is b:
                 assert np.all(o.direct_input == [0.5, 0.3])
                 assert o.record_spikes is True
-                assert o.ens.eval_points.shape[1] == o.ens.size_out
+                assert o.eval_points.shape[1] == o.ens.size_out
             else:
                 assert False, "Unknown object appeared."
         else:
