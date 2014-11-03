@@ -58,29 +58,3 @@ def test_init_intermediate_ensemble():
 
     assert ine.size_in == 2
     assert np.all(ine.direct_input == np.zeros(2))
-
-    # Test that this function exists and doesn't immediately fall over, bad?
-    ine.create_output_keyspaces(5, mock.Mock())
-
-
-def test_create_output_keyspaces():
-    decoder_headers = list()
-    decoder_headers.extend([(None, 0, n) for n in [1, 2, 5, 6]])
-    decoder_headers.append((None, 1, 1))
-
-    ks_1 = mock.Mock()
-    decoder_headers.append((ks_1, 2, 0))
-
-    ks = mock.Mock()
-
-    # Check that intermediate keyspaces are correctly created
-    kss = intermediate._create_output_keyspaces(decoder_headers, 5, ks)
-
-    # Ensure that the keyspace object is called correctly
-    for (k, i, d) in decoder_headers:
-        if k is None:
-            assert ks.has_call(o=5, i=i, d=d)
-        else:
-            assert k.has_call(o=5, i=i, d=d)
-
-    assert len(kss) == len(decoder_headers)

@@ -43,27 +43,3 @@ class IntermediateEnsemble(object):
 
         # Direct input
         self.direct_input = np.zeros(self.n_dimensions)
-
-    def create_output_keyspaces(self, ens_id, keyspace):
-        self.output_keyspaces = \
-            _create_output_keyspaces(self.decoder_headers, ens_id, keyspace)
-
-
-def _create_output_keyspaces(decoder_headers, ens_id, keyspace):
-    """Constructs a list of output keyspaces.
-
-    As decoders may have been compressed a set of output keys needs to be
-    constructed for the columns of the combined decoders that exist.  A
-    default keyspace is used if one is not provided within the decoder
-    decoder headers.  The decoder headers take the form of a 3-tuple
-    (keyspace, connection index, dimension index).
-
-    :param int ens_id: The unique object ID given to the Ensemble.
-    :param keyspace: A default keyspace to use to construct the keys.
-    """
-    output_keyspaces = list()
-    for header in decoder_headers:
-        ks = keyspace if header[0] is None else header[0]
-        ks = ks(o=ens_id, i=header[1], d=header[2])
-        output_keyspaces.append(ks)
-    return output_keyspaces
