@@ -78,6 +78,35 @@ def test_get_dtcm_usage_with_other_costs():
             4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]) + 4*100)
 
 
+def test_get_cpu_usage_fail():
+    v = Vertex(100, '', list())
+    with pytest.raises(NotImplementedError):
+        v.get_cpu_usage_for_atoms(slice(0, 10))
+
+
+def test_get_resources_used_by_atoms():
+    class SampleVertex(Vertex):
+        def get_cpu_usage_for_atoms(self, vertex_slice):
+            return 10
+
+    rs = [
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
+        regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
+                                                 unfilled=True),
+        regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)
+    ]
+
+    v = SampleVertex(100, '', rs)
+    resources = v.get_resources_used_by_atoms(slice(0, 10), None)
+
+    assert (resources.dtcm.get_value() ==
+            4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]))
+    assert resources.cpu.get_value() == 10
+
+
 # Subvertexing
 def test_get_subregions():
     """Ensure that subregions are generated correctly."""
