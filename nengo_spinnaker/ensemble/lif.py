@@ -76,16 +76,13 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
             return solver(activities, targets, rng=rng)[0]
 
-        decoder_builder = decoder_utils.DecoderBuilder(build_decoder)
-
         # Build each of the decoders in turn
         decoders_to_compress = list()
         for c in connection_trees.get_outgoing_connections(placeholder):
             # Build the decoder
             decoders.append(
-                decoder_builder.get_transformed_decoder(
-                    c.function, c.transform, c.eval_points, c.solver
-                )
+                c.transform.dot(
+                    build_decoder(c.function, c.eval_points, c.solver).T).T
             )
 
             # Keep track of which decoders we can compress
