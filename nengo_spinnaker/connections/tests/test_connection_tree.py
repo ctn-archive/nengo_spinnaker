@@ -32,13 +32,17 @@ def test_from_intermediate_connections():
     # obj_b should have 0 outgoing connections and 2 incoming
     # obj_c should have 1 outgoing connection and 1 incoming
     conns = [
-        IntermediateConnection(obj_a, obj_b, synapse=nengo.Lowpass(0.2),
+        IntermediateConnection(obj_a, obj_b, slice(None), slice(None),
+                               synapse=nengo.Lowpass(0.2),
                                keyspace=default_keyspace),
-        IntermediateConnection(obj_a, obj_c, synapse=nengo.Lowpass(0.1),
+        IntermediateConnection(obj_a, obj_c, slice(None), slice(None),
+                               synapse=nengo.Lowpass(0.1),
                                keyspace=default_keyspace),
-        IntermediateConnection(obj_a, obj_a, synapse=nengo.Lowpass(0.1),
+        IntermediateConnection(obj_a, obj_a, slice(None), slice(None),
+                               synapse=nengo.Lowpass(0.1),
                                keyspace=default_keyspace),
-        IntermediateConnection(obj_c, obj_b, synapse=nengo.Lowpass(0.1),
+        IntermediateConnection(obj_c, obj_b, slice(None), slice(None),
+                               synapse=nengo.Lowpass(0.1),
                                function=lambda x: 2*x,
                                keyspace=default_keyspace),
     ]
@@ -63,6 +67,7 @@ def test_from_intermediate_connections():
     assert len(tree.get_outgoing_connections(obj_a)) == 1
     assert (list(tree.get_outgoing_connections(obj_a)) ==
             [OutgoingReducedConnection(3, 1.0, None,
+                                       slice(None), slice(None),
                                        keyspace=default_keyspace)])
 
     # Outgoing connections obj_b
@@ -73,6 +78,7 @@ def test_from_intermediate_connections():
     assert len(tree.get_outgoing_connections(obj_c)) == 1
     assert (list(tree.get_outgoing_connections(obj_c))[0] ==
             OutgoingReducedConnection(3, 1.0, conns[-1].function,
+                                      slice(None), slice(None),
                                       keyspace=default_keyspace))
 
     # Incoming connections, arranged by port, then by filter
@@ -97,8 +103,10 @@ def test_replace_objects():
 
     # Create some connections between these objects
     conns = [
-        IntermediateConnection(obj_a, obj_b, nengo.Lowpass(0.3)),
-        IntermediateConnection(obj_a, obj_a, nengo.Lowpass(0.3)),
+        IntermediateConnection(obj_a, obj_b, slice(None), slice(None),
+                               nengo.Lowpass(0.3)),
+        IntermediateConnection(obj_a, obj_a, slice(None), slice(None),
+                               nengo.Lowpass(0.3)),
     ]
 
     # Create a new connection tree

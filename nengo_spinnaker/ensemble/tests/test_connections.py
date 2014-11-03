@@ -18,7 +18,7 @@ def test_intermediate_global_inhibition_connection():
     post_obj.size_in = 5
 
     ic = ensemble_connection_utils.IntermediateGlobalInhibitionConnection(
-        pre_obj, post_obj, nengo.Lowpass(0.05))
+        pre_obj, post_obj, slice(None), slice(None), nengo.Lowpass(0.05))
 
     f = ic._get_filter()
     assert isinstance(f, LowpassFilterParameter)

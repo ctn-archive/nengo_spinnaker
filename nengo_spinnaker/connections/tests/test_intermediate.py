@@ -29,7 +29,7 @@ class TestIntermediateConnection(object):
         assert ic.post_obj is b
         assert ic.keyspace is ks
         assert not ic.is_accumulatory
-        assert np.all(ic.transform == np.eye(3))
+        assert np.all(ic.transform == 1.)
         assert ic.width == 3
 
         # Check that the function works when we use slicing
@@ -39,8 +39,13 @@ class TestIntermediateConnection(object):
         ic = IntermediateConnection.from_connection(c)
 
         assert ic.pre_obj is a
+        assert ic.pre_slice == slice(1, 2)
+        assert ic.post_slice == slice(2, 3)
         assert ic.post_obj is b
-        assert np.all(ic.transform == [[0, 0, 0], [0, 0, 0], [0, 1., 0]])
+        assert np.all(ic.transform == 1.)
+
+        # This is temporary while we don't perform dimension mapping on
+        # receiving cores.
         assert ic.width == 3
 
         # If we try to get an intermediate object for something that isn't a
@@ -64,7 +69,14 @@ class TestIntermediateConnection(object):
         rc = ic.get_reduced_outgoing_connection()
         assert isinstance(rc, OutgoingReducedConnection)
         assert rc.width == ic.width == 3
-        assert np.all(rc.transform == [[0], [1], [0]])
+
+        assert rc.pre_slice == ic.pre_slice
+
+        # This is temporary while we don't perform dimension mapping on
+        # receiving cores.
+        assert rc.post_slice == ic.post_slice
+
+        assert np.all(rc.transform == 1.)
         assert rc.function is c.function
         assert rc.keyspace is ks
 
@@ -84,10 +96,13 @@ class TestIntermediateConnection(object):
         rc = ic.get_reduced_outgoing_connection()
         assert isinstance(rc, OutgoingReducedEnsembleConnection)
         assert rc.width == ic.width == 3
-        assert np.all(rc.transform == [[0], [1], [0]])
+        assert np.all(rc.transform == 1.)
         assert rc.function is c.function
         assert rc.keyspace is ks
         assert np.all(rc.eval_points == a.eval_points)
+
+        assert rc.pre_slice == ic.pre_slice
+        assert rc.post_slice == ic.post_slice  # Temporary
 
     def test_get_reduced_outgoing_connection_advanced(self):
         # Create the objects to test with
@@ -112,7 +127,7 @@ class TestIntermediateConnection(object):
         rc = ic.get_reduced_outgoing_connection()
         assert isinstance(rc, OutgoingReducedEnsembleConnection)
         assert rc.width == ic.width == 3
-        assert np.all(rc.transform == [[0], [1], [0]])
+        assert np.all(rc.transform == 1.)
         assert rc.function is c.function
         assert rc.keyspace is ks
 
@@ -129,7 +144,7 @@ class TestIntermediateConnection(object):
 
         synapse = nengo.Lowpass(0.03)
 
-        ic = IntermediateConnection(pre_obj, post_obj, synapse)
+        ic = IntermediateConnection(pre_obj, post_obj, synapse=synapse)
 
         f = ic._get_filter()
         assert isinstance(f, LowpassFilterParameter)
@@ -151,6 +166,9 @@ class TestIntermediateConnection(object):
         assert ic.filter_object.is_accumulatory
         assert isinstance(ic.filter_object, LowpassFilterParameter)
 
+        # Currently unused, will be used for dimension mapping
+        assert ic.target.slice == slice(1, 2)
+
         # Not accumulatory
         ic = IntermediateConnection.from_connection(c, is_accumulatory=False).\
             get_reduced_incoming_connection()
@@ -159,3 +177,6 @@ class TestIntermediateConnection(object):
         assert ic.filter_object.tau == .3
         assert not ic.filter_object.is_accumulatory
         assert isinstance(ic.filter_object, LowpassFilterParameter)
+
+        # Currently unused, will be used for dimension mapping
+        assert ic.target.slice == slice(1, 2)

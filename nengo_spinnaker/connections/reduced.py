@@ -11,23 +11,29 @@ class OutgoingReducedConnection(object):
     provided on a connection, the function computed on the connection and the
     keyspace (if any) attached to the connection.
     """
-    __slots__ = ['width', 'transform', 'function', 'keyspace']
+    __slots__ = ['width', 'transform', 'function', 'pre_slice', 'post_slice',
+                 'keyspace']
 
     # Comparisons between connections: ReducedConnections are equivalent iff.
     # they share a function, a keyspace, a transform and a class type.
     _eq_terms = [
         lambda a, b: a.__class__ is b.__class__,
+        lambda a, b: a.pre_slice == b.pre_slice,
+        lambda a, b: a.post_slice == b.post_slice,
         lambda a, b: a.width == b.width,
         lambda a, b: a.keyspace == b.keyspace,
         lambda a, b: a.function is b.function,
         lambda a, b: np.all(a.transform == b.transform),
     ]
 
-    def __init__(self, width, transform, function, keyspace=None):
+    def __init__(self, width, transform, function, pre_slice, post_slice,
+                 keyspace=None):
         self.width = width
         self.transform = np.array(transform).copy()
         self.transform.flags.writeable = False
         self.function = function
+        self.pre_slice = pre_slice
+        self.post_slice = post_slice
         self.keyspace = keyspace
 
     def __repr__(self):  # pragma: no cover
@@ -38,12 +44,15 @@ class OutgoingReducedConnection(object):
                                    self.width)
 
     def __copy__(self):
-        return self.__class__(self.width, self.transform, self.function,
-                              self.keyspace)
+        return self.__class__(
+            self.width, self.transform, self.function,
+            copy.copy(self.pre_slice), copy.copy(self.post_slice),
+            self.keyspace)
 
     def __hash__(self):
         return hash((self.__class__, self.width, self.transform.data,
-                     self.function, self.keyspace))
+                     self.function, self.keyspace, hash_slice(self.pre_slice),
+                     hash_slice(self.post_slice)))
 
     def __eq__(self, other):
         return all(fn(self, other) for fn in self._eq_terms)
@@ -76,11 +85,11 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
                             b._get_evaluated_function()),
     ]
 
-    def __init__(self, width, transform, function, keyspace=None,
-                 eval_points=None, solver=None,
+    def __init__(self, width, transform, function, pre_slice, post_slice,
+                 keyspace=None, eval_points=None, solver=None,
                  transmitter_learning_rule=None):
         super(OutgoingReducedEnsembleConnection, self).__init__(
-            width, transform, function, keyspace)
+            width, transform, function, pre_slice, post_slice, keyspace)
         self.eval_points = np.array(eval_points).copy()
         self.eval_points.flags.writeable = False
         self.solver = solver
@@ -88,12 +97,15 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
 
     def __copy__(self):
         return self.__class__(
-            self.width, self.transform, self.function, self.keyspace,
-            self.eval_points, self.solver, self.transmitter_learning_rule)
+            self.width, self.transform, self.function,
+            copy.copy(self.pre_slice), copy.copy(self.post_slice),
+            self.keyspace, self.eval_points, self.solver,
+            self.transmitter_learning_rule)
 
     def __hash__(self):
         return hash((self.__class__, self.transform.data, self.keyspace,
                      self.solver, self.eval_points.data,
+                     hash_slice(self.pre_slice), hash_slice(self.post_slice),
                      self._get_evaluated_function().data,
                      self.transmitter_learning_rule))
 
@@ -118,22 +130,28 @@ GlobalInhibitionPort = sentinel.create('GlobalInhibitionPort')
 class Target(object):
     """Represents the convergence of a signal on a specific port of an object.
     """
-    __slots__ = ['target_object', 'port']
+    __slots__ = ['target_object', 'slice', 'port']
 
-    def __init__(self, target_object, port=StandardInputPort):
+    def __init__(self, target_object, slice, port=StandardInputPort):
         self.target_object = target_object
         self.port = port
+        self.slice = slice
 
     def __eq__(self, other):
         # Targets are equivalent iff. they refer to the same port on the same
         # object.  Some standard ports will be defined.
         return all([
             self.target_object is other.target_object,
+            self.slice == other.slice,
             self.port is other.port,
         ])
 
+    def __copy__(self):
+        return self.__class__(self.target_object, copy.copy(self.slice),
+                              self.port)
+
     def __hash__(self):
-        return hash((self.target_object, self.port))
+        return hash((self.target_object, hash_slice(self.slice), self.port))
 
     def __str__(self):  # pragma: no cover
         return "{}.{}".format(self.target_object, self.port)
@@ -226,3 +244,7 @@ class IncomingReducedConnection(object):
     def __str__(self):  # pragma: no cover
         return "{} terminating at {}".format(self.__class__.__name__,
                                              self.target)
+
+
+def hash_slice(slice):
+    return hash((slice.start, slice.stop, slice.step))

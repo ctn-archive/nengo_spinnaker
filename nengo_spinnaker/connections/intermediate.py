@@ -14,12 +14,17 @@ class IntermediateConnection(object):
     """
     _expected_ensemble_type = (nengo.Ensemble, PlaceholderEnsemble)
 
-    def __init__(self, pre_obj, post_obj, synapse=None, function=None,
+    def __init__(self, pre_obj, post_obj, pre_slice=slice(None),
+                 post_slice=slice(None), synapse=None, function=None,
                  transform=1., solver=None, eval_points=None, keyspace=None,
                  is_accumulatory=True, learning_rule_type=None):
+        # Pre and post objects and slices
         self.pre_obj = pre_obj
+        self.pre_slice = pre_slice
         self.post_obj = post_obj
+        self.post_slice = post_slice
 
+        # Other parameters
         self.transform = np.array(transform)
         self.synapse = synapse
         self.function = function
@@ -43,13 +48,11 @@ class IntermediateConnection(object):
                     cls.__name__, c.__class__.__name__)
             )
 
-        # Get the full transform
-        tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
-
         # Return a copy of this connection but with less information and
         # the full transform.
-        return cls(c.pre_obj, c.post_obj, synapse=c.synapse,
-                   function=c.function, transform=tr, solver=c.solver,
+        return cls(c.pre_obj, c.post_obj, c.pre_slice, c.post_slice,
+                   synapse=c.synapse, function=c.function,
+                   transform=c.transform, solver=c.solver,
                    eval_points=c.eval_points, keyspace=keyspace,
                    learning_rule_type=c.learning_rule_type,
                    is_accumulatory=is_accumulatory)
@@ -65,7 +68,8 @@ class IntermediateConnection(object):
         # originating object.
         if not isinstance(self.pre_obj, self._expected_ensemble_type):
             return OutgoingReducedConnection(
-                self.width, self.transform, self.function, self.keyspace)
+                self.width, self.transform, self.function, self.pre_slice,
+                self.post_slice, self.keyspace)
         else:
             if self.learning_rule_type is not None:
                 # Check the learning rule affects transmission and include it.
@@ -79,14 +83,14 @@ class IntermediateConnection(object):
             assert self.pre_obj.size_out == eval_points.shape[1]
 
             return OutgoingReducedEnsembleConnection(
-                self.width, self.transform, self.function, self.keyspace,
-                eval_points, self.solver)
+                self.width, self.transform, self.function, self.pre_slice,
+                self.post_slice, self.keyspace, eval_points, self.solver)
 
     def get_reduced_incoming_connection(self):
         """Convert the IntermediateConnection into a reduced representation.
         """
-        return IncomingReducedConnection(Target(self.post_obj),
-                                         self._get_filter())
+        return IncomingReducedConnection(
+            Target(self.post_obj, self.post_slice), self._get_filter())
 
     def _get_filter(self):
         try:

@@ -44,8 +44,10 @@ class IntermediateGlobalInhibitionConnection(IntermediateConnection):
         keyspace = getattr(c, 'keyspace', None)
 
         # Create a new instance
-        return cls(c.pre_obj, c.post_obj.ensemble, c.synapse, c.function, tr,
-                   c.solver, c.eval_points, keyspace)
+        return cls(
+            c.pre_obj, c.post_obj.ensemble, c.pre_slice, c.post_slice,
+            c.synapse, c.function, tr, c.solver, c.eval_points, keyspace
+        )
 
     def get_reduced_outgoing_connection(self):
         """Get the reduced outgoing connection representing this connection.
