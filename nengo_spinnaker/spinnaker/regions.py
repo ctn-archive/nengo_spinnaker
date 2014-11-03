@@ -87,15 +87,11 @@ class MatrixRegion(Region):
     def size_from_shape(self, vertex_slice):
         # If the shape is n-D then multiply the length of the axes together,
         # accounting for the clipping of the partitioned axis.
-        if isinstance(self.shape, tuple):
-            return reduce(
-                lambda x, y: x*y,
-                [s if i != self.partition_index else
-                 (min(s, vertex_slice.stop) - max(0, vertex_slice.start)) for
-                 i, s in enumerate(self.shape)])
-
-        # Otherwise just clip
-        return min(self.shape, vertex_slice.stop) - max(0, vertex_slice.start)
+        return reduce(
+            lambda x, y: x*y,
+            [s if i != self.partition_index else
+             (min(s, vertex_slice.stop) - max(0, vertex_slice.start)) for
+             i, s in enumerate(self.shape)])
 
     def create_subregion(self, vertex_slice, subvertex_index):
         """Return the data to write to memory for this region.
