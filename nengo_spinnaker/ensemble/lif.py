@@ -62,7 +62,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
             activities = ensemble.neuron_type.rates(x, gain, bias)
 
             if function is None:
-                targets = evals[:,:]
+                targets = evals[:, :]
             else:
                 (value, _) = checked_call(function, evals[0])
                 function_size = np.asarray(value).size

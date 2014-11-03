@@ -58,6 +58,7 @@ class TestIntermediatePESModulatoryConnection(object):
         outgoing = ic.get_reduced_outgoing_connection()
         assert outgoing.width == 5
 
+
 class TestProcessPesConnections(object):
     """Test that PES connections are rerouted and modified correctly.
     """
