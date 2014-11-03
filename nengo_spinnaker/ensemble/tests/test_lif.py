@@ -28,7 +28,9 @@ def test_build():
         ]
 
     # Create the connection tree for this network
-    new_cs = [IntermediateConnection.from_connection(c) for c in cs]
+    ks = mock.Mock()
+    new_cs = [IntermediateConnection.from_connection(c, keyspace=ks) for c in
+              cs]
 
     p_ens = PlaceholderEnsemble(ens)
     p_a = PlaceholderEnsemble(a)

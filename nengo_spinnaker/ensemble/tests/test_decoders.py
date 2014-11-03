@@ -1,6 +1,116 @@
+import mock
+import nengo
 import numpy as np
+import pytest
 
 from .. import decoders as decoder_utils
+from ...connections.intermediate import IntermediateConnection
+from ...connections.reduced import OutgoingReducedEnsembleConnection
+
+
+class TestBuildDecoders(object):
+    """Assert that decoders and decoder headers can be built correctly."""
+    def test_single_decoder(self):
+        """Assert that the correct function calls are made to build decoders.
+        """
+        # Create some helper items
+        n_neurons = 100
+        n_dims = 3
+
+        # A solver and wrapper
+        _solver = nengo.solvers.LstsqL2()
+        solver = mock.Mock(wraps=_solver)
+        solver.weights = False
+
+        # Connection function and evaluation points
+        transfer_fn = mock.Mock(wraps=lambda x: x**2)
+        eval_points = np.random.uniform(-1., 1., size=(100, n_dims))
+
+        # A mock keyspace
+        keyspace = mock.Mock(name='Keyspace')
+        keyspaces = {d: mock.Mock(name='Keyspace d={}'.format(d)) for d in
+                     range(n_dims)}
+        keyspace.side_effect = lambda d: keyspaces[d]
+
+        # Neuron type and a wrapper for the rates function
+        neuron_type = nengo.LIF()
+        rates = mock.Mock(wraps=neuron_type.rates)
+
+        # Some (silly) encoders, gains and biases
+        encoders = np.random.uniform(-1., 1., size=(n_neurons, n_dims))
+        gain = np.linspace(-1., 1., n_neurons)  # Silly
+        bias = np.linspace(-1., 1., n_neurons)
+
+        # Create a reduced connection to build a decoder for
+        oc = OutgoingReducedEnsembleConnection(
+            n_dims, 1., transfer_fn, slice(0, 2), slice(1, 3),
+            keyspace=keyspace, eval_points=eval_points,
+            solver=solver
+        )
+
+        # Build the decoder solver wrapper
+        decoder_builder = decoder_utils.create_decoder_builder(
+            encoders=encoders, radius=1., gain=gain, bias=bias,
+            rates=rates, rng=np.random,
+        )
+
+        # Check that building with weights fails
+        oc.solver = nengo.solvers.LstsqL2(weights=True)
+        with pytest.raises(NotImplementedError) as excinfo:
+            decoder_builder(oc)
+            assert "weights" in excinfo.value and "support" in excinfo.value
+
+        # Build a decoder from the outgoing connection
+        oc.solver = solver
+        (decoder, solver_info, decoder_headers) = decoder_builder(oc)
+
+        # Test that the correct calls were made to supporting objects
+        # Rates from the neuron type
+        assert rates.called
+        assert np.all(rates.call_args[0][1] == gain)
+        assert np.all(rates.call_args[0][2] == bias)
+
+        # The first call to the function was 0s
+        assert np.all(transfer_fn.call_args_list[0][0] == np.zeros(2))
+
+        # Solver is called
+        assert solver.called
+
+        # Test that the decoder is sane
+        assert decoder.shape == (n_neurons, 2)
+
+        # Test that the decoder headers are sane
+        assert decoder_headers == [keyspaces[1], keyspaces[2]]
+
+    def test_transformed_decoder(self):
+        """Test that transforms are correctly applied to decoders.
+        Also takes the branch for no function.
+        """
+        with nengo.Network():
+            a = nengo.Ensemble(100, 3)
+            b = nengo.Ensemble(100, 3)
+
+            c = nengo.Connection(a[0:2], b, transform=np.zeros((3, 2)))
+
+            a.encoders = np.random.uniform(size=(a.n_neurons, a.size_in))
+            a.eval_points = np.random.normal(size=(1000, a.size_in))
+            a.gain = np.random.normal(size=a.n_neurons)
+            a.bias = np.linspace(-1., 1., a.n_neurons)
+            a.solver = nengo.solvers.LstsqL2()
+
+        # Create an intermediate connection and outgoing reduced connection
+        ic = IntermediateConnection.from_connection(c, keyspace=mock.Mock())
+        oc = ic.get_reduced_outgoing_connection()
+
+        # Create the decoder builder
+        decoder_builder = decoder_utils.create_decoder_builder(
+            encoders=a.encoders, radius=a.radius, gain=a.gain, bias=a.bias,
+            rates=a.neuron_type.rates, rng=np.random
+        )
+
+        # Build the decoder
+        decoder, solver_info, headers = decoder_builder(oc)
+        assert np.all(decoder == np.zeros((a.n_neurons, 1))), "Not transformed"
 
 
 def test_get_compressed_decoder():
@@ -24,11 +134,9 @@ def test_get_compressed_decoder():
 
 
 def test_get_compressed_decoders():
-    """Should take a list of decoders (and optionally a list of indices and
-    other attachments), compress the decoders and return a list of
-    (attachment, index, dimension) tuples.
-    Attachments are for things like KeySpaces - basically this is compress and
-    zip.
+    """Should take a list of decoders and a list of headers, compress the
+    decoders and return a reduced list of headers.  Attachments are for things
+    like KeySpaces - basically this is compress and zip.
     """
     dec1 = np.array([[1.]*8]*100)
     dec2 = np.array([[2.]*10]*100)
@@ -48,94 +156,18 @@ def test_get_compressed_decoders():
         for d in rdims_2:
             dec2[n][d] = 0.
 
+    # Construct headers
+    old_headers = range(8) + range(10)
+
     # Construct the compressed decoder
     (headers, cdec) = decoder_utils.get_combined_compressed_decoders(
-        [dec1, dec2])
+        [dec1, dec2], old_headers)
     assert(cdec.shape == (100, final_length))
 
     # Assert the missing dimensions are missing and the decoders were indexed
-    ids = [(None, 0, d) for d in dims1]
-    ids.extend([(None, 1, d) for d in dims2])
+    ids = [d for d in dims1]
+    ids.extend(d for d in dims2)
     assert(ids == headers)
-
-
-def test_get_compressed_decoders_with_indices():
-    # Construct a set of 7 decoders
-    n_neurons = 500
-    decoders = []
-    dimensions = []
-
-    for i in range(7):
-        n_dims = np.random.randint(3, 10)
-        dec = np.random.uniform(0.1, 1, size=(n_neurons, n_dims))
-
-        # Construct a set of missing dimensions
-        missing_dims = set(np.random.randint(n_dims,
-                                             size=np.random.randint(n_dims/3)))
-
-        # Construct the set of present dimensions
-        dims = [n for n in range(n_dims) if n not in missing_dims]
-
-        # Zero the missing dimensions
-        for n in range(n_neurons):
-            for d in missing_dims:
-                dec[n][d] = 0.
-
-        decoders.append(dec)
-        dimensions.append(dims)
-
-    # Construct what we expect the header to look like
-    indices = [8, 7, 6, 5, 4, 3, 9]
-    expected_headers = []
-    for (i, ds) in zip(indices, dimensions):
-        expected_headers.extend([(None, i, d) for d in ds])
-
-    # Get the combined compressed decoders and check everything is as expected
-    headers, cdec = decoder_utils.get_combined_compressed_decoders(
-        decoders, indices)
-
-    assert(cdec.shape == (n_neurons, len(expected_headers)))
-    assert(headers == expected_headers)
-
-
-def test_get_compressed_decoders_with_headers():
-    # Construct a set of 7 decoders
-    n_neurons = 500
-    decoders = []
-    dimensions = []
-
-    for i in range(7):
-        n_dims = np.random.randint(3, 10)
-        dec = np.random.uniform(0.1, 1, size=(n_neurons, n_dims))
-
-        # Construct a set of missing dimensions
-        missing_dims = set(np.random.randint(n_dims,
-                                             size=np.random.randint(n_dims/3)))
-
-        # Construct the set of present dimensions
-        dims = [n for n in range(n_dims) if n not in missing_dims]
-
-        # Zero the missing dimensions
-        for n in range(n_neurons):
-            for d in missing_dims:
-                dec[n][d] = 0.
-
-        decoders.append(dec)
-        dimensions.append(dims)
-
-    # Construct what we expect the header to look like
-    headers = "ABCDEFG"
-    indices = range(7)
-    expected_headers = []
-    for (h, i, ds) in zip(headers, indices, dimensions):
-        expected_headers.extend([(h, i, d) for d in ds])
-
-    # Get the combined compressed decoders and check everything is as expected
-    headers, cdec = decoder_utils.get_combined_compressed_decoders(
-        decoders, indices, headers)
-
-    assert(cdec.shape == (n_neurons, len(expected_headers)))
-    assert(headers == expected_headers)
 
 
 def test_get_compressed_and_uncompressed_decoders():

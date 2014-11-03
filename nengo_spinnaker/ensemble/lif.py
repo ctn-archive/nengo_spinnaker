@@ -53,46 +53,30 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         # Generate decoders for outgoing connections
         decoders = list()
+        decoder_headers = list()
+        decoder_compress = list()
 
-        def build_decoder(function, evals, solver):
-            """Internal function for building a single decoder."""
-            assert solver is None or not solver.weights
-
-            x = np.dot(evals, encoders.T / ensemble.radius)
-            activities = ensemble.neuron_type.rates(x, gain, bias)
-
-            if function is None:
-                targets = evals[:, :]
-            else:
-                (value, _) = checked_call(function, evals[0])
-                function_size = np.asarray(value).size
-                targets = np.zeros((len(evals), function_size))
-
-                for i, ep in enumerate(evals):
-                    targets[i] = function(ep)
-
-            if solver is None:
-                solver = nengo.solvers.LstsqL2()
-
-            return solver(activities, targets, rng=rng)[0]
+        decoder_builder = decoder_utils.create_decoder_builder(
+            encoders=encoders, radius=ensemble.radius, gain=gain, bias=bias,
+            rates=ensemble.neuron_type.rates, rng=rng
+        )
 
         # Build each of the decoders in turn
-        decoders_to_compress = list()
         for c in connection_trees.get_outgoing_connections(placeholder):
             # Build the decoder
-            decoders.append(
-                c.transform.dot(
-                    build_decoder(c.function, c.eval_points, c.solver).T).T
-            )
+            decoder, solver_info, headers = decoder_builder(c)
 
-            # Keep track of which decoders we can compress
-            decoders_to_compress.append(
-                True if c.transmitter_learning_rule is None else False)
+            # Store which decoders we can compress, currently none
+            decoder_compress.append(False)
 
-        # Compress and merge the decoders
-        (decoder_headers, decoders) =\
+            # Store
+            decoders.append(decoder)
+            decoder_headers.extend(headers)
+
+        # Combine and compress decoders
+        decoder_headers, decoders = \
             decoder_utils.get_combined_compressed_decoders(
-                decoders, compress=decoders_to_compress)
+                decoders, decoder_headers, compress=decoder_compress)
 
         return cls(ensemble.n_neurons, gain, bias, encoders, decoders,
                    ensemble.neuron_type.tau_rc, ensemble.neuron_type.tau_ref,
