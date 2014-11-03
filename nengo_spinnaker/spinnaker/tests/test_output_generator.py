@@ -143,6 +143,43 @@ def test_write_core_region_files(tmpdir):
         assert np.all(data == np.frombuffer(srs[i].data, dtype=np.uint32))
 
 
+def test_write_core_region_files_with_none(tmpdir):
+    # Create some simple subregions of various sizes
+    srs = [
+        regions.Subregion(np.array([1, 2, 3], dtype=np.uint32), 3, False),
+        None,
+        regions.Subregion(np.array([4], dtype=np.uint32), 1, False),
+        regions.Subregion(np.array([5, 6], dtype=np.uint32), 2, False),
+    ]
+
+    # Ensure that these subregions are written out as files and that their base
+    # address is recorded correctly.
+    region_writes = output_generator.write_core_region_files(0, 1, 1, srs,
+                                                             0xABCD, tmpdir)
+
+    assert len(region_writes) == 4
+
+    # Assert sizes are correct
+    assert region_writes[0].size_bytes == 3 * 4
+    assert region_writes[2].size_bytes == 1 * 4
+    assert region_writes[3].size_bytes == 2 * 4
+
+    # Assert base addresses are correct
+    assert region_writes[0].base_address == 0xABCD
+    assert region_writes[2].base_address == 0xABCD + 3*4
+    assert region_writes[3].base_address == 0xABCD + (3+1)*4
+
+    # Read in each of the regions and assert that their data matches
+    for (i, rw) in enumerate(region_writes):
+        if rw is None:
+            assert i == 1
+            continue
+
+        assert rw.x == 0 and rw.y == 1
+        data = np.fromfile(rw.path, dtype=np.uint32)
+        assert np.all(data == np.frombuffer(srs[i].data, dtype=np.uint32))
+
+
 def test_write_core_region_files_unfilled(tmpdir):
     # Ensure that unfilled regions do not result in writes
     srs = [

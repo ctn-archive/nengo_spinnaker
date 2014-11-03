@@ -71,6 +71,7 @@ def write_core_region_files(x, y, p, subregions, base_addr, tmpdir):
     writes = list()
     for i, subregion in enumerate(subregions):
         if subregion is None:
+            writes.append(None)
             continue
 
         if not subregion.unfilled:
