@@ -5,6 +5,18 @@ import pytest
 from .. import regions
 
 
+# Noddy region tests
+class TestRegion(object):
+    def test_all(self):
+        r = regions.Region(in_dtcm=False, unfilled=True)
+
+        with pytest.raises(NotImplementedError):
+            r.sizeof(slice(1, 876))
+
+        with pytest.raises(NotImplementedError):
+            r.create_subregion(slice(1, 10), 1)
+
+
 # Matrix region tests
 class TestMatrixRegion(object):
     """Tests for the MatrixRegion and derived types."""
