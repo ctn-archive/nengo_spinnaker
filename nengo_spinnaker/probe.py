@@ -1,3 +1,4 @@
+import nengo
 import utils
 
 
@@ -17,8 +18,16 @@ def insert_decoded_output_probes(objs, connections, probes):
             # Create a new connection for this Node, if there is no transform
             # on the connection then we can create one on the assumption that
             # size_in and size_out are equivalent.
+            target = probe.target
+            pre_slice = slice(None)
+
+            if isinstance(target, nengo.base.ObjView):
+                target = probe.target.obj
+                pre_slice = probe.target.slice
+
             c = utils.builder.IntermediateConnection(
-                probe.target, p, synapse=probe.synapse, solver=probe.solver)
+                target, p, pre_slice, slice(None), synapse=probe.synapse,
+                solver=probe.solver)
 
             # Add the new probe object and connection object
             objs.append(p)

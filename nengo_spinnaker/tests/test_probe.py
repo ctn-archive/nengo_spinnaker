@@ -40,7 +40,7 @@ class TestInsertDecodedOutputProbes(object):
             if c.post_obj.probe is ps[1]:
                 assert c.synapse.tau == 0.03
                 assert c.pre_obj is a
-                assert np.all(c.transform == [[1, 0]])
+                assert np.all(c.transform == 1.)
             elif c.post_obj.probe is ps[2]:
                 assert c.pre_obj is a
                 assert np.all(c.transform == np.eye(2)) or c.transform == 1.
