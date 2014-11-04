@@ -1,2 +1,12 @@
 -e git+https://github.com/nengo/nengo#egg=nengo
+-e git+https://github.com/SpiNNakerManchester/PACMAN#egg=pacman
+-e git+https://github.com/SpiNNakerManchester/SpiNNMan#egg=spinnman
+-e git+https://github.com/SpiNNakerManchester/SpiNNmachine#egg=spinnmachine
 bitarray
+enum34>=1.0.3
+mock
+numpy
+pytest>=2.3
+sentinel>=0.1.1
+six
+sphinx
