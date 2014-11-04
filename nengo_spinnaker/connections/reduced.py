@@ -3,6 +3,8 @@ import nengo
 import numpy as np
 import sentinel
 
+from nengo.utils.stdlib import checked_call
+
 
 class OutgoingReducedConnection(object):
     """Represents the limited information required to transmit data.
@@ -80,9 +82,9 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
         lambda a, b: a.transmitter_learning_rule is None,
         lambda a, b: b.transmitter_learning_rule is None,
         lambda a, b: np.all(a.transform == b.transform),
+        lambda a, b: np.all(a.eval_points.shape == b.eval_points.shape),
         lambda a, b: np.all(a.eval_points == b.eval_points),
-        lambda a, b: np.all(a._get_evaluated_function() ==
-                            b._get_evaluated_function()),
+        lambda a, b: np.all(a.get_targets() == b.get_targets()),
     ]
 
     def __init__(self, width, transform, function, pre_slice, post_slice,
@@ -90,7 +92,12 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
                  transmitter_learning_rule=None):
         super(OutgoingReducedEnsembleConnection, self).__init__(
             width, transform, function, pre_slice, post_slice, keyspace)
-        self.eval_points = np.array(eval_points).copy()
+
+        if eval_points is not None:
+            self.eval_points = np.array(eval_points).copy()
+        else:
+            self.eval_points = np.array([[],])
+
         self.eval_points.flags.writeable = False
         self.solver = solver
         self.transmitter_learning_rule = transmitter_learning_rule
@@ -106,16 +113,31 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
         return hash((self.__class__, self.transform.data, self.keyspace,
                      self.solver, self.eval_points.data,
                      hash_slice(self.pre_slice), hash_slice(self.post_slice),
-                     self._get_evaluated_function().data,
+                     self.get_targets().data,
                      self.transmitter_learning_rule))
 
-    def _get_evaluated_function(self):
+    def get_targets(self):
         """Evaluate the function at eval points and return Numpy array.
         """
-        data = (self.function(self.eval_points) if self.function is not None
-                else self.eval_points)
-        data.flags.writeable = False
-        return data
+        if self.function is None:
+            targets = np.array(self.eval_points[:, self.pre_slice])
+        else:
+            stop = (self.pre_slice.stop if self.pre_slice.stop is not None else
+                    len(self.eval_points))
+            start = (self.pre_slice.start if self.pre_slice.start is not None
+                     else 0)
+            in_size = stop - start
+
+            function_size = np.asarray(
+                checked_call(self.function, np.zeros(in_size))[0]).size
+
+            # Build up the targets for the connection
+            targets = np.zeros((self.eval_points.shape[0], function_size))
+            for i, ep in enumerate(self.eval_points):
+                targets[i] = np.array(self.function(ep[self.pre_slice]))
+
+        targets.flags.writeable = False
+        return targets
 
 
 # These are port objects that are valid on all appropriate objects, various

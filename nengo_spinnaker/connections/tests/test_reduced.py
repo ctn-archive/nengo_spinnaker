@@ -103,7 +103,7 @@ class TestOutgoingReducedEnsembleConnection(object):
     def test_eq_no_func_equiv(self):
         # Create some reduced connections and test for equivalence without
         # considering function equivalence.
-        eval_points = np.linspace(-1., 1.)
+        eval_points = np.linspace(-1., 1.)[:, None]
         rcs = [
             OutgoingReducedEnsembleConnection(
                 3, np.eye(3), None, slice(None), slice(None), None,
@@ -134,7 +134,7 @@ class TestOutgoingReducedEnsembleConnection(object):
 
     def test_eq(self):
         # Create some reduced connections and test for equivalence
-        eval_points = np.linspace(-1., 1.)
+        eval_points = np.linspace(-1., 1.)[:, None]
         rcs = [
             OutgoingReducedEnsembleConnection(
                 1, 1., lambda x: x**2, slice(None), slice(None), None,
@@ -158,6 +158,28 @@ class TestOutgoingReducedEnsembleConnection(object):
         for (i, j), eq, he in zip(i_s, eqs, hashes):
             assert (rcs[i] == rcs[j]) is eq, (i, j)
             assert (hash(rcs[i]) == hash(rcs[j])) is he, (i, j)
+
+    def test_get_targets(self):
+        """Test that evaluating the function on eval points is correct.
+        """
+        # Check that slicing is applied correctly
+        eval_points = np.zeros((3, 100))
+        eval_points[-1] = [2.]*100
+
+        # Sample function
+        f = lambda x: x**2
+
+        # Create a reduced outgoing connection
+        oc = OutgoingReducedEnsembleConnection(
+            3, 1., f, pre_slice=slice(2, 3), post_slice=slice(None),
+            eval_points=eval_points.T
+        )
+
+        # Get the evaluated points
+        targets = oc.get_targets()
+
+        # Check that the slice was applied appropriately
+        assert np.all(targets == [4.]*100)
 
     def test_copy(self):
         eval_points = np.linspace(-1., 1.)

@@ -1,7 +1,6 @@
 """Tools for regularising the building and compression of decoders.
 """
 import numpy as np
-from nengo.utils.stdlib import checked_call
 
 
 def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
@@ -26,22 +25,7 @@ def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
         evals = outgoing_connection.eval_points
 
         # Get the targets for the system
-        if outgoing_connection.function is None:
-            targets = evals[:, outgoing_connection.pre_slice]
-        else:
-            # Get the output size of the function
-            in_size = (outgoing_connection.pre_slice.stop -
-                       outgoing_connection.pre_slice.start)
-            function_size = np.asarray(
-                checked_call(outgoing_connection.function,
-                             np.zeros(in_size))[0]
-            ).size
-
-            # Build up the targets for the connection
-            targets = np.zeros((evals.shape[0], function_size))
-            for i, ep in enumerate(evals):
-                targets[i] = outgoing_connection.function(
-                    ep[outgoing_connection.pre_slice])
+        targets = outgoing_connection.get_targets()
 
         # Build the decoders
         decoder, solver_info = outgoing_connection.solver(activities, targets,
