@@ -3,8 +3,9 @@ import nengo
 import numpy as np
 import pytest
 
-from ...connections.reduced import LowpassFilterParameter, _filter_types
+from ...connections.reduced import LowpassFilterParameter, _filter_types, StandardInputPort
 from ...connections.intermediate import IntermediateConnection
+from ...connections.connection_tree import ConnectionTree
 from .. import filters as filter_utils
 from ..fixpoint import bitsk
 
@@ -16,11 +17,13 @@ class AlphaFilterParameter(LowpassFilterParameter):
 _filter_types[nengo.synapses.Alpha] = AlphaFilterParameter
 
 
-@pytest.fixture(scope='function')
-def sample_network():
+def test_get_filter_regions():
+    """Test that an appropriate filter and keys region are produced.
+    """
     model = nengo.Network()
     with model:
         a = nengo.Ensemble(100, 1)
+        a.eval_points = np.random.uniform(size=(100, 1))
         b = nengo.Ensemble(100, 1)
 
         # Create a set of connections.
@@ -43,66 +46,6 @@ def sample_network():
                  cs]
         conns[6].is_accumulatory = False
 
-    return model, conns
-
-
-def test_get_combined_filters(sample_network):
-    """Test that filters may be combined correctly.
-    """
-    (_, conns) = sample_network
-
-    # Construct the minimum set of filters and provide indices from connections
-    # into the set of filters.
-    filters, filter_indices = filter_utils.get_combined_filters(conns)
-
-    # Assert that there are the correct number of filters and that the
-    # connection indices are appropriate.
-    assert len(filters) == 5
-
-    for n in [2, 3, 6]:  # Not shared filters
-        assert filter_indices[conns[n]] not in [
-            i for (c, i) in filter_indices.items() if c is not conns[n]]
-
-    # Shared filters
-    assert filter_indices[conns[0]] == filter_indices[conns[1]]
-    assert filter_indices[conns[4]] == filter_indices[conns[5]]
-
-    # Assert that parameters have been grabbed correctly
-    for i in [0, 2, 3, 4]:
-        assert filters[filter_indices[conns[i]]].tau == conns[i].synapse.tau
-        assert filters[filter_indices[conns[i]]].is_accumulatory
-
-    assert filters[filter_indices[conns[6]]].tau == conns[6].synapse.tau
-    assert not filters[filter_indices[conns[6]]].is_accumulatory
-
-
-def test_get_keyspace_to_filter_map(sample_network):
-    """Test that a map from keyspace to filter index can be made.
-    """
-    (_, conns) = sample_network
-
-    # Convert each connection to an intermediate connection with a unique
-    # "keyspace".
-    for c in conns:
-        c.keyspace = mock.Mock()
-
-    # Construct the minimum set of filters and provide indices from connections
-    # into the set of filters.
-    filters, filter_indices = filter_utils.get_combined_filters(conns)
-
-    # Now get the map of keyspace to filter index
-    filter_indices_ks = filter_utils.get_keyspace_to_filter_map(filter_indices)
-
-    # Assert this is correct by comparing across dictionaries
-    for c in conns:
-        assert filter_indices[c] == filter_indices_ks[c.keyspace]
-
-
-def test_get_filter_regions(sample_network):
-    """Test that an appropriate filter and keys region are produced.
-    """
-    (_, conns) = sample_network
-
     # Convert each connection to an intermediate connection with a unique
     # "keyspace".
     for c in conns:
@@ -113,18 +56,21 @@ def test_get_filter_regions(sample_network):
         c.keyspace.key.return_value = i
         c.keyspace.filter_mask.return_value = 0xffffffff
 
-    # (For testing purposes)
-    filters, filter_ids = filter_utils.get_combined_filters(conns)
-    filter_utils.get_keyspace_to_filter_map(filter_ids)
+    # Create the connection tree
+    tree = ConnectionTree.from_intermediate_connections(conns)
+
+    # Get all the inputs for B, Standard Input Port, build the filter regions
+    # for those.
+    inputs = tree.get_incoming_connections(b)[StandardInputPort]
 
     # Get the filter regions
     dt = 0.001
     filter_region, filter_routing_region = \
-        filter_utils.get_filter_regions(conns, dt, 1)
+        filter_utils.get_filter_regions(inputs, dt, 1)
 
     # Assert the size of these regions is appropriate: Filter region should be
     # 4 * n_filters (4 words per filter) + 1 (n filters).
-    assert filter_region.sizeof(slice(0, 100)) == len(filters) * 4 + 1
+    assert filter_region.sizeof(slice(0, 100)) == len(inputs) * 4 + 1
 
     # Keys region should be 4 * n_connections (4 words per connection) + 1
     assert filter_routing_region.sizeof(slice(0, 100)) == len(conns) * 4 + 1
@@ -169,11 +115,8 @@ def test_filter_routing_region():
     keyspace.filter_mask = 0xBEEFBEEF
     keyspace.mask_d = 0xDEADABCD
 
-    connection = mock.Mock(spec_set=['keyspace'])
-    connection.keyspace = keyspace
-
     # Create a mapping from keyspace to filter ID
-    filter_ids = {connection: 0xFEFEFFFF}
+    filter_ids = {keyspace: 0xFEFEFFFF}
 
     # Create the region
     routing_region = filter_utils.make_routing_region(filter_ids)
@@ -185,4 +128,4 @@ def test_filter_routing_region():
     data = np.frombuffer(sr.data, dtype=np.uint32)
     assert data[0] == 1
     assert data[1:].tolist() == [keyspace.key(), keyspace.filter_mask,
-                                 filter_ids[connection], keyspace.mask_d]
+                                 filter_ids[keyspace], keyspace.mask_d]
