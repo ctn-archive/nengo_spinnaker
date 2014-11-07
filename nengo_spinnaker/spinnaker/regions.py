@@ -112,7 +112,8 @@ class MatrixRegion(Region):
             MatrixRegionPrepends.N_ATOMS: (vertex_slice.stop -
                                            vertex_slice.start),
             MatrixRegionPrepends.N_ROWS: data.shape[0],
-            MatrixRegionPrepends.N_COLUMNS: data.shape[1],
+            MatrixRegionPrepends.N_COLUMNS: (0 if len(data.shape) == 1 else
+                                             data.shape[1]),
             MatrixRegionPrepends.SIZE: data.size,
             MatrixRegionPrepends.INDEX: subvertex_index,
         }
