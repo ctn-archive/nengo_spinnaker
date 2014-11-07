@@ -1,7 +1,6 @@
 """Tests for base class for Intermediate Ensemble representations.
 """
 
-import mock
 import numpy as np
 import pytest
 

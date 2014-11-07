@@ -1,12 +1,11 @@
 """Utilities for representing synapses/filters.
 """
 
-import collections
 import numpy as np
 from six import iteritems
 
 from . import fixpoint as fp
-from ..connections.reduced import _filter_types, LowpassFilterParameter
+from ..connections.reduced import LowpassFilterParameter
 from ..spinnaker import regions
 
 

@@ -24,8 +24,6 @@ def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
         x = np.dot(outgoing_connection.eval_points, encoders_over_radius)
         activities = rates(x, gain, bias)
 
-        evals = outgoing_connection.eval_points
-
         # Get the targets for the system
         targets = outgoing_connection.get_targets()
 
