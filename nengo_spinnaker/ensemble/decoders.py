@@ -2,6 +2,8 @@
 """
 import numpy as np
 
+from ..utils import connections as connection_utils
+
 
 def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
     """Make a function to build the decoder for a reduced outgoing connection.
@@ -35,13 +37,8 @@ def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
         decoder = outgoing_connection.transform.dot(decoder.T).T
 
         # Create appropriate decoder headers
-        # For the moment we construct these from the post-slice, later we will
-        # just enumerate the columns of the decoder and perform dimension ID
-        # mapping on receiving cores.
-        decoder_headers = [
-            outgoing_connection.keyspace(d=d) for d in
-            range(outgoing_connection.width)[outgoing_connection.post_slice]
-        ]
+        decoder_headers = connection_utils.get_keyspaces_with_dimensions([
+            outgoing_connection])
 
         # Check there is one decoder header per column of the decoder block
         assert len(decoder_headers) == decoder.shape[1]

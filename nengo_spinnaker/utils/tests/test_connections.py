@@ -1,8 +1,11 @@
+import mock
 import numpy as np
 import random
 
 from .. import connections as connections_utils
-from ..connections import get_pre_padded_transform
+from ..connections import (get_pre_padded_transform,
+                           get_keyspaces_with_dimensions)
+from ...connections.reduced import OutgoingReducedConnection
 
 
 def test_replace_object_in_connections():
@@ -154,3 +157,44 @@ class TestPadTransform(object):
                                        [0., 0., 3., 0., 0.],
                                        [0., 0., 0., 0., 3.]])
         )
+
+
+class TestGetKeyspacesWithDimensions(object):
+    """Test that outgoing keyspaces can be generated for connections
+    with/without slicing.
+    """
+    def test_get_keyspaces_with_dimensions_no_slice(self):
+        """Get that the keyspace is called appropriately for the unsliced
+        connection here.
+        """
+        # Create a mock keyspace
+        ks = mock.Mock()
+        dim_ks = {d: mock.Mock(name='Keyspace1 d={}'.format(d)) for d in
+                  range(5)}
+        ks.side_effect = lambda d: dim_ks[d]
+
+        ks2 = mock.Mock()
+        dim_ks2 = {d: mock.Mock(name='Keyspace2 d={}'.format(d)) for d in
+                   range(3)}
+        ks2.side_effect = lambda d: dim_ks2[d]
+
+        # Create a reduced outgoing connection
+        orcs = [
+            OutgoingReducedConnection(
+                width=5, transform=1., function=None, pre_slice=slice(None),
+                post_slice=slice(None), keyspace=ks),
+            OutgoingReducedConnection(
+                width=3, transform=1., function=None, pre_slice=slice(None),
+                post_slice=slice(None), keyspace=ks2)
+        ]
+
+        # Get the keyspaces with dimensions included
+        keyspaces = get_keyspaces_with_dimensions(orcs)
+
+        # Assert that the keyspace was called correctly
+        ks.assert_has_calls([mock.call(d=d) for d in range(5)])
+        ks2.assert_has_calls([mock.call(d=d) for d in range(3)])
+
+        # Assert the returned keys are in the correct order
+        assert keyspaces == ([dim_ks[d] for d in range(5)] +
+                             [dim_ks2[d] for d in range(3)])

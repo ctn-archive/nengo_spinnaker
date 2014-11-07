@@ -73,3 +73,25 @@ def get_pre_padded_transform(pre_slice, size_in, transform):
         return full_transform
     else:
         raise ValueError("Transforms with > 2 dims not supported")
+
+
+def get_keyspaces_with_dimensions(outgoing_conns):
+    """Get a list of outgoing keyspaces for the given connections.
+
+    "Explodes" the keys for the list of outgoing connections, filling in the
+    dimensions (`d`) field as it progresses.
+
+    TODO: Change this to allow receiver dimension mapping.
+    """
+    keyspaces = list()
+
+    # Add the keyspaces resulting from each outgoing connection
+    for c in outgoing_conns:
+        # Get the dimensions represented on this connection
+        dims = range(c.width)[c.post_slice]
+
+        # Create the keyspaces
+        keyspaces.extend([c.keyspace(d=d) for d in dims])
+
+    # Return all the keyspaces
+    return keyspaces
