@@ -85,6 +85,8 @@ class Assembler(object):
 
         # Fold the connectivity tree by getting a list of objects and a list of
         # connections.
+        logger.info("Assembly step 3/3: Folding connectivity tree, retrieving "
+                    "objects")
         objs = connection_trees.get_objects()
         edges = connection_trees.get_folded_edges()
 
