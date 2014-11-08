@@ -2,6 +2,7 @@
 """
 import numpy as np
 
+from ..assembler import Assembler
 from ..connections.reduced import StandardInputPort
 from ..utils import connections as connection_utils
 from ..utils.filters import get_filter_regions
@@ -45,40 +46,43 @@ class ValueFilterVertex(Vertex):
         # Not really useful for this vertex yet
         return 0
 
-    @classmethod
-    def from_value_filter(cls, filter_object, connection_trees, config, rngs,
+
+@Assembler.object_assembler(ValueFilter)
+def assemble_value_filter(filter_object, connection_trees, config, rngs,
                           runtime, dt, machine_timestep):
-        """Create a new ValueFilterVertex from a ValueFilter.
+    """Create a new ValueFilterVertex from a ValueFilter.
 
-        :type filter_object: ValueFilter
-        :type connection_trees: ..connections.connection_tree.ConnectionTree
-        """
-        # Get inputs and output for the filter
-        inputs = connection_trees.get_incoming_connections(
-            filter_object)[StandardInputPort]
-        outputs = connection_trees.get_outgoing_connections(filter_object)
+    :type filter_object: ValueFilter
+    :type connection_trees: ..connections.connection_tree.ConnectionTree
+    """
+    # Get inputs and output for the filter
+    inputs = connection_trees.get_incoming_connections(
+        filter_object)[StandardInputPort]
+    outputs = connection_trees.get_outgoing_connections(filter_object)
 
-        # Create the output keys and transform region
-        outgoing_keyspaces = \
-            connection_utils.get_keyspaces_with_dimensions(outputs)
-        output_keys_region = regions.KeysRegion(outgoing_keyspaces)
+    # Create the output keys and transform region
+    outgoing_keyspaces = \
+        connection_utils.get_keyspaces_with_dimensions(outputs)
+    output_keys_region = regions.KeysRegion(outgoing_keyspaces)
 
-        transform_region = make_transform_region(outputs,
-                                                 filter_object.size_in)
+    transform_region = make_transform_region(outputs,
+                                             filter_object.size_in)
 
-        # Create the filters and filter routing regions
-        filters_region, filters_routing_region = get_filter_regions(
-            inputs, dt, filter_object.size_in)
+    # Create the filters and filter routing regions
+    filters_region, filters_routing_region = get_filter_regions(
+        inputs, dt, filter_object.size_in)
 
-        # Create the system region
-        system_region = make_filter_system_region(
-            filter_object.size_in, len(outgoing_keyspaces), machine_timestep,
-            filter_object.transmission_delay, filter_object.interpacket_pause
-        )
+    # Create the system region
+    system_region = make_filter_system_region(
+        filter_object.size_in, len(outgoing_keyspaces), machine_timestep,
+        filter_object.transmission_delay, filter_object.interpacket_pause
+    )
 
-        # Create and return the vertex
-        return cls(filter_object.label, system_region, output_keys_region,
-                   filters_region, filters_routing_region, transform_region)
+    # Create and return the vertex
+    return ValueFilterVertex(
+        filter_object.label, system_region, output_keys_region, filters_region,
+        filters_routing_region, transform_region
+    )
 
 
 def make_filter_system_region(size_in, size_out, machine_timestep,

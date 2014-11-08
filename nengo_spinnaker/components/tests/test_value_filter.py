@@ -2,12 +2,13 @@ import mock
 import nengo
 import numpy as np
 
+from ...assembler import Assembler
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
 from ...connections.reduced import OutgoingReducedConnection
 from ..value_filter import (
     make_filter_system_region, make_transform_region_data,
-    make_transform_region, ValueFilter, ValueFilterVertex
+    make_transform_region, ValueFilter
 )
 from ...utils.fixpoint import bitsk
 
@@ -32,9 +33,7 @@ def test_create_filter_vertex():
     ctree = ConnectionTree.from_intermediate_connections([a_to_f, f_to_b])
 
     # Build the filter
-    # TODO: Call this with the Assembler when the interface is finalised
-    filter_vertex = ValueFilterVertex.from_value_filter(f, ctree, None, {},
-                                                        10., 0.001, 1000)
+    filter_vertex = Assembler.assemble_obj(f, ctree, None, {}, 10., .001, 1000)
 
     # Assert that it is sensible
     assert all([filter_vertex is not x for x in [None, f]])
