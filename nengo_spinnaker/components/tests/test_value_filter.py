@@ -1,23 +1,47 @@
+import mock
+import nengo
 import numpy as np
 
-from ..connections.reduced import OutgoingReducedConnection
-from ..filters import (
+from ...connections.connection_tree import ConnectionTree
+from ...connections.intermediate import IntermediateConnection
+from ...connections.reduced import OutgoingReducedConnection
+from ..value_filter import (
     make_filter_system_region, make_transform_region_data,
-    make_transform_region
+    make_transform_region, ValueFilter, ValueFilterVertex
 )
-from ..utils.fixpoint import bitsk
+from ...utils.fixpoint import bitsk
 
 
 def test_create_filter_vertex():
     """Create a network including a filter object and ensure that an
     appropriate vertex is built.
     """
-    # Create the network
-    raise NotImplementedError
+    # Create objects to go in the connection tree
+    obj_a = mock.Mock(name='Object A', spec_set=[])
+    obj_b = mock.Mock(name='Object B', spec_set=['size_in'])
+    obj_b.size_in = 4
+
+    f = ValueFilter(3, 10, 1)
+
+    # Build a connection tree with connections A -> f, f -> B
+    ks = mock.Mock(name='Keyspace')
+    a_to_f = IntermediateConnection(obj_a, f, synapse=nengo.Lowpass(0.05),
+                                    keyspace=ks)
+    f_to_b = IntermediateConnection(f, obj_b, synapse=nengo.Lowpass(0.0),
+                                    keyspace=ks)
+    ctree = ConnectionTree.from_intermediate_connections([a_to_f, f_to_b])
 
     # Build the filter
+    # TODO: Call this with the Assembler when the interface is finalised
+    filter_vertex = ValueFilterVertex.from_value_filter(f, ctree, None, {},
+                                                        10., 0.001, 1000)
 
     # Assert that it is sensible
+    assert all([filter_vertex is not x for x in [None, f]])
+    assert len(filter_vertex.regions) == 5
+
+    # Assert that usage can be reported
+    filter_vertex.get_resources_used_by_atoms(slice(10), None)
 
 
 def test_make_filter_system_region():
