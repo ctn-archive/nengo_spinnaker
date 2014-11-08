@@ -126,6 +126,15 @@ class TestMatrixRegion(object):
         assert sr.size_words == 10*5 + 2
         assert not sr.unfilled
 
+    def test_create_subregion_1d_array(self):
+        """Check that 1D arrays do not break everything."""
+        data = np.zeros(5, dtype=np.uint32)
+
+        # Unpartitioned matrix region
+        mr = regions.MatrixRegion(data, shape=(5, ))
+        sr = mr.create_subregion(slice(0, 1), 0)
+        assert np.all(np.frombuffer(sr.data, np.uint32) == data)
+
     def test_size_no_matrix(self):
         mr = regions.MatrixRegion(shape=(100, 5, 2), prepends=[
             regions.MatrixRegionPrepends.N_ATOMS,

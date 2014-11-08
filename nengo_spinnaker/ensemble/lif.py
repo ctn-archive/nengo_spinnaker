@@ -4,7 +4,6 @@ import nengo
 from nengo.builder.ensemble import sample as builder_sample
 from nengo.utils import distributions as dists
 import nengo.utils.numpy as npext
-from nengo.utils.stdlib import checked_call
 
 from . import connections as ens_conn_utils
 from . import decoders as decoder_utils

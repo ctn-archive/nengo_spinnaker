@@ -1,9 +1,10 @@
 import mock
 import nengo
 import numpy as np
-import pytest
 
-from ...connections.reduced import LowpassFilterParameter, _filter_types, StandardInputPort
+from ...connections.reduced import (
+    LowpassFilterParameter, _filter_types, StandardInputPort
+)
 from ...connections.intermediate import IntermediateConnection
 from ...connections.connection_tree import ConnectionTree
 from .. import filters as filter_utils

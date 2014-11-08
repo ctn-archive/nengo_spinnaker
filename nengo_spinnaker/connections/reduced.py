@@ -96,7 +96,7 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
         if eval_points is not None:
             self.eval_points = np.array(eval_points).copy()
         else:
-            self.eval_points = np.array([[],])
+            self.eval_points = np.array([[], ])
 
         self.eval_points.flags.writeable = False
         self.solver = solver
