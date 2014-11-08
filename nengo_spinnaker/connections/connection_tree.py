@@ -2,6 +2,8 @@ import collections
 import copy
 from six import iteritems, itervalues
 
+from ..spinnaker.edges import Edge
+
 
 class ConnectionTree(object):
     """A representation of the connectivity of a Nengo network.
@@ -138,6 +140,9 @@ class ConnectionTree(object):
 
     def get_new_tree_with_replaced_objects(self, replacements):
         """Return a new tree with specified objects replaced.
+
+        :param dict replacements: A dictionary mapping old to new objects.
+        :rtype: :py:class:`ConnectionTree`
         """
         # Perform a shallow copy of the tree, but with some objects replaced.
         # Walk through the tree, copying and replacing as required.
@@ -176,6 +181,8 @@ class ConnectionTree(object):
 
     def get_new_tree_with_applied_keyspace(self, default_keyspace):
         """Return a new tree with keyspaces applied to outgoing connections.
+
+        :rtype: :py:class:`ConnectionTree`
         """
         # Walk through the tree, copying and filling in keyspaces as required.
         connectivity_tree = _make_empty_connectivity_tree()
@@ -197,6 +204,27 @@ class ConnectionTree(object):
 
         # Return a new connectivity tree
         return self.__class__(connectivity_tree)
+
+    def get_folded_edges(self):
+        """Return a list of edges representing the connectivity of the tree.
+
+        :returns: A list of :py:class:`Edge` objects.
+        """
+        edges = list()
+
+        # For each originating object
+        for pre_obj, outgoing_conns in iteritems(self._connectivity_tree):
+            # For each outgoing connection
+            for outgoing_conn, incoming_conns in iteritems(outgoing_conns):
+                # For each incoming connection
+                for incoming_conn in incoming_conns:
+                    # Create a new edge
+                    post_obj = incoming_conn.target.target_object
+                    keyspace = outgoing_conn.keyspace
+                    edges.append(Edge(pre_obj, post_obj, keyspace))
+
+        # Return the list of edges
+        return edges
 
 
 def _make_empty_connectivity_tree():
