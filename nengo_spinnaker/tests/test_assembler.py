@@ -1,147 +1,137 @@
+import copy
 import mock
+import nengo
 import pytest
 
-from .. import assembler
-from ..spinnaker import vertices
+from ..assembler import Assembler
+from ..connections.connection_tree import ConnectionTree
+from ..connections.intermediate import IntermediateConnection
+from ..spinnaker.edges import Edge
+
+
+class FakeObject(object):
+    def __init__(self, size_in=3):
+        self.size_in = size_in
+
+
+class DerivedFromFakeObject(FakeObject):
+    pass
+
+
+@pytest.fixture(scope="function")
+def reset_assembler(request):
+    """Fixture to return the Assembler to a blank state."""
+    prior_assemblers = copy.copy(Assembler.object_assemblers)
+    Assembler.object_assemblers = dict()
+
+    def restore():
+        Assembler.object_assemblers = prior_assemblers
+    request.addfinalizer(restore)
+
+
+@pytest.fixture(scope="function")
+def sample_ctree(request):
+    # Now create a connection tree that contains a simple connection between
+    # two objects of this type.
+    obj_a = DerivedFromFakeObject()
+    obj_b = DerivedFromFakeObject()
+    conns = [
+        IntermediateConnection(obj_a, obj_b, synapse=nengo.Lowpass(0.05)),
+    ]
+    return ConnectionTree.from_intermediate_connections(conns), (obj_a, obj_b)
 
 
 class TestAssembler(object):
-    @pytest.fixture(scope='function')
-    def reset_assembler_objects(self):
-        assembler.Assembler.object_builders = dict()
-        assembler.Assembler.connection_builders = dict()
+    def test_add_object_assembler(self, reset_assembler, sample_ctree):
+        """Test that a new assembler can be registered and is called."""
+        ctree, (obj_a, obj_b) = sample_ctree
 
-    def test_register_object_builder(self, reset_assembler_objects):
-        """Check that a new object builder can be registered and used.
-        """
-        # Add a new object builder
-        build_fn = mock.Mock()
-        build_fn.return_value = None
-
-        assembler.Assembler.register_object_builder(build_fn, mock.Mock)
-
-        # Check that it can be called
-        obj = mock.Mock()
-        asmblr = assembler.Assembler()
-        asmblr.build_object(obj)
-
-        build_fn.assert_called_once_with(obj, asmblr)
-
-    def test_register_object_builder_vertex(self, reset_assembler_objects):
-        """Check that a new object builder can be registered and used.
-        """
-        # Add a new object builder
-        build_fn = mock.Mock()
-        build_fn.return_value = vertices.Vertex(None, None)
-
-        assembler.Assembler.register_object_builder(build_fn, mock.Mock)
-
-        # Check that it can be called
-        obj = mock.Mock()
-        asmblr = assembler.Assembler()
-        asmblr.time_in_seconds = 5.
-        vertex = asmblr.build_object(obj)
-
-        # Assert that the time in seconds is passed on
-        assert vertex.runtime == asmblr.time_in_seconds
-
-    def test_object_build_fail(self, reset_assembler_objects):
-        """Assert a TypeError is raised if we try to build an object that
-        isn't recognised.
-        """
-        asmblr = assembler.Assembler()
-        with pytest.raises(TypeError):
-            asmblr.build_object(mock.Mock())
-
-    def test_connection_builder_fail(self, reset_assembler_objects):
-        """Check that a TypeError is raised if a connection cannot be built.
-        """
-        # Create a dummy connection to try building
-        connection = mock.Mock()
-        connection.pre_obj = mock.Mock()
-        connection.post_obj = mock.Mock()
-
-        # Ensure that building this fails
-        asmblr = assembler.Assembler()
-
-        with pytest.raises(TypeError):
-            asmblr.build_connection(connection)
-
-    def test_connection_builder_fn(self, reset_assembler_objects):
-        """Check that a TypeError is raised if a connection cannot be built.
-        """
-        # Register a new connection builder to build connections from Mock to
-        # Mock
-        connection_fn = mock.Mock()
-        assembler.Assembler.register_connection_builder(
-            connection_fn, mock.Mock, mock.Mock)
-
-        # Create a dummy connection to try building
-        connection = mock.Mock()
-        connection.pre_obj = mock.Mock()
-        connection.post_obj = mock.Mock()
-
-        # Ensure that building this calls the function with the correct
-        # arguments
-        asmblr = assembler.Assembler()
-        asmblr.build_connection(connection)
-        connection_fn.assert_called_once_with(connection, asmblr)
-
-    def test_assemble_vertex(self):
-        """Test that the vertex assemble function just returns the vertex it
-        was given.
-        """
-        vertex = vertices.Vertex(None, None)
-        rval = assembler.vertex_builder(vertex, mock.Mock())
-
-        assert rval is vertex
-
-    def test_assemble_node(self):
-        """Test that the node assemble function doesn't do anything.
-        """
-        rval = assembler.assemble_node(mock.Mock(), mock.Mock())
-        assert rval is None
-
-    def test_call(self, reset_assembler_objects):
-        class TestObject(object):
+        # Create a new object assembler
+        def assemble_fn(obj, connection_trees, config, rngs, runtime, dt,
+                        machine_timestep):
             pass
 
-        a = TestObject()
-        b = TestObject()
-        c = TestObject()
+        # Wrap it so that we can check the calls
+        assemble = mock.Mock(wraps=assemble_fn)
 
-        objs = [a, b, c]
-        obj_verts = {k: vertices.Vertex(None, None) for k in objs[:-1]}
-        obj_verts.update({c: None})
+        # Register the assembler
+        Assembler.add_object_assembler(FakeObject, assemble)
 
-        def build_test_object(test_object, asmblr):
-            return obj_verts[test_object]
+        # Call the assemble object function to check parameters are passed
+        # through correctly, and that the MRO is used to find the correct
+        # assembly function.
+        config = mock.Mock()
+        rngs = dict()
+        runtime = 10.0
+        dt = 0.001
+        machine_timestep = 1000
 
-        class TestConnection(object):
-            def __init__(self, a, b):
-                self.pre_obj = a
-                self.post_obj = b
+        Assembler.assemble_obj(obj_a, ctree, config, rngs, runtime, dt,
+                               machine_timestep)
 
-        conns = [
-            TestConnection(a, b),
-            TestConnection(b, c),
-        ]
+        # Assert the function was called with the given parameters
+        assemble.assert_called_once_with(obj_a, ctree, config, rngs, runtime,
+                                         dt, machine_timestep)
 
-        def build_test_connection(test_connection, assembler):
-            return mock.Mock()
+    def test_object_assembler_decorator(self, reset_assembler):
+        """Test that a decorator can be used to add new assembler functions."""
+        # Get the assemblers prior to adding a new function
+        prior_assemblers = copy.copy(Assembler.object_assemblers)
 
-        assembler.Assembler.register_object_builder(
-            build_test_object, TestObject)
-        assembler.Assembler.register_connection_builder(
-            build_test_connection)
+        # Use the decorator
+        @Assembler.object_assembler(DerivedFromFakeObject)
+        def assembler(*args):
+            pass
 
-        # Construct a sample network and call an assembler
-        asmblr = assembler.Assembler()
-        vs, es = asmblr([a, b, c], conns, 5.0, 0.001)
+        # Check that the class has been registered with the correct build
+        # function.
+        assert DerivedFromFakeObject not in prior_assemblers
+        assert DerivedFromFakeObject in Assembler.object_assemblers
+        assert Assembler.object_assemblers[DerivedFromFakeObject] is assembler
 
-        # Assert that utility functions work
-        for obj in obj_verts:
-            assert asmblr.get_object_vertex(obj) is obj_verts[obj]
+    def test_assemble_obj_unknown(self, reset_assembler):
+        """Check that the assembler returns items it has no assembler for."""
+        obj = mock.Mock()
+        obj_after_assembly = Assembler.assemble_obj(obj, None, None, None, 0.,
+                                                    0.001, 1000)
+        assert obj is obj_after_assembly
 
-        assert asmblr.get_incoming_connections(b) == [conns[0]]
-        assert asmblr.get_outgoing_connections(b) == [conns[1]]
+    def test_assemble(self, reset_assembler, sample_ctree):
+        """Test that the assembler can assemble from a connection tree."""
+        ctree, (obj_a, obj_b) = sample_ctree
+
+        # Create a new assembler
+        new_objs = {
+            obj_a: FakeObject(),
+            obj_b: FakeObject(),
+        }
+        assemble = mock.Mock()
+        assemble.side_effect = lambda obj, *args: new_objs[obj]
+
+        # Register the assembler
+        Assembler.add_object_assembler(DerivedFromFakeObject, assemble)
+
+        # Call the assemble object function to check parameters are passed
+        # through correctly, and that the MRO is used to find the correct
+        # assembly function.
+        config = mock.Mock()
+        rngs = dict()
+        runtime = 10.0
+        dt = 0.001
+        machine_timestep = 1000
+
+        objs, edges = Assembler.assemble(ctree, config, rngs, runtime, dt,
+                                         machine_timestep)
+
+        # Assert the function was called with the given parameters
+        assemble.assert_has_calls([
+            mock.call(obj_a, ctree, config, rngs, runtime, dt,
+                      machine_timestep),
+            mock.call(obj_b, ctree, config, rngs, runtime, dt,
+                      machine_timestep),
+        ], any_order=True)
+
+        # Assert the new connection tree includes the new objects, and that the
+        # connections are still as they were.
+        assert set(objs) == set(new_objs.values())
+        assert edges == [Edge(new_objs[obj_a], new_objs[obj_b], None)]

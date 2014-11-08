@@ -1,164 +1,92 @@
-import collections
-import itertools
+import logging
 
-import nengo
-
-from .config import Config
-from .spinnaker import vertices
-# import connection
-# import ensemble
-# import node
-# import probe
-# import utils
+logger = logging.getLogger(__name__)
 
 
 class Assembler(object):
-    """The Assembler object takes a built collection of objects and connections
-    and converts them into PACMAN vertices and edges, and returns the portion
-    of the network to be simulated on host.
+    """An Assembler is the final stage in the build process prior to PACMAN.
+
+    The Assembler acts as an object builder which replaces instances of various
+    objects in the connectivity tree that defines a simulation.  The Assembly
+    process results in a connection tree which can be folded into a graph for
+    partitioning, placing, routing and executing on a SpiNNaker machine.
     """
-    object_builders = dict()  # Map of classes to functions
-
-    # Map of (pre_obj, post_obj) tuples to functions
-    connection_builders = dict()
+    object_assemblers = dict()
 
     @classmethod
-    def register_object_builder(cls, func, nengo_class):
-        cls.object_builders[nengo_class] = func
+    def add_object_assembler(cls, object_type, assembler):
+        """Register a new object assembler.
 
-    @classmethod
-    def register_connection_builder(cls, func, pre_obj=None, post_obj=None):
-        cls.connection_builders[(pre_obj, post_obj)] = func
-
-    def build_object(self, obj):
-        for obj_type in obj.__class__.__mro__:
-            if obj_type in self.object_builders:
-                break
-        else:
-            raise TypeError("Cannot assemble object of type '%s'." %
-                            obj.__class__.__name__)
-
-        vertex = self.object_builders[obj_type](obj, self)
-        if vertex is not None:
-            vertex.runtime = self.time_in_seconds
-        return vertex
-
-    def build_connection(self, connection):
-        pre_c = list(connection.pre_obj.__class__.__mro__) + [None]
-        post_c = list(connection.post_obj.__class__.__mro__) + [None]
-
-        for key in itertools.chain(*[[(a, b) for b in post_c] for a in pre_c]):
-            if key in self.connection_builders:
-                return self.connection_builders[key](connection, self)
-        else:
-            raise TypeError("Cannot build a connection from a '%s' to '%s'." %
-                            (connection.pre_obj.__class__.__name__,
-                             connection.post_obj.__class__.__name__))
-
-    def __call__(self, objs, conns, time_in_seconds, dt, config=None):
-        """Construct PACMAN vertices and edges, and a reduced version of the
-        model for simulation on host.
-
-        :param objs: A list of objects to convert into PACMAN vertices.
-        :param conns: A list of connections which will become edges.
-        :param time_in_seconds: The run time of the simulation (None means
-                                infinite).
-        :param dt: The time step of the simulation.
-        :param config: Configuration options for the simulation.
+        :param type object_type: The class of objects to assemble with this
+                                 function.
+        :param callable assembler: A callable which will be used to assemble
+                                   objects of this type.  The callable should
+                                   accept the `object`, `connection_trees`,
+                                   `config`, `rngs`, `runtime`, `dt`, and
+                                   `machine_timestep`.  Further documentation
+                                   on these parameters is elsewhere in this
+                                   class.
         """
-        # Store the config
-        self.config = config
-        if self.config is None:
-            self.config = Config()
-
-        self.timestep = 1000
-        self.dt = dt
-        self.time_in_seconds = time_in_seconds
-        self.n_ticks = (int(time_in_seconds / dt) if
-                        time_in_seconds is not None else 0)
-
-        # Store for querying
-        self.connections = conns
-
-        # Construct each object in turn to produce vertices
-        self.object_vertices = dict([(o, self.build_object(o)) for o in objs])
-        self.vertices = [v for v in self.object_vertices.values() if
-                         v is not None]
-
-        # Construct each connection in turn to produce edges
-        self.edges = filter(lambda x: x is not None, [self.build_connection(c)
-                                                      for c in conns])
-
-        return self.vertices, self.edges
-
-    def get_object_vertex(self, obj):
-        """Return the vertex which represents the given object."""
-        return self.object_vertices[obj]
-
-    def get_incoming_connections(self, obj):
-        return [c for c in self.connections if c.post_obj == obj]
-
-    def get_outgoing_connections(self, obj):
-        return [c for c in self.connections if c.pre_obj == obj]
-
-
-def vertex_builder(vertex, assembler):
-    return vertex
-
-Assembler.register_object_builder(vertex_builder, vertices.Vertex)
-
-
-def assemble_node(node, assembler):
-    pass
-
-Assembler.register_object_builder(assemble_node, nengo.Node)
-
-
-MulticastPacket = collections.namedtuple('MulticastPacket',
-                                         ['timestamp', 'key', 'payload'])
-
-
-"""
-class MulticastPlayer(utils.vertices.NengoVertex):
-    # NOTE This is intended to be temporary while PACMAN is refactored
-    MODEL_NAME = 'nengo_mc_player'
-    MAX_ATOMS = 1
-
-    def __init__(self):
-        super(MulticastPlayer, self).__init__(1)
-        self.regions = [None, None, None, None]
+        cls.object_assemblers[object_type] = assembler
 
     @classmethod
-    def assemble(cls, mcp, assembler):
-        # Get all the symbols to transmit prior to and after the simulation
-        sinks = set(
-            c.post_obj for c in assembler.get_outgoing_connections(mcp))
+    def object_assembler(cls, object_type):
+        """Decorator which marks a function as assembling a type of object.
 
-        start_items = list()
-        end_items = list()
+        :param type object_type: The class of objects to assemble.
+        """
+        def dec(f):
+            cls.add_object_assembler(object_type, f)
+            return f
+        return dec
 
-        for sink in sinks:
-            for p in sink.start_packets:
-                start_items.extend([0, p.key,
-                                    0 if p.payload is None else p.payload,
-                                    p.payload is not None])
+    @classmethod
+    def assemble_obj(cls, obj, connection_trees, config, rngs, runtime, dt,
+                     machine_timestep):
+        """Call the assembler for the given object.
+        """
+        # Work through the MRO to find an assembler function
+        for c in obj.__class__.__mro__:
+            if c in cls.object_assemblers:
+                return cls.object_assemblers[c](
+                    obj, connection_trees, config, rngs, runtime, dt,
+                    machine_timestep)
+        else:
+            # Otherwise just return the object unchanged
+            return obj
 
-            for p in sink.end_packets:
-                end_items.extend([0, p.key,
-                                  0 if p.payload is None else p.payload,
-                                  p.payload is not None])
+    @classmethod
+    def assemble(cls, connection_trees, config, rngs, runtime, dt,
+                 machine_timestep):
+        """Assemble the objects in the given connectivity tree.
 
-        # Build the regions
-        start_items.insert(0, len(start_items)/4)
-        start_region = utils.vertices.UnpartitionedListRegion(
-            start_items)
-        end_items.insert(0, len(end_items)/4)
-        end_region = utils.vertices.UnpartitionedListRegion(
-            end_items)
-        mcp.regions[1] = start_region
-        mcp.regions[3] = end_region
+        :type connection_trees:
+            :py:class:`~..connections.connection_tree.ConnectionTree`
+        :return: Tuple of a list of objects and list of connections.
+        :rtype: :func:`tuple`
+        """
+        # Get a list of all the objects we need to build from the original
+        # connectivity tree, then progressively replace objects.
+        logger.info("Assembly step 1/3: Assembling objects")
+        connected_objects = connection_trees.get_objects()
+        replaced_objects = dict()
 
-        return mcp
+        for obj in connected_objects:
+            logger.debug("Assembling {}".format(obj))
+            replaced_objects[obj] = cls.assemble_obj(
+                obj, connection_trees, config, rngs, runtime, dt,
+                machine_timestep)
 
-Assembler.register_object_builder(MulticastPlayer.assemble, MulticastPlayer)
-"""
+        # Replace assembled objects in the connection tree
+        logger.info("Assembly step 2/3: Adding assembled objects to "
+                    "connectivity tree")
+        connection_trees = connection_trees.get_new_tree_with_replaced_objects(
+            replaced_objects)
+
+        # Fold the connectivity tree by getting a list of objects and a list of
+        # connections.
+        objs = connection_trees.get_objects()
+        edges = connection_trees.get_folded_edges()
+
+        # Return the objects and connections for the folded connectivity tree
+        return (objs, edges)

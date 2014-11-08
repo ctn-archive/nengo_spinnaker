@@ -8,6 +8,7 @@ from ..intermediate import IntermediateConnection
 from ..reduced import (
     OutgoingReducedConnection, StandardInputPort,
 )
+from ...spinnaker.edges import Edge
 
 
 def test_from_intermediate_connections():
@@ -223,3 +224,36 @@ def test_apply_keyspace():
                                             set(obj1_conn_keyspaces.values()))
     for conns in list(keyspace_to_conn.values()):
         assert len(conns) == 1
+
+
+def test_fold_connections():
+    """Test that a connectivity tree can be folded to form just a list of
+    connections between objects.
+    """
+    # Create some objects
+    obj_a = mock.Mock(name='a')
+    obj_a.size_in = 3
+    obj_b = mock.Mock(name='b')
+    obj_b.size_in = 4
+
+    keyspace0 = mock.Mock(name='Keyspace0')
+    keyspace1 = mock.Mock(name='Keyspace1')
+
+    # Create some connections between these objects
+    conns = [
+        IntermediateConnection(obj_a, obj_b, slice(None), slice(None),
+                               nengo.Lowpass(0.3), keyspace=keyspace0),
+        IntermediateConnection(obj_a, obj_a, slice(None), slice(None),
+                               nengo.Lowpass(0.3), keyspace=keyspace1),
+    ]
+
+    # Create a new connection tree
+    tree = ConnectionTree.from_intermediate_connections(conns)
+
+    # Fold the tree
+    conns = tree.get_folded_edges()
+    for c in conns:
+        if c.post_vertex == obj_b:
+            assert c == Edge(obj_a, obj_b, keyspace0)
+        else:
+            assert c == Edge(obj_a, obj_a, keyspace1)
