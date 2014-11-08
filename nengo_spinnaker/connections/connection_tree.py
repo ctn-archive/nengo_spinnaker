@@ -138,10 +138,16 @@ class ConnectionTree(object):
 
         return incs
 
-    def get_new_tree_with_replaced_objects(self, replacements):
+    def get_new_tree_with_replaced_objects(self, replacements,
+                                           replace_when_originating=True,
+                                           replace_when_terminating=True):
         """Return a new tree with specified objects replaced.
 
         :param dict replacements: A dictionary mapping old to new objects.
+        :param bool replace_when_originating: Replace objects when they are
+            at the start of connections.
+        :param bool replace_when_terminating: Replace objects when they are
+            at the end of connections.
         :rtype: :py:class:`ConnectionTree`
         """
         # Perform a shallow copy of the tree, but with some objects replaced.
@@ -159,7 +165,10 @@ class ConnectionTree(object):
         connectivity_tree = _make_empty_connectivity_tree()
         for (obj, outgoing_conns) in iteritems(self._connectivity_tree):
             # Get the new object to use
-            new_obj = repl(obj)
+            if replace_when_originating:
+                new_obj = repl(obj)
+            else:
+                new_obj = obj
 
             # Copy each outgoing connection and add to the tree.
             for (out_conn, in_conns) in iteritems(outgoing_conns):
@@ -170,8 +179,9 @@ class ConnectionTree(object):
                 for in_conn in in_conns:
                     # Copy and replace.
                     in_conn = copy.copy(in_conn)
-                    in_conn.target.target_object = repl(
-                        in_conn.target.target_object)
+                    if replace_when_terminating:
+                        in_conn.target.target_object = repl(
+                            in_conn.target.target_object)
 
                     # Add the new incoming connection.
                     connectivity_tree[new_obj][out_conn].append(in_conn)

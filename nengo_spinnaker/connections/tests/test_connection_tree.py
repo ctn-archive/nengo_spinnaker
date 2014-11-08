@@ -128,9 +128,129 @@ def test_replace_objects():
         old_conns = tree.get_outgoing_connections(obj)
         new_conns = new_tree.get_outgoing_connections(new_obj)
 
+        assert len(old_conns) == len(new_conns)
         for (c, new_c) in zip(old_conns, new_conns):
             assert c == new_c and c is not new_c
 
+        # Get the incoming connections for the objects, assert that the
+        # dictionaries are equivalent but that the contained objects are
+        # different.
+        old_conns = tree.get_incoming_connections(obj)
+        new_conns = new_tree.get_incoming_connections(new_obj)
+
+        assert list(old_conns.keys()) == list(new_conns.keys())
+        for (ok, nk) in zip(list(old_conns.keys()), list(new_conns.keys())):
+            old_iconns = old_conns[ok]
+            new_iconns = new_conns[nk]
+
+            for (a, b) in zip(old_iconns.keys(), new_iconns.keys()):
+                assert a == b and a is not b
+                assert old_iconns[a] == new_iconns[b]
+
+
+def test_replace_objects_originators_only():
+    """Tests that a new ConnectionTree can be built from an old one by
+    replacing objects, but only where they start connections.
+    """
+    # Create some objects
+    obj_a = mock.Mock(name='a')
+    obj_a.size_in = 3
+    obj_b = mock.Mock(name='b')
+    obj_b.size_in = 4
+
+    # Create some connections between these objects
+    conns = [
+        IntermediateConnection(obj_a, obj_b, slice(None), slice(None),
+                               nengo.Lowpass(0.3)),
+        IntermediateConnection(obj_a, obj_a, slice(None), slice(None),
+                               nengo.Lowpass(0.3)),
+    ]
+
+    # Create a new connection tree
+    tree = ConnectionTree.from_intermediate_connections(conns)
+
+    # Replace obj_a with obj_c
+    obj_c = mock.Mock(name='c')
+    new_tree = tree.get_new_tree_with_replaced_objects(
+        {obj_a: obj_c}, replace_when_terminating=False)
+
+    # Assert that the new tree is NOT the old tree
+    assert new_tree is not tree
+
+    # Check that all the connections have been copied rather than referenced by
+    # the new tree, perform a parallel walk of the tree.
+    for (obj, new_obj) in [(obj_a, obj_c), (obj_b, obj_b)]:
+        # Get the output connections for the objects, assert that connection
+        # objects are equivalent but not the same object.
+        old_conns = tree.get_outgoing_connections(obj)
+        new_conns = new_tree.get_outgoing_connections(new_obj)
+
+        assert len(old_conns) == len(new_conns)
+        for (c, new_c) in zip(old_conns, new_conns):
+            assert c == new_c and c is not new_c
+
+    # The receiving objects should NOT have changed
+    for (obj, new_obj) in [(obj_a, obj_a), (obj_b, obj_b)]:
+        # Get the incoming connections for the objects, assert that the
+        # dictionaries are equivalent but that the contained objects are
+        # different.
+        old_conns = tree.get_incoming_connections(obj)
+        new_conns = new_tree.get_incoming_connections(new_obj)
+
+        assert list(old_conns.keys()) == list(new_conns.keys())
+        for (ok, nk) in zip(list(old_conns.keys()), list(new_conns.keys())):
+            old_iconns = old_conns[ok]
+            new_iconns = new_conns[nk]
+
+            for (a, b) in zip(old_iconns.keys(), new_iconns.keys()):
+                assert a == b and a is not b
+                assert old_iconns[a] == new_iconns[b]
+
+
+def test_replace_objects_terminators_only():
+    """Tests that a new ConnectionTree can be built from an old one by
+    replacing objects, but only where they end connections.
+    """
+    # Create some objects
+    obj_a = mock.Mock(name='a')
+    obj_a.size_in = 3
+    obj_b = mock.Mock(name='b')
+    obj_b.size_in = 4
+
+    # Create some connections between these objects
+    conns = [
+        IntermediateConnection(obj_a, obj_b, slice(None), slice(None),
+                               nengo.Lowpass(0.3)),
+        IntermediateConnection(obj_a, obj_a, slice(None), slice(None),
+                               nengo.Lowpass(0.3)),
+    ]
+
+    # Create a new connection tree
+    tree = ConnectionTree.from_intermediate_connections(conns)
+
+    # Replace obj_a with obj_c
+    obj_c = mock.Mock(name='c')
+    new_tree = tree.get_new_tree_with_replaced_objects(
+        {obj_a: obj_c}, replace_when_originating=False)
+
+    # Assert that the new tree is NOT the old tree
+    assert new_tree is not tree
+
+    # Check that all the connections have been copied rather than referenced by
+    # the new tree, perform a parallel walk of the tree.
+    # The transmitting objects should NOT have changed
+    for (obj, new_obj) in [(obj_a, obj_a), (obj_b, obj_b)]:
+        # Get the output connections for the objects, assert that connection
+        # objects are equivalent but not the same object.
+        old_conns = tree.get_outgoing_connections(obj)
+        new_conns = new_tree.get_outgoing_connections(new_obj)
+
+        assert len(old_conns) == len(new_conns)
+        for (c, new_c) in zip(old_conns, new_conns):
+            assert c == new_c and c is not new_c
+
+    # The receiving objects SHOULD have changed
+    for (obj, new_obj) in [(obj_a, obj_c), (obj_b, obj_b)]:
         # Get the incoming connections for the objects, assert that the
         # dictionaries are equivalent but that the contained objects are
         # different.
