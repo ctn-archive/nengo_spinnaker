@@ -60,3 +60,11 @@ class TestEthernetIO(object):
                 assert obj.node is node_b
             else:
                 assert False, "Unexpected object {} found.".format(obj)
+
+
+def test_get_output_node_slices_to_core_map():
+    raise NotImplementedError
+
+
+def test_get_input_core_to_node_slice_map():
+    raise NotImplementedError
