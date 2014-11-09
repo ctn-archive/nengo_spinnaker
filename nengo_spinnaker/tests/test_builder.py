@@ -9,7 +9,6 @@ from .. import builder
 from ..connections.connection_tree import ConnectionTree
 
 
-
 @pytest.fixture(scope='function')
 def reset_builder(request):
     """Reset the Builder to its empty state.
@@ -223,4 +222,4 @@ def test_runthrough():
 
         nengo.Connection(a[0], b, function=lambda x: x**2)
 
-    conn_tree = Builder.build(model)  # noqa
+    conn_tree, rngs = Builder.build(model)  # noqa

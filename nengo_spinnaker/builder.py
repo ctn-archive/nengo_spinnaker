@@ -78,6 +78,9 @@ class Builder(object):
         nengo_spinnaker.connections.connection_tree.ConnectionTree
             A ``ConnectionTree`` representing an intermediate form of the
             network.
+        dict
+            A dictionary mapping original network objects to random number
+            generators.
 
         See Also
         --------
@@ -144,8 +147,8 @@ class Builder(object):
         logger.info("Build step 8/8: Add built objects to connectivity tree")
         c_trees = c_trees.get_new_tree_with_replaced_objects(replaced_objects)
 
-        # Return the connection tree
-        return c_trees
+        # Return the connection tree and the random number generators
+        return c_trees, rngs
 
 
 # Register a new network transform that removes all passthrough Nodes

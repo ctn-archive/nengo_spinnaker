@@ -4,11 +4,12 @@ import mock
 import nengo
 import numpy as np
 
+from ..assembler import Assembler
 from ..builder import Builder
 from ..connections.connection_tree import ConnectionTree
 from ..simulator import Simulator
-from .test_assembler import reset_assembler
-from .test_builder import reset_builder
+from .test_assembler import reset_assembler  # noqa: F401
+from .test_builder import reset_builder  # noqa: F401
 
 
 # Create a sample Nengo network for testing purposes.
@@ -20,7 +21,7 @@ with nengo.Network(label="Test Network") as model:
     c = nengo.Connection(a[:2], b)
 
 
-def test_simulator_init_uses_builder(reset_builder):
+def test_simulator_init_uses_builder(reset_builder):  # noqa: F811
     """Test that initialising the simulator calls builder methods."""
     # Create a test network transform that we register with the builder to
     # ensure that it is called.  If the builder is used we can be relatively
@@ -52,7 +53,7 @@ def test_simulator_init_uses_builder(reset_builder):
     assert sim.machine_timestep == 1500000  # int((0.5 * 3.0) / 10**-6)
 
 
-def test_simulator_calls_io_prepare_connection_tree(reset_builder):
+def test_simulator_calls_io_prepare_connection_tree(reset_builder):  # noqa
     """Test that initialising the simulator calls the `process_network` method
     on the IO builder.
     """
@@ -69,9 +70,29 @@ def test_simulator_calls_io_prepare_connection_tree(reset_builder):
     assert (type(io_handler.prepare_connection_tree.call_args[0][0]) is
             ConnectionTree)
 
-def test_simulator_run(reset_builder):
-    """Test that running the simulator:
-      - Processes the model with the PACMAN toolchain
-      - Initialises the IO object
+
+def test_simulator_run_uses_assembler(reset_builder, reset_assembler):  # noqa
+    """Test that running the simulator calls the assembler.
     """
-    raise NotImplementedError
+    # Create a Assembler function for Ensembles, assert that it is called with
+    # both the Ensembles in the sample model.
+    assembler_fn = mock.Mock()
+    assembler_fn.side_effect = lambda obj, *args: obj
+    Assembler.add_object_assembler(nengo.Ensemble, assembler_fn)
+
+    # Create and run the simulator
+    config = mock.Mock(name='Config')
+    sim = Simulator(model, dt=0.03, config=config)
+    sim.run(0.)
+
+    # Assert that the assembler function was called
+    assert assembler_fn.call_count == 2
+    for call in assembler_fn.call_args_list:
+        # Check that a valid object was passed
+        assert any([call[0][0] is o for o in [a, b]])
+
+        # Now check the other parameters are sane
+        assert call[0][2] is config
+        assert call[0][4] == 0.     # Run time in seconds
+        assert call[0][5] == 0.03   # dt
+        assert call[0][6] == 30000  # Timestep
