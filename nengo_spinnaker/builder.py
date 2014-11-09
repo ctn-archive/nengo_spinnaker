@@ -64,6 +64,26 @@ class Builder(object):
     @classmethod
     def build(cls, network, config=None):
         """Build the network into an intermediate form.
+
+        Parameters
+        ----------
+        network : nengo.Network
+            A network to transform and build into an intermediate form
+            (represented through a connection tree).
+        config : .config.Config
+            Specific Nengo/SpiNNaker configuration options.
+
+        Returns
+        -------
+        nengo_spinnaker.connections.connection_tree.ConnectionTree
+            A ``ConnectionTree`` representing an intermediate form of the
+            network.
+
+        See Also
+        --------
+        ConnectionTree : How connection trees represent the objects and
+            connectivity of a Nengo model when it is simulated on the SpiNNaker
+            platform.
         """
         # Flatten the network
         logger.info("Build step 1/8: Flattening network hierarchy")

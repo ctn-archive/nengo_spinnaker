@@ -9,6 +9,23 @@ from .. import builder
 from ..connections.connection_tree import ConnectionTree
 
 
+
+@pytest.fixture(scope='function')
+def reset_builder(request):
+    """Reset the Builder to its empty state.
+    """
+    old_net_transforms = Builder.network_transforms[:]
+    old_obj_transforms = copy.copy(Builder.object_transforms)
+
+    Builder.network_transforms = list()
+    Builder.object_transforms = dict()
+
+    def restore():
+        Builder.network_transforms = old_net_transforms
+        Builder.object_transforms = old_obj_transforms
+    request.addfinalizer(restore)
+
+
 @pytest.fixture(scope='function')
 def sample_model():
     with nengo.Network() as model:
@@ -33,21 +50,6 @@ def sample_model():
 class TestBuilderTransforms(object):
     """Check that the builder can apply transform functions.
     """
-    @pytest.fixture(scope='function')
-    def reset_builder(self, request):
-        """Reset the Builder to its empty state.
-        """
-        old_net_transforms = Builder.network_transforms[:]
-        old_obj_transforms = copy.copy(Builder.object_transforms)
-
-        Builder.network_transforms = list()
-        Builder.object_transforms = dict()
-
-        def restore():
-            Builder.network_transforms = old_net_transforms
-            Builder.object_transforms = old_obj_transforms
-        request.addfinalizer(restore)
-
     def test_network_transform(self, reset_builder, sample_model):
         """Test that a network transform can be registered and will be applied
         to the network when building.  Also tests that networks are properly
