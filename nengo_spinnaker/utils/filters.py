@@ -15,10 +15,12 @@ def get_filter_regions(filter_keyspaces, dt, width):
 
     Parameters
     ----------
-    filter_keyspaces : dict
+    filter_keyspaces : dict or list
         A map of filter instances to the list of keyspaces which transmit to
         them.  This may be easily extracted from a
-        :py:class:`~nengo_spinnaker.connections.ConnectionTree`.
+        :py:class:`~nengo_spinnaker.connections.ConnectionTree`.  If this in
+        the format of a list then each list element is expected to be a tuple
+        (filter, list of keyspaces).
     dt : float
         The duration of a simulation step, used in analytical solutions of some
         filters.
@@ -34,7 +36,11 @@ def get_filter_regions(filter_keyspaces, dt, width):
     filters = list()
     filter_ids = dict()
 
-    for i, (f, keyspaces) in enumerate(iteritems(filter_keyspaces)):
+    # Enumerate the (keys, values) of a dictionary of keyspaces, or enumerate a
+    # list of objects in the same format.
+    for i, (f, keyspaces) in enumerate(iteritems(filter_keyspaces) if
+                                       isinstance(filter_keyspaces, dict) else
+                                       iter(filter_keyspaces)):
         # Store the filter
         filters.append(f)
 

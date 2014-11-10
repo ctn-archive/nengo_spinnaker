@@ -76,6 +76,18 @@ def test_get_filter_regions():
     # Keys region should be 4 * n_connections (4 words per connection) + 1
     assert filter_routing_region.sizeof(slice(0, 100)) == len(conns) * 4 + 1
 
+    # Get the filter regions using lists instead of dicts
+    inputs = list(inputs.items())
+    filter_region, filter_routing_region = \
+        filter_utils.get_filter_regions(inputs, dt, 1)
+
+    # Assert the size of these regions is appropriate: Filter region should be
+    # 4 * n_filters (4 words per filter) + 1 (n filters).
+    assert filter_region.sizeof(slice(0, 100)) == len(inputs) * 4 + 1
+
+    # Keys region should be 4 * n_connections (4 words per connection) + 1
+    assert filter_routing_region.sizeof(slice(0, 100)) == len(conns) * 4 + 1
+
 
 def test_filter_region():
     """Test that the region writes out filter parameters correctly.
