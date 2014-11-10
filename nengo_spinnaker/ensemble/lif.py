@@ -1,12 +1,10 @@
 import math
 import numpy as np
 
-import nengo
 from nengo.builder.ensemble import sample as builder_sample
 from nengo.utils import distributions as dists
 import nengo.utils.numpy as npext
 
-from . import connections as ens_conn_utils
 from . import decoders as decoder_utils
 from . import intermediate
 from . import pes as pes_utils
@@ -58,6 +56,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         decoders = list()
         decoder_headers = list()
         decoder_compress = list()
+        learning_rules = list()
 
         decoder_builder = decoder_utils.create_decoder_builder(
             encoders=encoders, radius=ensemble.radius, gain=gain, bias=bias,
@@ -65,16 +64,26 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
         )
 
         # Build each of the decoders in turn
+        offset = 0
         for c in connection_trees.get_outgoing_connections(placeholder):
             # Build the decoder
             decoder, solver_info, headers = decoder_builder(c)
 
-            # Store which decoders we can compress, currently none
+            # Store which decoders we can compress, currently none, this is
+            # because of learning rules.  Also, some compression already occurs
+            # as we know the post-slicing.
             decoder_compress.append(False)
 
             # Store
             decoders.append(decoder)
             decoder_headers.extend(headers)
+
+            # If this is a PES connection then store the offset to the decoder
+            if isinstance(c.transmitter_learning_rule, pes_utils.PESInstance):
+                ilr = intermediate.IntermediateLearningRule(
+                    c.transmitter_learning_rule, offset)
+                learning_rules.append(ilr)
+            offset += decoder.shape[1]  # Update the column offset
 
         # Combine and compress decoders
         decoder_headers, decoders = \
@@ -83,7 +92,7 @@ class IntermediateLIF(intermediate.IntermediateEnsemble):
 
         return cls(ensemble.n_neurons, gain, bias, encoders, decoders,
                    ensemble.neuron_type.tau_rc, ensemble.neuron_type.tau_ref,
-                   decoder_headers, list(), direct_input)
+                   decoder_headers, learning_rules, direct_input)
 
 
 class EnsembleLIF(vertices.Vertex):
@@ -143,43 +152,51 @@ def assemble_lif_vertex_from_intermediate(obj, connection_trees, config, rngs,
         SpiNNaker.
     """
     # Construct the system region for the Ensemble
-    system_region = SystemRegion(obj.size_in, len(obj.decoder_headers), machine_timestep,
-                                 t_ref, dt / obj.tau_rc, obj.record_spikes)
+    system_region = SystemRegion(
+        obj.size_in, len(obj.decoder_headers), machine_timestep, obj.tau_ref,
+        dt / obj.tau_rc, obj.record_spikes)
 
     # Construct the various filter and filter routing regions
     in_conns = connection_trees.get_incoming_connections(obj)
     input_filter, input_routing = filter_utils.get_filter_regions(
-        in_conns[StandardInputPort], dt, size_in)
+        in_conns[StandardInputPort], dt, obj.size_in)
     inhib_filter, inhib_routing = filter_utils.get_filter_regions(
         in_conns[GlobalInhibitionPort], dt, 1)
 
-    # Extract the list of learning rules we are expecting to receive error
-    # signals for.  TODO Neaten and generalise.
-    raise NotImplementedError
-
     # Get the filters and routing for PES connections
-    raise NotImplementedError
-
-    # Construct the PES region
-    raise NotImplementedError
+    pes_region, pes_filter_region, pes_filter_routing_region = \
+        pes_utils.make_pes_regions(obj.learning_rules, in_conns, dt)
 
     # Construct the regions for encoders and decoders.
     # TODO Interleave these and page through them in the C code.
     encoders_with_gain = obj.encoders * obj.gains[:, np.newaxis]
-    encoder_region = regions.MatrixRegionPartitionedByRows(encoders_with_gain, formatter=bitsk)
-    decoder_region = regions.MatrixRegionPartitionedByRows(obj.decoders, formatter=bitsk)
+    encoder_region = regions.MatrixRegionPartitionedByRows(encoders_with_gain,
+                                                           formatter=bitsk)
+    decoder_region = regions.MatrixRegionPartitionedByRows(obj.decoders,
+                                                           formatter=bitsk)
+
+    # Construct the output keys region from the decoder headers
+    output_keys_region = regions.KeysRegion(obj.decoder_headers,
+                                            fill_in_field='s')
 
     # Construct the gain and bias regions
-    gain_region = regions.MatrixRegionPartitionedByRows(obj.gains, formatter=bitsk)
+    gain_region = regions.MatrixRegionPartitionedByRows(obj.gains,
+                                                        formatter=bitsk)
     bias_with_di = encoders_with_gain.dot(obj.direct_input) + obj.bias
-    bias_region = regions.MatrixRegionPartitionedByRows(bias_with_di, formatter=bitsk)
+    bias_region = regions.MatrixRegionPartitionedByRows(bias_with_di,
+                                                        formatter=bitsk)
 
     # Create the spikes recording region
     n_ticks = int(math.ceil(runtime / dt))
-    spikes_region = region_utils.BitfieldBasedRecordingRegion()
+    spikes_region = region_utils.BitfieldBasedRecordingRegion(n_ticks)
 
     # Build the vertex and return
-    raise NotImplementedError
+    return EnsembleLIF(
+        obj.n_neurons, system_region, bias_region, encoder_region,
+        decoder_region, output_keys_region, input_filter, input_routing,
+        inhib_filter, inhib_routing, gain_region, pes_filter_region,
+        pes_filter_routing_region, pes_region, spikes_region
+    )
 
 
 class SystemRegion(regions.Region):
