@@ -107,6 +107,36 @@ def test_filter_region():
         assert data[4 + 4*i] == width
 
 
+def test_filter_region_with_widths():
+    """Test that the region writes out filter parameters correctly.
+    """
+    # Create 2 filter entries
+    filters = [
+        LowpassFilterParameter(0.05, True),
+        LowpassFilterParameter(0.01, False),
+    ]
+
+    # Create the filter region
+    dt = 0.01
+    widths = [5, 7]
+    filter_region = filter_utils.make_filter_region(filters, dt, width=widths)
+
+    # Check the size is correct
+    assert filter_region.sizeof(slice(0, 1000)) == 2*4 + 1
+
+    # Check the data is correct
+    sr = filter_region.create_subregion(slice(25, 50), 0)
+    data = np.frombuffer(sr.data, dtype=np.uint32)
+
+    assert len(data) == 2*4 + 1
+    assert data[0] == 2  # Number of filters
+    for i, f in enumerate(filters):
+        assert data[1 + 4*i] == bitsk(np.exp(-dt / f.tau))
+        assert data[2 + 4*i] == bitsk(1. - np.exp(-dt / f.tau))
+        assert data[3 + 4*i] == 0x0 if f.is_accumulatory else 0xffffffff
+        assert data[4 + 4*i] == widths[i]
+
+
 def test_filter_routing_region():
     """Test that the region writes out filter routing values correctly.
     """
