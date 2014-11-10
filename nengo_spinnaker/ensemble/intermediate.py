@@ -12,7 +12,7 @@ IntermediateLearningRule = collections.namedtuple(
 
 class IntermediateEnsemble(object):
     def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 decoder_headers, learning_rules, label=None):
+                 decoder_headers, learning_rules, direct_input, label=None):
         self.n_neurons = n_neurons
         self.label = label
 
@@ -42,4 +42,4 @@ class IntermediateEnsemble(object):
         self.probes = list()
 
         # Direct input
-        self.direct_input = np.zeros(self.n_dimensions)
+        self.direct_input = direct_input

@@ -110,3 +110,9 @@ def test_lif_system_region():
     assert data[5] == bitsk(0.07)  # dt over t_rc
     assert data[6] == 0x1  # not recording spikes
     assert data[7] == 1  # number of inhibitory dimensions
+
+
+def test_lif_assemble_from_intermediate():
+    # Create a small example, build the intermediate representation and then
+    # assemble.
+    raise NotImplementedError
