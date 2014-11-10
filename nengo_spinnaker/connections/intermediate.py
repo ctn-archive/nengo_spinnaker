@@ -61,6 +61,15 @@ class IntermediateConnection(object):
         return '<IntermediateConnection({}, {})>'.format(self.pre_obj,
                                                          self.post_obj)
 
+    def _get_eval_points(self):
+        # Try to get the eval points
+        eval_points = self.eval_points
+        if eval_points is None:
+            assert self.pre_obj.eval_points is not None
+            eval_points = np.array(self.pre_obj.eval_points)
+        assert self.pre_obj.size_out == eval_points.shape[1]
+        return eval_points
+
     def get_reduced_outgoing_connection(self):
         """Convert the IntermediateConnection into a reduced representation.
         """
@@ -75,12 +84,8 @@ class IntermediateConnection(object):
                 # Check the learning rule affects transmission and include it.
                 raise NotImplementedError
 
-            # Try to get the eval points
-            eval_points = self.eval_points
-            if eval_points is None:
-                assert self.pre_obj.eval_points is not None
-                eval_points = np.array(self.pre_obj.eval_points)
-            assert self.pre_obj.size_out == eval_points.shape[1]
+            # Get the eval points
+            eval_points = self._get_eval_points()
 
             return OutgoingReducedEnsembleConnection(
                 self.width, self.transform, self.function, self.pre_slice,
