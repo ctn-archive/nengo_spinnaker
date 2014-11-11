@@ -103,6 +103,9 @@ class EnsembleLIF(vertices.Vertex):
                  input_filter_routing, inhib_filter_region,
                  inhib_filter_routing, gain_region, modulatory_filter_region,
                  modulatory_filter_routing, pes_region, spikes_region):
+        """
+        :type system_region: SystemRegion
+        """
         regions = [
             system_region,  # 1
             bias_region,  # 2
@@ -120,7 +123,34 @@ class EnsembleLIF(vertices.Vertex):
             None,  # 14
             spikes_region,  # 15
         ]
+        self.n_input_dimensions = system_region.n_input_dimensions
+        self.n_output_dimension = system_region.n_output_dimensions
         super(EnsembleLIF, self).__init__(n_neurons, '', regions)
+
+    def get_cpu_usage_for_atoms(self, vertex_slice):
+        """Get the CPU requirements in cycles for this vertex slice."""
+        # TODO Determine what this is...
+        return 0
+
+    def get_dtcm_usage_static(self, vertex_slice):
+        """Get the memory requirement (in WORDS) not arising from data already
+        specified in regions.
+
+        For each input dimension we store: 1 word current input
+        For each output dimension we store: 1 word of buffer
+        For each neuron we store: 1 word of state
+
+        .. todo::
+            Add any missing elements of memory usage.
+
+        Parameters
+        ----------
+        vertex_slice : :py:func:`slice`
+            Slice representing the atoms selected for this partition of the
+            vertex.
+        """
+        return (self.n_input_dimensions + self.n_output_dimension +
+                min(self.n_atoms, vertex_slice.stop - vertex_slice.start))
 
 
 @Assembler.object_assembler(IntermediateLIF)
@@ -213,6 +243,8 @@ class SystemRegion(regions.Region):
         :param float dt_over_t_rc:
         :param bool: Record spikes (TODO: Move elsewhere?)
         """
+        super(SystemRegion, self).__init__()
+
         self.n_input_dimensions = n_input_dimensions
         self.n_output_dimensions = n_output_dimensions
         self.machine_timestep = machine_timestep

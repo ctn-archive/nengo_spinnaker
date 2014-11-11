@@ -285,3 +285,13 @@ def test_lif_assemble_from_intermediate():
 
     # Spikes
     assert isinstance(spikes_region, region_utils.BitfieldBasedRecordingRegion)
+
+    # Check that we can get resources for the vertex
+    lif_vertex.get_resources_used_by_atoms(slice(0, 10), None)
+
+    # Check that the static DTCM usage is sensible
+    # There is 1 atom, so we check that space is reserved for storing
+    # voltage and refractory state for a single neuron.  Also, we have 1 input
+    # dimension and 2 output dimensions, so:
+    # 1 word for neuron state, 1 word for input, 2 words for output buffering
+    assert lif_vertex.get_dtcm_usage_static(slice(0, 10)) >= 1 + 1 + 2
