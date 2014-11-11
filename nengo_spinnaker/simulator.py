@@ -98,23 +98,29 @@ class Simulator(object):
 
         # Partition and place
         logger.info("Run step 2/9: Partitioning and placing the model.")
+        raise NotImplementedError
 
         # Route edges from the model
         logger.info("Run step 3/9: Routing connections on the SpiNNaker "
                     "network.")
+        raise NotImplementedError
 
         # Generate the data to be loaded to SpiNNaker
         logger.info("Run step 4/9: Generating data to load to SpiNNaker.")
+        raise NotImplementedError
 
         # Load the data to SpiNNaker
         logger.info("Run step 5/9: Loading data to SpiNNaker.")
+        raise NotImplementedError
 
         # Load the executables to SpiNNaker
         logger.info("Run step 6/9: Loading executables to SpiNNaker.")
+        raise NotImplementedError
 
         # Generate the network to simulate on host
         logger.info("Run step 7/9: Generating the portion of the model to "
                     "simulate on this computer.")
+        raise NotImplementedError
 
         # Start the simulation
         logger.info(
@@ -122,7 +128,9 @@ class Simulator(object):
             .format("ever" if time_in_seconds is None else "{:3f}s"
                 .format(time_in_seconds))
         )
+        raise NotImplementedError
 
         # Stop the simulation and retrieve data from SpiNNaker
         logger.info("Run step 9/9: Stopping the simulation and retrieving "
                     "probed values.")
+        raise NotImplementedError
