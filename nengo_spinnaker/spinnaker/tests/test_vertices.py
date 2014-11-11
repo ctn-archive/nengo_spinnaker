@@ -24,6 +24,25 @@ def test_get_sdram_usage_for_atoms():
             4*sum(r.sizeof(slice(0, 10)) for r in rs))
 
 
+def test_get_sdram_usage_for_atoms_none_region():
+    """Test that the SDRAM usage for various regions is reported correctly,
+    even when a region is empty.
+    """
+    rs = [
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
+        regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
+                                                 unfilled=True),
+        None,
+    ]
+    v = Vertex(100, '', rs)
+
+    assert (v.get_sdram_usage_for_atoms(slice(0, 10)) ==
+            4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]))
+
+
 def test_get_dtcm_usage_for_regions():
     """Test that the DTCM usage for various regions is reported correctly.
     """
@@ -54,6 +73,25 @@ def test_get_dtcm_usage_for_regions_non_dtcm_regions():
         regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
                                                  unfilled=True),
         regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)
+    ]
+    v = Vertex(100, '', rs)
+
+    assert (v.get_dtcm_usage_for_atoms(slice(0, 10)) ==
+            4*sum(r.sizeof(slice(0, 10)) for r in rs[:-1]))
+
+
+def test_get_dtcm_usage_for_regions_none_regions():
+    """Test that the DTCM usage for various regions is reported correctly when
+    some of the regions are not blank (None).
+    """
+    rs = [
+        regions.MatrixRegion(shape=(100, 5), prepends=[
+            regions.MatrixRegionPrepends.SIZE,
+            regions.MatrixRegionPrepends.N_ATOMS
+        ]),
+        regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
+                                                 unfilled=True),
+        None,
     ]
     v = Vertex(100, '', rs)
 

@@ -61,7 +61,8 @@ class Vertex(AbstractConstrainedVertex):
         This calculation returns the total memory (in BYTES) used in SDRAM.
         Method is not intended to be overridden.
         """
-        return 4*sum(r.sizeof(vertex_slice) for r in self.regions)
+        return 4*sum(r.sizeof(vertex_slice) for r in self.regions if
+                     r is not None)
 
     def get_dtcm_usage_for_atoms(self, vertex_slice):
         """Get the DTCM usage for the given slice of the vertex.
@@ -69,7 +70,8 @@ class Vertex(AbstractConstrainedVertex):
         This calculation returns the total memory (in BYTES) used in DTCM.
         Method is not intended to be overridden.
         """
-        words = sum(r.sizeof(vertex_slice) for r in self.regions if r.in_dtcm)
+        words = sum(r.sizeof(vertex_slice) for r in self.regions if
+                    (r is not None and r.in_dtcm))
         words += self.get_dtcm_usage_static(vertex_slice)
 
         return 4 * words
