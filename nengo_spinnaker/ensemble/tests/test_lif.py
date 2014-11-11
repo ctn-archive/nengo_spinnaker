@@ -7,7 +7,7 @@ import numpy as np
 import random
 
 from ..placeholder import PlaceholderEnsemble
-from .. import lif
+from .. import lif, pes
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
 from ...utils.fixpoint import bitsk
@@ -55,6 +55,90 @@ def test_build():
     assert len(ilif.decoder_headers) == 3
     assert ilif.encoders.shape == (100, 3)
     assert ilif.decoders.shape == (100, 3)
+
+
+def test_lif_with_encoders_from_numpy_array():
+    # Create an Ensemble with no outgoing connections
+    with nengo.Network():
+        ens = nengo.Ensemble(100, 1)
+        ens.encoders = np.random.choice([-1., 1.], size=(100, 1))
+
+    # Create a connection tree
+    ctree = ConnectionTree.from_intermediate_connections([])
+
+    # Create a Placeholder for the Ensemble
+    p_ens = PlaceholderEnsemble(ens)
+
+    # Build the intermediate representation
+    config = mock.Mock()
+    rng = np.random.RandomState(1111)
+    ilif = lif.IntermediateLIF.build(p_ens, ctree, config, rng)
+
+    # Check the encoders are taken from that selection
+    assert np.all(ilif.encoders == ens.encoders[:])
+
+
+def test_lif_with_encoders_from_numpy_array_normalised():
+    # Create an Ensemble with no outgoing connections
+    with nengo.Network():
+        ens = nengo.Ensemble(100, 3)
+        ens.encoders = np.random.uniform(size=(100, 3))
+
+    # Create a connection tree
+    ctree = ConnectionTree.from_intermediate_connections([])
+
+    # Create a Placeholder for the Ensemble
+    p_ens = PlaceholderEnsemble(ens)
+
+    # Build the intermediate representation
+    config = mock.Mock()
+    rng = np.random.RandomState(1111)
+    ilif = lif.IntermediateLIF.build(p_ens, ctree, config, rng)
+
+    # Check the encoders are normalised
+    encoder_mag = np.sqrt(np.sum(ilif.encoders[:]**2, axis=1))
+    desired_mag = np.array([1.] * 100)
+    assert (np.all(encoder_mag < 1.1 * desired_mag) and
+            np.all(encoder_mag > 0.9 * desired_mag))
+
+
+def test_lif_with_pes_connections():
+    """Test building LIF ensembles when PES connections are present.
+    """
+    with nengo.Network() as model:
+        a = nengo.Node(lambda t: t, size_in=0, size_out=1)
+
+        b = nengo.Ensemble(200, 1)
+        b.eval_points = np.random.uniform(-1., 1., (1000, 1))
+
+        c = nengo.Node(lambda t, x: None, size_in=1, size_out=0)
+
+        mod_conn = nengo.Connection(a, b, modulatory=True)
+        nengo.Connection(b, c, learning_rule_type=nengo.PES(mod_conn))
+
+    # Process the PES connections
+    (objs, conns) = pes.process_pes_connections(
+        model.all_objects, model.all_connections, model.all_probes)
+
+    # Build the connection tree
+    ctree = ConnectionTree.from_intermediate_connections(conns)
+
+    # Create a placeholder
+    p_ens = PlaceholderEnsemble(b)
+
+    # Modify the ctree to include the placeholder and a keyspace
+    ks = mock.Mock()
+    ctree = ctree.get_new_tree_with_replaced_objects({b: p_ens})
+    ctree = ctree.get_new_tree_with_applied_keyspace(ks)
+
+    # Build
+    rng = np.random.RandomState(1114)
+    ilif = lif.IntermediateLIF.build(p_ens, ctree, None, rng)
+
+    # Assert the learning rules are correct
+    assert len(ilif.learning_rules) == 1
+    assert isinstance(ilif.learning_rules[0].rule, pes.PESInstance)
+    assert ilif.learning_rules[0].decoder_index == 0
 
 
 def test_lif_system_region():
