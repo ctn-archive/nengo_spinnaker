@@ -11,6 +11,8 @@ from .. import lif, pes
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
 from ...utils.fixpoint import bitsk
+from nengo_spinnaker.utils import regions as region_utils
+from nengo_spinnaker.spinnaker import regions
 
 
 def test_build():
@@ -197,6 +199,89 @@ def test_lif_system_region():
 
 
 def test_lif_assemble_from_intermediate():
-    # Create a small example, build the intermediate representation and then
-    # assemble.
-    raise NotImplementedError
+    # Create an intermediate LIF object, then assemble
+    ks1 = mock.Mock(name="Keyspace d=1")
+    ks2 = mock.Mock(name="Keyspace d=2")
+    tau_ref = 0.5
+    tau_ref_in_ticks = 0.5 * 10**6 / 10**3
+    tau_rc = 0.01
+    ilif = lif.IntermediateLIF(
+        n_neurons=1, gains=np.array([0.5]), bias=np.array([-1.]),
+        encoders=np.array([[1.]]), decoders=np.array([[.2, .3]]),
+        tau_ref=tau_ref, tau_rc=tau_rc, decoder_headers=[ks1, ks2],
+        learning_rules=list(), direct_input=np.zeros((1, 1))
+    )
+
+    # No incoming connections.
+    ctree = ConnectionTree.from_intermediate_connections([])
+
+    # Construct
+    runtime = 10.
+    dt = 0.001
+    machine_timestep = 1000
+    lif_vertex = lif.assemble_lif_vertex_from_intermediate(
+        ilif, ctree, None, {}, runtime, dt, machine_timestep)
+
+    # Now assert that the regions are sensible
+    (sys_region, bias_region, encoders_region, decoders_region, outkeys_region,
+     input_filters, input_routing, inhib_filters, inhib_routing, gain_region,
+     pes_filters, pes_routing, pes_region, blank_region, spikes_region) = \
+        lif_vertex.regions
+
+    # System region
+    assert isinstance(sys_region, lif.SystemRegion)
+    assert sys_region.n_input_dimensions == 1
+    assert sys_region.n_output_dimensions == 2
+    assert sys_region.machine_timestep == machine_timestep
+    assert sys_region.t_ref_in_ticks == tau_ref_in_ticks
+    assert sys_region.dt_over_t_rc == bitsk(dt / tau_rc)
+    assert sys_region.record_flags == 0x0
+
+    # Bias region
+    assert isinstance(bias_region, regions.MatrixRegionPartitionedByRows)
+    assert np.all(bias_region.matrix == ilif.bias)
+    assert bias_region.formatter is bitsk
+
+    # Encoders region
+    assert isinstance(encoders_region, regions.MatrixRegionPartitionedByRows)
+    assert np.all(encoders_region.matrix ==
+                  np.dot(ilif.encoders, ilif.gains[:, np.newaxis]))
+    assert encoders_region.formatter is bitsk
+
+    # Decoders region
+    assert isinstance(decoders_region, regions.MatrixRegionPartitionedByRows)
+    assert np.all(decoders_region.matrix == ilif.decoders)
+    assert decoders_region.formatter is bitsk
+
+    # Output keys
+    assert isinstance(outkeys_region, regions.KeysRegion)
+    assert not outkeys_region.prepend_n_keys
+    assert not outkeys_region.partitioned
+    assert outkeys_region.keys == [ks1, ks2]
+
+    # Input filters, inhib filters, PES filters
+    for (filter_region, filter_routing) in [(input_filters, input_routing),
+                                            (inhib_filters, inhib_routing),
+                                            (pes_filters, pes_routing)]:
+        # The filter region itself (no incoming connections)
+        assert isinstance(filter_region, regions.MatrixRegion)
+        assert filter_region.shape == (0, 4)
+
+        # The routing region -- loose test (no incoming connections)
+        assert isinstance(filter_routing, regions.KeysRegion)
+        assert len(filter_routing.fields) == 4
+        assert filter_routing.keys == list()
+
+    # Gain
+    assert isinstance(gain_region, regions.MatrixRegionPartitionedByRows)
+    assert np.all(gain_region.matrix == ilif.gains)
+
+    # PES
+    assert isinstance(pes_region, regions.MatrixRegion)
+    assert pes_region.shape == (0,)
+
+    # BLANK
+    assert blank_region is None
+
+    # Spikes
+    assert isinstance(spikes_region, region_utils.BitfieldBasedRecordingRegion)
