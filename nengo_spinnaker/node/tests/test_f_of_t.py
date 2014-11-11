@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from pacman.model.graph_mapper.slice import Slice
 from .. import f_of_t
 from ...utils.fixpoint import bitsk
 
@@ -53,15 +54,15 @@ def test_create_data_region():
     assert not data_region.in_dtcm
 
     # Check that the sizing is correct, for some samples
-    assert data_region.sizeof(slice(0, 1)) == eval_points.size
-    assert data_region.sizeof(slice(2, 5)) == 3 * eval_points.size
-    assert data_region.sizeof(slice(1, 3)) == 2 * eval_points.size
+    assert data_region.sizeof(Slice(0, 0)) == eval_points.size
+    assert data_region.sizeof(Slice(2, 4)) == 3 * eval_points.size
+    assert data_region.sizeof(Slice(1, 2)) == 2 * eval_points.size
 
     # Check that the eventual data is correct
-    for s in (slice(0, 1), slice(2, 5), slice(1, 3)):
+    for s in (Slice(0, 0), Slice(2, 4), Slice(1, 2)):
         sr = data_region.create_subregion(s, 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
-        sample_data = reference_data.T[s].T.flatten()
+        sample_data = reference_data.T[s.as_slice].T.flatten()
 
         assert np.all(sample_data == sr_data)

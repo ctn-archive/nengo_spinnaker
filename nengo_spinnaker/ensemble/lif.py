@@ -150,7 +150,7 @@ class EnsembleLIF(vertices.Vertex):
             vertex.
         """
         return (self.n_input_dimensions + self.n_output_dimension +
-                min(self.n_atoms, vertex_slice.stop - vertex_slice.start))
+                min(self.n_atoms, vertex_slice.n_atoms))
 
 
 @Assembler.object_assembler(IntermediateLIF)
@@ -263,7 +263,7 @@ class SystemRegion(regions.Region):
         data = np.array([
             self.n_input_dimensions,
             self.n_output_dimensions,
-            vertex_slice.stop - vertex_slice.start,
+            vertex_slice.n_atoms,
             self.machine_timestep,
             self.t_ref_in_ticks,
             self.dt_over_t_rc,

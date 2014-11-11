@@ -24,17 +24,31 @@ class Vertex(AbstractConstrainedVertex):
         Each Vertex object consists of a set of regions, each region
         describes a block of memory that is to be treated in various ways.
 
-        :param int n_atoms: Number of processing atoms represented by the
-                            vertex.
-        :param string label: Human readable representation for the vertex.
-        :param list regions: A list of memory regions for the vertex.
-        :param list constraints: A list of constraints for the vertex.
+        Parameters
+        ----------
+        n_atoms : int
+            Number of processing atoms represented by the vertex.
+        label : string
+            Human readable representation for the vertex.
+        regions : list
+            A list of memory regions for the vertex.
+        constraints : list
+            A list of constraints for the vertex.
         """
         super(Vertex, self).__init__(label, constraints)
         self.n_atoms = n_atoms
         self.regions = regions
 
     def get_resources_used_by_atoms(self, vertex_slice, graph):
+        """Get the resource requirements of a slice of atoms.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms to get the usage requirements of.
+        graph :
+            Unused.
+        """
         return ResourceContainer(
             cpu=CPUCyclesPerTickResource(
                 self.get_cpu_usage_for_atoms(vertex_slice)),
@@ -45,13 +59,18 @@ class Vertex(AbstractConstrainedVertex):
     def get_subregions(self, subvertex_index, vertex_slice):
         """Return subregions for the atoms indexed in the vertex slice.
 
-        :param subvertex_index: The sub-object ID assigned to the subvertex.
-        :param vertex_slice: The slice defining the subvertex.
-        """
-        if not (vertex_slice.start <= vertex_slice.stop < self.n_atoms and
-                0 <= vertex_slice.start < self.n_atoms):
-            raise ValueError(vertex_slice)
+        Parameters
+        ----------
+        subvertex_index : int
+            Index of the subvertex for which subregions are desired.
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms for which subregions should be generated.
 
+        Returns
+        -------
+        list :
+            A list of :py:func:`Subregion`s.
+        """
         return [r.create_subregion(vertex_slice, subvertex_index) for r in
                 self.regions]
 
@@ -60,6 +79,11 @@ class Vertex(AbstractConstrainedVertex):
 
         This calculation returns the total memory (in BYTES) used in SDRAM.
         Method is not intended to be overridden.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms to get the usage requirements of.
         """
         return 4*sum(r.sizeof(vertex_slice) for r in self.regions if
                      r is not None)
@@ -69,6 +93,11 @@ class Vertex(AbstractConstrainedVertex):
 
         This calculation returns the total memory (in BYTES) used in DTCM.
         Method is not intended to be overridden.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms to get the usage requirements of.
         """
         words = sum(r.sizeof(vertex_slice) for r in self.regions if
                     (r is not None and r.in_dtcm))
@@ -81,6 +110,11 @@ class Vertex(AbstractConstrainedVertex):
 
         This calculation returns the total memory (in BYTES) used in DTCM.
         Method is intended to be overridden.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms to get the usage requirements of.
         """
         return 0
 
@@ -88,5 +122,10 @@ class Vertex(AbstractConstrainedVertex):
         """Get the CPU usage (in ticks per step) for the given vertex slice.
 
         Method is intended to be overridden.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms to get the usage requirements of.
         """
         raise NotImplementedError

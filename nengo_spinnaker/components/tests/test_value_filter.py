@@ -2,6 +2,7 @@ import mock
 import nengo
 import numpy as np
 
+from pacman.model.graph_mapper.slice import Slice
 from ...assembler import Assembler
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
@@ -40,7 +41,7 @@ def test_create_filter_vertex():
     assert len(filter_vertex.regions) == 5
 
     # Assert that usage can be reported
-    filter_vertex.get_resources_used_by_atoms(slice(10), None)
+    filter_vertex.get_resources_used_by_atoms(Slice(0, 9), None)
 
 
 def test_make_filter_system_region():
@@ -59,11 +60,11 @@ def test_make_filter_system_region():
     )
 
     # Check sizing
-    assert filter_region.sizeof(slice(0, 100)) == 5
-    assert filter_region.sizeof(slice(2, 5)) == 5
+    assert filter_region.sizeof(Slice(0, 99)) == 5
+    assert filter_region.sizeof(Slice(2, 4)) == 5
 
     # Check partitioning and data
-    sr = filter_region.create_subregion(slice(0, 1), 0)
+    sr = filter_region.create_subregion(Slice(0, 0), 0)
     sr_data = np.frombuffer(sr.data, dtype=np.uint32).tolist()
     assert sr_data == [size_in, size_out, machine_timestep, transmission_delay,
                        interpacket_pause]
@@ -107,6 +108,6 @@ def test_make_transform_region_data():
     transform_region = make_transform_region(orcs, size_in=3)
 
     # Check how the region partitions and returns its data
-    sr1 = transform_region.create_subregion(slice(0, 4), 0)
+    sr1 = transform_region.create_subregion(Slice(0, 3), 0)
     sr1_data = np.frombuffer(sr1.data, dtype=np.uint32).reshape(4, 3)
     assert np.all(sr1_data == fp_correct_transform[0:4])

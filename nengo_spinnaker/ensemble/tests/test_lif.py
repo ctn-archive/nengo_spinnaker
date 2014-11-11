@@ -6,6 +6,7 @@ import nengo
 import numpy as np
 import random
 
+from pacman.model.graph_mapper.slice import Slice
 from ..placeholder import PlaceholderEnsemble
 from .. import lif, pes
 from ...connections.connection_tree import ConnectionTree
@@ -163,10 +164,10 @@ def test_lif_system_region():
                                )
 
     # Assert the size is sensible
-    assert region1.sizeof(slice(0, 1000)) == 8
+    assert region1.sizeof(Slice(0, 999)) == 8
 
     # Assert that subregions are formatted correctly
-    sr1 = region1.create_subregion(slice(0, 10), 1)
+    sr1 = region1.create_subregion(Slice(0, 9), 1)
     data = np.frombuffer(sr1.data, dtype=np.uint32)
     assert data[0] == 10  # input dims
     assert data[1] == 5  # output dims
@@ -179,14 +180,14 @@ def test_lif_system_region():
 
     for i in range(100):
         low_val = random.randint(0, 1000)
-        high_val = random.randint(low_val+1, low_val+1000)
-        n_atoms = high_val - low_val
+        high_val = random.randint(low_val+1, low_val+1000) - 1
+        n_atoms = high_val - low_val + 1
 
-        sr = region1.create_subregion(slice(low_val, high_val), i)
+        sr = region1.create_subregion(Slice(low_val, high_val), i)
         data = np.frombuffer(sr.data, dtype=np.uint32)
         assert data[2] == n_atoms
 
-    sr1 = region2.create_subregion(slice(0, 10), 1)
+    sr1 = region2.create_subregion(Slice(0, 9), 1)
     data = np.frombuffer(sr1.data, dtype=np.uint32)
     assert data[0] == 3  # input dims
     assert data[1] == 1  # output dims
@@ -287,11 +288,11 @@ def test_lif_assemble_from_intermediate():
     assert isinstance(spikes_region, region_utils.BitfieldBasedRecordingRegion)
 
     # Check that we can get resources for the vertex
-    lif_vertex.get_resources_used_by_atoms(slice(0, 10), None)
+    lif_vertex.get_resources_used_by_atoms(Slice(0, 9), None)
 
     # Check that the static DTCM usage is sensible
     # There is 1 atom, so we check that space is reserved for storing
     # voltage and refractory state for a single neuron.  Also, we have 1 input
     # dimension and 2 output dimensions, so:
     # 1 word for neuron state, 1 word for input, 2 words for output buffering
-    assert lif_vertex.get_dtcm_usage_static(slice(0, 10)) >= 1 + 1 + 2
+    assert lif_vertex.get_dtcm_usage_static(Slice(0, 9)) >= 1 + 1 + 2

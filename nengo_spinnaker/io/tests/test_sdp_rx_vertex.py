@@ -2,6 +2,7 @@ import mock
 import nengo
 import numpy as np
 
+from pacman.model.graph_mapper.slice import Slice
 from ...assembler import Assembler
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
@@ -43,11 +44,11 @@ def test_assemble_from_receive_object():
     assert len(sdp_rx_vertex.regions) == 2
 
     # Ensure that we can get resources
-    sdp_rx_vertex.get_resources_used_by_atoms(slice(0, 10), None)
+    sdp_rx_vertex.get_resources_used_by_atoms(Slice(0, 9), None)
 
     # Ensure the additional DTCM resources are returned correctly
-    assert sdp_rx_vertex.get_dtcm_usage_static(slice(0, 10)) == 10
-    assert sdp_rx_vertex.get_dtcm_usage_static(slice(0, 5)) == 5
+    assert sdp_rx_vertex.get_dtcm_usage_static(Slice(0, 9)) == 10
+    assert sdp_rx_vertex.get_dtcm_usage_static(Slice(0, 4)) == 5
 
 
 def test_sdp_rx_system_region():
@@ -55,14 +56,14 @@ def test_sdp_rx_system_region():
     region = SDPRxVertexSystemRegion(1000)
 
     # Check the sizing reports
-    assert region.sizeof(slice(0, 100)) == 2
+    assert region.sizeof(Slice(0, 99)) == 2
     assert region.sizeof(slice(10)) == 2
 
     # Check the subregion data
-    sr_data = np.frombuffer(region.create_subregion(slice(0, 10), 1).data,
+    sr_data = np.frombuffer(region.create_subregion(Slice(0, 9), 1).data,
                             dtype=np.uint32).tolist()
     assert sr_data == [1000, 10]
 
-    sr_data = np.frombuffer(region.create_subregion(slice(5, 6), 1).data,
+    sr_data = np.frombuffer(region.create_subregion(Slice(5, 5), 1).data,
                             dtype=np.uint32).tolist()
     assert sr_data == [1000, 1]

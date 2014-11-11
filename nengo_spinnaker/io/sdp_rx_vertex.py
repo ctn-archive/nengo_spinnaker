@@ -62,7 +62,7 @@ class SDPRxVertex(Vertex):
         :param vertex_slice: Slice of the vertex.
         :type vertex_slice: :py:func:`slice`
         """
-        return vertex_slice.stop - vertex_slice.start
+        return vertex_slice.n_atoms
 
 
 @Assembler.object_assembler(TransmitObject)
@@ -113,10 +113,8 @@ class SDPRxVertexSystemRegion(regions.Region):
         :type subvertex_index: int
         :rtype: :py:class:`~regions.Subregion_`
         """
-        # Get the number of atoms, this is the 2nd word of the system region
-        n_atoms = vertex_slice.stop - vertex_slice.start
-
         # Create the system region data
-        data = np.array([self.transmission_period, n_atoms], dtype=np.uint32)
+        data = np.array([self.transmission_period, vertex_slice.n_atoms],
+                        dtype=np.uint32)
 
         return regions.Subregion(data, len(data), False)

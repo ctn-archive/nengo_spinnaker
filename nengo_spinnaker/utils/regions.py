@@ -13,6 +13,5 @@ class BitfieldBasedRecordingRegion(regions.Region):
 
     def sizeof(self, vertex_slice):
         # Size is the number of words required x number of ticks
-        frame_length = int(math.ceil(
-            (vertex_slice.stop - vertex_slice.start) / 32.))
+        frame_length = int(math.ceil(vertex_slice.n_atoms / 32.))
         return frame_length * self.n_ticks

@@ -6,40 +6,60 @@ import numpy as np
 class Region(object):
     """Generic memory region object.
 
-    :attr in_dtcm: Whether the region of memory is loaded into DTCM.
-    :attr unfilled: Region is left unfilled.
-    :attr prepend_length: Prepend the length of the region when writing out.
+    Attributes
+    ----------
+    in_dtcm : bool
+        Whether the region of memory is loaded into DTCM.
+    unfilled : bool
+        Region is left unfilled.
     """
     def __init__(self, in_dtcm=True, unfilled=False):
-        """
-        :param bool in_dtcm: Whether the region is stored in DTCM.
-        :param bool unfilled: Whether the region is to be left unfilled.
-        :param func formatter: Formatting function to apply to each element in
-                               the array before writing out.
+        """Create a new region.
+
+        Parameters
+        ----------
+        in_dtcm : bool
+            Whether the region is stored in DTCM.
+        unfilled : bool
+            Whether the region is to be left unfilled.
+        formatter : func
+            Formatting function to apply to each element in the array before
+            writing out.
         """
         self.in_dtcm = in_dtcm
         self.unfilled = unfilled
 
     def sizeof(self, vertex_slice):
-        """Get the size (in words) of the region."""
+        """Get the size (in words) of the region.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
+        """
         raise NotImplementedError
 
     def create_subregion(self, vertex_slice, subvertex_index):
         """Create a smaller version of the region ready to write to memory.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
         """
         raise NotImplementedError
 
 
-Subregion_ = collections.namedtuple('Subregion', 'data size_words unfilled')
 
-
-def Subregion(data, size_words, unfilled):
-    if data is not None:
-        assert data.dtype == np.uint32  # May want to revise this later
-        d = np.copy(data)
-        d.flags.writeable = False
-        data = d.data
-    return Subregion_(data, size_words, unfilled)
+class Subregion(collections.namedtuple('Subregion',
+                                       'data size_words unfilled')):
+    def __new__(cls, data, size_words, unfilled):
+        if data is not None:
+            assert data.dtype == np.uint32  # May want to revise this later
+            d = np.copy(data)
+            d.flags.writeable = False
+            data = d.data
+        return super(cls, Subregion).__new__(cls, data, size_words, unfilled)
 
 
 MatrixRegionPrepends = enum.Enum('MatrixRegionPrepends',
@@ -55,9 +75,13 @@ class MatrixRegion(Region):
                  unfilled=False, prepends=list(), formatter=None):
         """Create a new region representing a matrix.
 
-        :param matrix: Matrix to represent in this region.
-        :param shape: Shape of the matrix, will be taken from the passed matrix
-                      if not specified.
+        Parameters
+        ----------
+        matrix : ndarray
+            Matrix to represent in this region.
+        shape : tuple
+            Shape of the matrix, will be taken from the passed matrix if not
+            specified.
         """
         super(MatrixRegion, self).__init__(in_dtcm=in_dtcm, unfilled=unfilled)
         self.prepends = prepends
@@ -78,15 +102,29 @@ class MatrixRegion(Region):
         self.dtype = dtype
 
     def sizeof(self, vertex_slice):
-        """Get the size of the region for the specified atoms in words."""
+        """Get the size of the region for the specified atoms in words.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
+        """
         return (self.size_from_shape(vertex_slice) + len(self.prepends))
 
     def __getitem__(self, index):
         return self.matrix
 
     def size_from_shape(self, vertex_slice):
+        """Get the size from the shape of the matrix.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
+        """
         # If the shape is n-D then multiply the length of the axes together,
         # accounting for the clipping of the partitioned axis.
+        vertex_slice = vertex_slice.as_slice
         return reduce(
             lambda x, y: x*y,
             [s if i != self.partition_index else
@@ -95,9 +133,16 @@ class MatrixRegion(Region):
 
     def create_subregion(self, vertex_slice, subvertex_index):
         """Return the data to write to memory for this region.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
+        subvertex_index : int
+            The index of the subvertex containing this region.
         """
         # Get the data, flatten
-        data = self[vertex_slice]
+        data = self[vertex_slice.as_slice]
         flat_data = data.reshape(data.size)
 
         # Format the data as required
@@ -109,8 +154,7 @@ class MatrixRegion(Region):
 
         # Prepend any required additional data
         prepend_data = {
-            MatrixRegionPrepends.N_ATOMS: (vertex_slice.stop -
-                                           vertex_slice.start),
+            MatrixRegionPrepends.N_ATOMS: vertex_slice.n_atoms,
             MatrixRegionPrepends.N_ROWS: data.shape[0],
             MatrixRegionPrepends.N_COLUMNS: (0 if len(data.shape) == 1 else
                                              data.shape[1]),
@@ -169,23 +213,44 @@ class KeysRegion(Region):
         self.fields.extend(extra_fields)
 
     def _get_n_keys(self, vertex_slice):
+        """Get the number of keys (not fields or values) in this slice.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
+        """
         length = len(self.keys)
         if self.partitioned:
-            length = min(length, vertex_slice.stop - vertex_slice.start)
+            length = min(length, vertex_slice.n_atoms)
         return length
 
     def sizeof(self, vertex_slice):
         """The size of the region in WORDS.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
         """
         length = self._get_n_keys(vertex_slice)
         return (length * (len(self.fields)) +
                 (1 if self.prepend_n_keys else 0))
 
     def create_subregion(self, vertex_slice, subvertex_index):
+        """Create a subregion.
+
+        Parameters
+        ----------
+        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+            The slice of atoms that will be represented by the region.
+        subvertex_index : int
+            The index of the subvertex containing this region.
+        """
         # Create the data for each key
         data = []
         for k in (self.keys if not self.partitioned else
-                  self.keys[vertex_slice]):
+                  self.keys[vertex_slice.as_slice]):
             data.extend(f(k, subvertex_index) for f in self.fields)
 
         # Prepend any required additional data
