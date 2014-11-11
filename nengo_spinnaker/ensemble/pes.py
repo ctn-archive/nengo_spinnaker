@@ -1,8 +1,11 @@
 import collections
 import nengo
 import numpy as np
+from six import iteritems
 
 from ..connections.intermediate import IntermediateConnection
+from ..connections.reduced import OutgoingReducedEnsembleConnection
+from ..utils import filters as filter_utils
 from ..utils.fixpoint import bitsk
 from ..spinnaker import regions
 
@@ -10,24 +13,39 @@ from ..spinnaker import regions
 PESInstance = collections.namedtuple('PESInstance', 'learning_rate width')
 
 
-class IntermediatePESConnection(IntermediateConnection):
+class _IntermediatePESConnection(IntermediateConnection):
     """Intermediate connection representing a PES modulatory connection.
     """
     def __init__(self, *args, **kwargs):
         self.pes_instance = kwargs.pop('pes_instance', None)
-        super(IntermediatePESConnection, self).__init__(*args, **kwargs)
+        super(_IntermediatePESConnection, self).__init__(*args, **kwargs)
 
     @classmethod
     def from_connection(cls, c, pes_instance, keyspace=None,
                         is_accumulatory=True):
         if isinstance(c, nengo.Connection):
-            c = super(IntermediatePESConnection, cls).from_connection(
+            c = super(_IntermediatePESConnection, cls).from_connection(
                 c, keyspace=keyspace, is_accumulatory=is_accumulatory)
         c.pes_instance = pes_instance
         return c
 
 
-class IntermediatePESModulatoryConnection(IntermediatePESConnection):
+class IntermediatePESConnection(_IntermediatePESConnection):
+    """Intermediate connection representing a learnt PES connection."""
+    def get_reduced_outgoing_connection(self):
+        assert isinstance(self.pre_obj, self._expected_ensemble_type)
+
+        # Get the eval points
+        eval_points = self._get_eval_points()
+
+        return OutgoingReducedEnsembleConnection(
+            self.width, self.transform, self.function, self.pre_slice,
+            self.post_slice, self.keyspace, eval_points, self.solver,
+            self.pes_instance
+        )
+
+
+class IntermediatePESModulatoryConnection(_IntermediatePESConnection):
     """Intermediate connection representing a PES modulatory connection.
     """
     def get_reduced_outgoing_connection(self):
@@ -51,6 +69,8 @@ class IntermediatePESModulatoryConnection(IntermediatePESConnection):
         return ic
 
 
+# This is a Builder network transform, but it is called in
+# nengo_spinnaker.ensemble.build
 def process_pes_connections(objs, conns, probes):
     """Reroute PES modulatory connections.
     """
@@ -90,6 +110,49 @@ def process_pes_connections(objs, conns, probes):
     return objs, new_conns
 
 
+def make_pes_regions(learning_rules, incoming_connections, dt):
+    """Create the filter region, routing region and PES regions for PES
+    learning connections.
+
+    Parameters
+    ----------
+    learning_rules : list
+        A list of ``IntermediateLearningRule``s.
+    incoming_connections : dict
+        A mapping of ports to a map of filters to keyspaces.
+    dt : float
+        The duration of a simulation timestep.
+
+    Returns
+    -------
+    tuple
+        A tuple consisting of the PES region, the PES filter region and the PES
+        filter routing region.
+    """
+    pes_filters = list()
+    widths = list()
+    filter_indices = dict()
+
+    # Iterate through the PES connections
+    for i, l in enumerate([l for l in learning_rules if
+                           isinstance(l.rule, PESInstance)]):
+        # Get the incoming connections for this PES instance
+        conns = incoming_connections[l.rule]  # Get incoming connections
+        assert len(conns) == 1  # There *should* only be one mod connection
+        filter_indices[l] = i  # Store the index of this filter
+
+        # Add the filter, keyspaces and width
+        for (f, keyspaces) in iteritems(conns):
+            pes_filters.append((f, keyspaces))
+            widths.append(l.rule.width)
+
+    # Make the regions
+    pes_region = make_pes_region(learning_rules, dt, filter_indices)
+    pes_filters, pes_routing = filter_utils.get_filter_regions(pes_filters, dt,
+                                                               widths)
+    return pes_region, pes_filters, pes_routing
+
+
 def make_pes_region(learning_rules, dt, filter_indices):
     """Create a region containing PES data.
 
@@ -101,14 +164,10 @@ def make_pes_region(learning_rules, dt, filter_indices):
     # Construct the data as a matrix of the appropriate form
     pes_data = list()
 
-    for l in learning_rules:
-        # Only deal with PES rules
-        if not isinstance(l.rule, nengo.PES):
-            pass
-
+    for l in [l for l in learning_rules if isinstance(l.rule, PESInstance)]:
         # Add the data for this learning rule
         pes_data.append([bitsk(l.rule.learning_rate * dt),
-                         filter_indices[l.rule.error_connection],
+                         filter_indices[l],
                          l.decoder_index])
 
     # Convert to appropriate Numpy array and make a region with the number of

@@ -17,7 +17,8 @@ def test_init_intermediate_ensemble():
             encoders=np.zeros((100, 2)),
             decoders=np.zeros((2, 100)),
             decoder_headers=list(),
-            learning_rules=list()
+            learning_rules=list(),
+            direct_input=np.zeros((100, 2))
         )
 
     # Mismatched bias size
@@ -29,7 +30,8 @@ def test_init_intermediate_ensemble():
             encoders=np.zeros((100, 2)),
             decoders=np.zeros((2, 100)),
             decoder_headers=list(),
-            learning_rules=list()
+            learning_rules=list(),
+            direct_input=np.zeros((100, 2))
         )
 
     # Mismatched encoder size
@@ -41,7 +43,8 @@ def test_init_intermediate_ensemble():
             encoders=np.zeros((1, 2)),
             decoders=np.zeros((2, 100)),
             decoder_headers=list(),
-            learning_rules=list()
+            learning_rules=list(),
+            direct_input=np.zeros((100, 2))
         )
 
     # No issues
@@ -52,7 +55,8 @@ def test_init_intermediate_ensemble():
         encoders=np.zeros((100, 2)),
         decoders=np.zeros((2, 100)),
         decoder_headers=list(),
-        learning_rules=list()
+        learning_rules=list(),
+        direct_input=np.zeros((100, 2))
     )
 
     assert ine.size_in == 2

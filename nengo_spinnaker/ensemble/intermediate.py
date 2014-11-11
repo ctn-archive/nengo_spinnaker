@@ -3,8 +3,6 @@ vertices.
 """
 import collections
 
-import numpy as np
-
 
 IntermediateLearningRule = collections.namedtuple(
     'IntermediateLearningRule', 'rule decoder_index')
@@ -12,7 +10,11 @@ IntermediateLearningRule = collections.namedtuple(
 
 class IntermediateEnsemble(object):
     def __init__(self, n_neurons, gains, bias, encoders, decoders,
-                 decoder_headers, learning_rules, label=None):
+                 decoder_headers, learning_rules, direct_input, label=None):
+        """Create a new intermediate ensemble representation.
+
+        :type learning_rules: A :py:func:`list` of `IntermediateLearningRules`
+        """
         self.n_neurons = n_neurons
         self.label = label
 
@@ -42,4 +44,4 @@ class IntermediateEnsemble(object):
         self.probes = list()
 
         # Direct input
-        self.direct_input = np.zeros(self.n_dimensions)
+        self.direct_input = direct_input

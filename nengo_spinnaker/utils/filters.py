@@ -13,13 +13,34 @@ def get_filter_regions(filter_keyspaces, dt, width):
     """Return the filter and routing region for the given map of filters to
     keyspaces.
 
-    Returns a tuple of (filter region, routing region).
+    Parameters
+    ----------
+    filter_keyspaces : dict or list
+        A map of filter instances to the list of keyspaces which transmit to
+        them.  This may be easily extracted from a
+        :py:class:`~nengo_spinnaker.connections.ConnectionTree`.  If this in
+        the format of a list then each list element is expected to be a tuple
+        (filter, list of keyspaces).
+    dt : float
+        The duration of a simulation step, used in analytical solutions of some
+        filters.
+    width : int or iterable
+        A single width for all filters or one width per filter.
+
+    Returns
+    -------
+    tuple
+        A tuple of (filter region, routing region).
     """
     # Build a list of filters and a map of keyspaces to filter IDs
     filters = list()
     filter_ids = dict()
 
-    for i, (f, keyspaces) in enumerate(iteritems(filter_keyspaces)):
+    # Enumerate the (keys, values) of a dictionary of keyspaces, or enumerate a
+    # list of objects in the same format.
+    for i, (f, keyspaces) in enumerate(iteritems(filter_keyspaces) if
+                                       isinstance(filter_keyspaces, dict) else
+                                       iter(filter_keyspaces)):
         # Store the filter
         filters.append(f)
 
@@ -34,6 +55,15 @@ def get_filter_regions(filter_keyspaces, dt, width):
 
 def make_filter_region(filters, dt, width):
     """Return a region representing parameters for incoming value filters.
+
+    Parameters
+    ----------
+    filters : iterable
+        An iterable of filter instances.
+    dt : float
+        The duration of a simulation step
+    width : int or iterable
+        A single width for all filters or one width per filter.
 
     TODO: Support more than just 1st order low-pass filters.
     """
@@ -50,7 +80,12 @@ def make_filter_region(filters, dt, width):
     # Get the accumulator masks for the filters and the widths of the filters
     masks = np.array([0x0 if f.is_accumulatory else 0xffffffff for f in
                       filters], dtype=np.uint32)
-    widths = np.array([width] * len(filters), dtype=np.uint32)
+
+    if isinstance(width, int):  # YUCK
+        widths = np.array([width] * len(filters), dtype=np.uint32)
+    else:
+        widths = np.array(width[:], dtype=np.uint32)
+        assert len(widths) == len(filters)
 
     # Stack these columns to make the full filter matrix
     f_matrix = np.vstack([fpc, fpd, masks, widths]).T
