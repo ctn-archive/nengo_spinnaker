@@ -32,15 +32,15 @@ def get_connected_nodes(connections):
     """From the connections return a list of Nodes which are are either at the
     beginning or end of a connection.
     """
-    nodes = list()
+    nodes = set()
 
     for c in connections:
-        if c.pre_obj not in nodes and isinstance(c.pre_obj, nengo.Node):
-            nodes.append(c.pre_obj)
-        if c.post_obj not in nodes and isinstance(c.post_obj, nengo.Node):
-            nodes.append(c.post_obj)
+        if isinstance(c.pre_obj, nengo.Node):
+            nodes.add(c.pre_obj)
+        if isinstance(c.post_obj, nengo.Node):
+            nodes.add(c.post_obj)
 
-    return nodes
+    return list(nodes)
 
 
 def replace_node_x_connections(connections, io, config=None):

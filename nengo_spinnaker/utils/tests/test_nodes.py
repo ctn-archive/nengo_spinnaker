@@ -2,15 +2,98 @@ import mock
 import numpy as np
 
 import nengo
-from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
-import nengo_spinnaker
-from nengo_spinnaker.utils import nodes
+from .. import nodes as nodes_utils
+
+
+def test_create_host_network():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(100, 1)
+        b = nengo.Node(lambda t: t, size_in=0, size_out=1)
+        c = nengo.Node(lambda t, x: None, size_in=1, size_out=0)
+        d = nengo.Node(lambda t, x: None, size_in=1, size_out=0)
+
+        cs = [
+            nengo.Connection(b, a),
+            nengo.Connection(b, c),
+            nengo.Connection(b, d),
+            nengo.Connection(a, d),
+        ]
+
+    io = mock.Mock()
+
+    # Create the host network, ensure that it only contains nodes
+    host_network = nodes_utils.create_host_network(cs, io)
+
+    # Assert that objects are sensible
+    assert len(host_network.ensembles) == 0
+    assert len(host_network.nodes) == 5
+    assert (b in host_network.nodes and
+            c in host_network.nodes and
+            d in host_network.nodes)
+
+    # Get index of ensemble related Nodes
+    indices = set(range(len(host_network.nodes)))
+    for n in [b, c, d]:
+        indices.remove(host_network.nodes.index(n))
+
+    # Assert input and output nodes are connected correctly
+    out_node = in_node = None
+    for n in [host_network.nodes[i] for i in indices]:
+        if isinstance(n.output, nodes_utils.OutputToBoard):
+            out_node = n
+            assert out_node.output.io is io
+            assert out_node.output.node is b
+        if isinstance(n.output, nodes_utils.InputFromBoard):
+            in_node = n
+            assert in_node.output.io is io
+            assert in_node.output.node is d
+    assert out_node is not None and in_node is not None
+
+    # Check the set of connections present in the network
+    assert len(host_network.connections) == 4
+    assert (cs[1] in host_network.connections and
+            cs[2] in host_network.connections)
+
+    indices = set(range(len(host_network.connections)))
+    for n in [1, 2]:
+        indices.remove(host_network.connections.index(cs[n]))
+
+    in_conn = out_conn = None
+    for c in [host_network.connections[i] for i in indices]:
+        if c.post_obj is out_node:
+            out_conn = c
+            assert c.pre_obj is b
+        if c.pre_obj is in_node:
+            in_conn = c
+            assert c.post_obj is d
+    assert in_conn is not None and out_conn is not None
+
+
+def test_get_connected_nodes():
+    model = nengo.Network()
+    with model:
+        a = nengo.Ensemble(100, 1)
+        b = nengo.Node(lambda t: t, size_in=0, size_out=1)
+        c = nengo.Node(lambda t, x: None, size_in=1, size_out=0)
+        d = nengo.Node(lambda t, x: None, size_in=1, size_out=0)
+
+        cs = [
+            nengo.Connection(b, a),
+            nengo.Connection(b, c),
+            nengo.Connection(b, d),
+            nengo.Connection(a, d),
+        ]
+
+    nodes = nodes_utils.get_connected_nodes(cs)
+    assert len(nodes) == 3
+    assert b in nodes and c in nodes and d in nodes
 
 
 def test_output_to_board_node_simple():
     io = mock.Mock()
     m = nengo.Node(output=None, size_out=5, add_to_container=False)
-    n = nodes.create_output_node(m, io)
+    n = nodes_utils.create_output_node(m, io)
 
     output = np.random.uniform(-1, 1, 5)
     n.output(0.5, output)
@@ -26,7 +109,7 @@ def test_input_from_board_node_simple():
     io.get_node_input.return_value = np.zeros(5)
 
     m = nengo.Node(output=None, size_in=5, add_to_container=False)
-    n = nodes.create_input_node(m, io)
+    n = nodes_utils.create_input_node(m, io)
 
     input_to_m = n.output(0.5)
 
@@ -40,7 +123,7 @@ def test_input_from_board_node_simple_2():
     io.get_node_input.return_value = None
 
     m = nengo.Node(output=None, size_in=5, add_to_container=False)
-    n = nodes.create_input_node(m, io)
+    n = nodes_utils.create_input_node(m, io)
 
     input_to_m = n.output(0.5)
 
@@ -49,238 +132,75 @@ def test_input_from_board_node_simple_2():
     assert(np.all(np.zeros(5) == input_to_m))
 
 
-def test_replace_node_ensemble_connections_no_conf():
-    model = nengo.Network()
-    with model:
-        a = nengo.Node(0.5)
-        b = nengo.Node(lambda t: [np.sin(t), np.cos(t)])
-        c = nengo.Node(lambda t, v: v, size_in=1)
-
-        e = nengo.Ensemble(1, 1)
-
-        c1 = nengo.Connection(a, e)
-        c2 = nengo.Connection(b, e, transform=[[1., 0.]])
-        c3 = nengo.Connection(a, c)
-
-    mock_io = mock.Mock()
-    (ns, conns) = nodes.replace_node_ensemble_connections(model.connections,
-                                                          mock_io)
-
-    # There should be one additional Node: for B
-    assert(len(ns) == 1)
-    assert(ns[0].output.node == b)
-
-    # There should be 2 connections B->(B) and A->C
-    assert(len(conns) == 2)
-    assert(c3 in conns)
-    for conn in conns:
-        assert(conn.pre == a or conn.pre == b)
-        if conn.pre == a: assert(conn.post == c)
-        if conn.pre == b: assert(conn.post.output.node == b)
-
-
-def test_replace_node_ensemble_connections_conf():
-    model = nengo.Network()
-    with model:
-        a = nengo.Node(lambda t: np.sin)
-        b = nengo.Node(lambda t: [np.sin(t), np.cos(t)])
-        c = nengo.Node(lambda t, v: v, size_in=1)
-
-        e = nengo.Ensemble(1, 1)
-
-        c1 = nengo.Connection(a, e)
-        c2 = nengo.Connection(b, e, transform=[[1., 0.]])
-        c3 = nengo.Connection(a, c)
-
-    config = nengo_spinnaker.Config()
-    config[a].f_of_t = True
-
-    mock_io = mock.Mock()
-    (ns, conns) = nodes.replace_node_ensemble_connections(
-        model.connections, mock_io, config)
-
-    # There should be one additional Node: for B
-    assert(len(ns) == 1)
-    assert(ns[0].output.node == b)
-
-    # There should be 2 connections B->(B) and A->C
-    assert(len(conns) == 2)
-    assert(c3 in conns)
-    for conn in conns:
-        assert(conn.pre == a or conn.pre == b)
-        if conn.pre == a: assert(conn.post == c)
-        if conn.pre == b: assert(conn.post.output.node == b)
-
-
-def test_replace_ensemble_node_connections():
-    model = nengo.Network()
-    with model:
-        a = nengo.Ensemble(1, 1)
-        b = nengo.Node(lambda t, v: v, size_in=1)
-        c = nengo.Node(lambda t, v: v**2, size_in=1)
-        d = nengo.Node(lambda t, v: v**2, size_in=1)
-
-        nengo.Connection(a, b)
-        nengo.Connection(a, c)
-        c_d = nengo.Connection(c, d)
-
-    mock_io = mock.Mock()
-    (ns, conns) = nodes.replace_ensemble_node_connections(
-        model.connections, mock_io)
-
-    # There should be 2 additional nodes, for A->B and A->C
-    assert(len(ns) == 2)
-
-    # There should be 3 connections, (B)->B and (C)->C, C->D
-    assert(len(conns) == 3)
-    for c in conns:
-        if c.post == b: assert(c.pre.output.node == b)
-        if c.post == c: assert(c.pre.output.node == c)
-        if c.post == d: assert(c == c_d)
-
-
-def test_remove_custom_nodes():
-    """Remove Nodes which have a `spinnaker_build` method.  Connections to/from
-    them from Nodes should be treated like connections to/from Ensembles.
+def test_replace_node_x_connections():
+    """Checks that connections from Nodes to ANY OTHER objects are replaced
+    with a new OutputNode and a connection from the Node to that OutputNode.
     """
-    class TestNode(nengo.Node):
-        def spinnaker_build(self, builder):
-            pass
-
     model = nengo.Network()
     with model:
-        n = TestNode(output=lambda t, v: v, size_in=1, size_out=1, label='n')
-        a = nengo.Ensemble(1, 1, label='a')
-        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='b')
-        c = nengo.Node(lambda t: t, size_in=0, size_out=1, label='c')
-        d = nengo.Node(lambda t, v: t, size_in=1, size_out=1, label='d')
+        a = nengo.Node(lambda t: t, size_in=0, size_out=1)
+        b = nengo.Ensemble(100, 1)
+        c = nengo.Ensemble(100, 1)
 
-        n_a = nengo.Connection(n, a)
-        a_b = nengo.Connection(a, b)
-        b_n = nengo.Connection(b, n)
-        c_n = nengo.Connection(c, n)
-        n_d = nengo.Connection(n, d)
+        cs = [
+            nengo.Connection(a, b),
+            nengo.Connection(b, c),
+        ]
 
-    mock_io = mock.Mock()
-    (ns, conns) = nodes.remove_custom_nodes(
-        model.nodes, model.connections, mock_io)
+    io = mock.Mock()
+    (new_nodes, new_conns) = nodes_utils.replace_node_x_connections(cs, io)
 
-    # There should be the 3 nodes b, c, d and (b->n), (c->n), n->d)
-    assert(len(ns) == 6)
-    assert(n not in ns)
-
-    # There should be the connections A->(B), B->(N), C->(N) and N->(D)
-    assert(len(conns) == 4)
-    for c in conns:
-        if c.post == b: assert(c.pre == a)
-        if c.pre == b: assert(c.post.output.node == b)
-        if c.pre == c: assert(c.post.output.node == c)
-        if c.post == d: assert(c.pre.output.node == d)
+    # Should be 1 new Node and 1 new Connection
+    assert len(new_nodes) == 1
+    assert len(new_conns) == 2
+    assert isinstance(new_nodes[0].output, nodes_utils.OutputToBoard)
+    assert new_nodes[0].output.io is io
+    assert new_conns[0].pre_obj is a
+    assert new_conns[0].post_obj is new_nodes[0]
+    assert new_conns[1] is cs[1]
 
 
-def test_get_connected_nodes():
-    model = nengo.Network()
-    with model:
-        a = nengo.Ensemble(1, 1)
-        b = nengo.Node(lambda t, v: t, size_in=1, size_out=1)
-
-        c = nengo.Node(lambda t, v: None, size_in=1, size_out=0)
-        d = nengo.Node(lambda t, v: None, size_in=1, size_out=0)
-
-        a_c = nengo.Connection(a, c)
-        b_c = nengo.Connection(b, c)
-
-    ns = nodes.get_connected_nodes(model.connections)
-    assert(a not in ns)
-    assert(b in ns)
-    assert(c in ns)
-    assert(d not in ns)
-
-
-def test_create_host_network():
-    """Test creating a network to simulate on the host.  All I/O connections
-    will have been replaced with new Nodes which handle communication with the
-    IO system.
+def test_replace_node_x_connections_k():
+    """Test that constant nodes do not result in new nodes or connections.
     """
-    class TestNode(nengo.Node):
-        def spinnaker_build(self, builder):
-            pass
-
     model = nengo.Network()
     with model:
-        a = nengo.Ensemble(1, 1, label="A")
-        b = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label="B")
-        c = nengo.Node(lambda t, v: v**2, size_in=1, size_out=1, label="C")
-        d = nengo.Ensemble(1, 1, label="D")
-        n = TestNode(output=lambda t, v: v, size_in=1, size_out=1, label="N")
-        o = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label="Orphan")
-        e = nengo.Ensemble(1, 1, label="E")
+        a = nengo.Node(1.0)
+        b = nengo.Ensemble(100, 1)
 
-        a_b = nengo.Connection(a, b)
-        b_c = nengo.Connection(b, c)
-        c_d = nengo.Connection(c, d)
+        c = nengo.Connection(a, b)
 
-        a_n = nengo.Connection(a, n)
-        b_n = nengo.Connection(b, n)
-        n_d = nengo.Connection(n, d)
+    io = mock.Mock()
+    (new_nodes, new_conns) = nodes_utils.replace_node_x_connections([c], io)
 
-        d_e = nengo.Connection(d, e)
-
-    mock_io = mock.Mock()
-    (objs, conns) = remove_passthrough_nodes(*objs_and_connections(model))
-    host_network = nodes.create_host_network(
-        [n for n in objs if isinstance(n, nengo.Node)], conns, mock_io)
-
-    assert(len(host_network.ensembles) == 0)
-    assert(len(host_network.nodes) == 5)  # b, c, (a->b), (c->d), (b->n)
-    assert(len(host_network.connections) == 4) # (a)->b, b->c, c->(d), b->(n)
-
-    assert(b in host_network.nodes)
-    assert(c in host_network.nodes)
-
-    assert(a_n not in host_network.connections)
-    assert(b_n not in host_network.connections)
-    assert(n_d not in host_network.connections)
-    assert(d_e not in host_network.connections)
-    assert(n not in host_network.nodes)
-    assert(o not in host_network.nodes)
-
-    for c_ in host_network.connections:
-        if c_.post == b: assert(c_.pre.output.node == b)
-        if c_.pre == b: assert(c_.post == c or c_.post.output.node == b)
-        if c_.pre == c: assert(c_.post.output.node == c)
+    # Should be no new Nodes or Connections
+    assert len(new_nodes) == 0
+    assert len(new_conns) == 0
 
 
-def test_create_host_network_nested():
+def test_replace_x_node_connections():
+    """Test that connections to Nodes from ANY OTHER objects are replaced with
+    a new InputNode and a connection from the InputNode to the Node.
+    """
     model = nengo.Network()
     with model:
-        m2 = nengo.Network()
-        with m2:
-            pn0 = nengo.Node(None, size_in=1, label='PassNode')
-            a = nengo.Ensemble(1, 1)
-            n1 = nengo.Node(lambda t, v: v, size_in=1, label='n1')
+        a = nengo.Ensemble(100, 1)
+        b = nengo.Node(lambda t, x: None, size_in=1, size_out=0)
+        c = nengo.Ensemble(100, 1)
 
-            nengo.Connection(pn0, a, synapse=None)
-            nengo.Connection(a, n1)
+        cs = [
+            nengo.Connection(a, b),
+            nengo.Connection(a, c),
+        ]
 
-        n2 = nengo.Node(np.sin, label='input')
-        n3 = nengo.Node(lambda t, v: v, size_in=1, size_out=1, label='output')
+    io = mock.Mock()
+    (new_nodes, new_conns) = nodes_utils.replace_x_node_connections(cs, io)
 
-        nengo.Connection(n2, pn0)
-        nn = nengo.Connection(n1, n3)
-
-    mock_io = mock.Mock()
-    (objs, conns) = remove_passthrough_nodes(*objs_and_connections(model))
-    host_network = nodes.create_host_network(
-        [n for n in objs if isinstance(n, nengo.Node)], conns, mock_io)
-
-    # Should be 5 nodes
-    # n1, n2, n3, Input for n1, Output for n2
-    assert(len(host_network.nodes) == 5)
-    assert(pn0 not in host_network.nodes)
-    assert(n1 in host_network.nodes)
-    assert(n2 in host_network.nodes)
-    assert(n3 in host_network.nodes)
-
-    assert(len(host_network.connections) == 3)
-    assert(nn in host_network.connections)
+    # Should be one new nodes and one connection
+    assert len(new_nodes) == 1
+    assert isinstance(new_nodes[0].output, nodes_utils.InputFromBoard)
+    assert new_nodes[0].output.io is io
+    assert len(new_conns) == 2
+    assert new_conns[0].pre_obj is new_nodes[0]
+    assert new_conns[0].post_obj is b
+    assert new_conns[1] is cs[1]
