@@ -6,7 +6,7 @@ import numpy as np
 
 from .connections.intermediate import IntermediateConnection
 from .connections.connection_tree import ConnectionTree
-from .spinnaker.keyspaces import create_keyspace
+from .spinnaker.keyspaces import Keyspace
 from .utils import builder as builder_utils
 
 logger = logging.getLogger(__name__)
@@ -216,6 +216,7 @@ def _build_keyspace(connection_tree, subobject_bits=7):
     padding = 32 - sum([x_bits, o_bits, s_bits, i_bits, d_bits])
 
     # Create the keyspace
+    # TODO: Rewrite using new keyspace
     return create_keyspace(
         'NengoDefault', [('x', x_bits),   # Routed to external device
                          ('o', o_bits),   # Sending object ID
