@@ -47,32 +47,24 @@ def test_keyspace_masks():
     # Create a new keyspace and check that appropriate masks can be retrieved
     # from it, filtering by tag.
     ks = Keyspace(64)
-    ks.add_field("bottom", length = 32, start_at = 0, tags = "Bottom Both")
-    ks.add_field("top", length = 8, start_at = 56, tags = "Top Both")
+    ks.add_field("bottom", length = 32, start_at = 0, tags = "Bottom All")
+    ks.add_field("top", length = 8, start_at = 56, tags = "Top All")
 
+    # Test universal access
     assert ks.get_mask() == 0xFF000000FFFFFFFFl
-    assert ks.get_mask("Both") == 0xFF000000FFFFFFFFl
-    assert ks.get_mask("Bottom") == 0x00000000FFFFFFFFl
-    assert ks.get_mask("Top") == 0xFF00000000000000l
-
-
-def test_keyspace_tag_formats():
-    # Test the ability to define tags in different ways
-    ks = Keyspace(6)
-    ks.add_field("a", length = 1, start_at = 0)
-    ks.add_field("b", length = 1, start_at = 1, tags = "B")
-    ks.add_field("c", length = 1, start_at = 2, tags = "C C_")
-    ks.add_field("d", length = 1, start_at = 3, tags = ["D"])
-    ks.add_field("e", length = 1, start_at = 4, tags = ["E", "E_"])
-
-    assert ks.get_mask() == 0x1F
-    assert ks.get_mask("A") == 0x00
-    assert ks.get_mask("B") == 0x02
-    assert ks.get_mask("C") == 0x04
-    assert ks.get_mask("C_") == 0x04
-    assert ks.get_mask("D") == 0x08
-    assert ks.get_mask("E") == 0x10
-    assert ks.get_mask("E_") == 0x10
+    
+    # Test field-name access
+    assert ks.get_mask(field = "bottom") == 0x00000000FFFFFFFFl
+    assert ks.get_mask(field = "top") == 0xFF00000000000000l
+    
+    # Test tag access
+    assert ks.get_mask(tag = "All") == 0xFF000000FFFFFFFFl
+    assert ks.get_mask(tag = "Bottom") == 0x00000000FFFFFFFFl
+    assert ks.get_mask(tag = "Top") == 0xFF00000000000000l
+    
+    # Test both at once fails
+    with pytest.raises(AssertionError):
+        assert ks.get_mask(tag = "All", field = "top") == 0xFF000000FFFFFFFFl
 
 
 def test_keyspace_keys():
@@ -94,13 +86,19 @@ def test_keyspace_keys():
     with pytest.raises(ValueError):
         ks.get_key()
     with pytest.raises(ValueError):
-        ks.get_key("All")
+        ks.get_key(tag = "All")
     with pytest.raises(ValueError):
-        ks.get_key("A")
+        ks.get_key(field = "a")
     with pytest.raises(ValueError):
-        ks.get_key("B")
+        ks.get_key(tag = "A")
     with pytest.raises(ValueError):
-        ks.get_key("C")
+        ks.get_key(field = "b")
+    with pytest.raises(ValueError):
+        ks.get_key(tag = "B")
+    with pytest.raises(ValueError):
+        ks.get_key(field = "c")
+    with pytest.raises(ValueError):
+        ks.get_key(tag = "C")
     
     # Should just get None for unspecified fields
     assert ks.a is None
@@ -113,20 +111,25 @@ def test_keyspace_keys():
     with pytest.raises(ValueError):
       ks_a = ks(a = -1)
     
-    # Should now be able to get that field but not others
+    # Set a field, should now be able to get that field but not others
     ks_a = ks(a = 0xAA)
     assert ks_a.a == 0xAA
     assert ks_a.b is None
     assert ks_a.c is None
-    assert ks_a.get_key("A") == 0x000000AA
+    assert ks_a.get_key(field = "a") == 0x000000AA
+    assert ks_a.get_key(tag = "A") == 0x000000AA
     with pytest.raises(ValueError):
         ks_a.get_key()
     with pytest.raises(ValueError):
-        ks_a.get_key("All")
+        ks_a.get_key(tag = "All")
     with pytest.raises(ValueError):
-        ks_a.get_key("B")
+        ks_a.get_key(field = "b")
     with pytest.raises(ValueError):
-        ks_a.get_key("C")
+        ks_a.get_key(tag = "B")
+    with pytest.raises(ValueError):
+        ks_a.get_key(field = "c")
+    with pytest.raises(ValueError):
+        ks_a.get_key(tag = "C")
     
     # Should not be able to change a field
     with pytest.raises(ValueError):
@@ -140,18 +143,77 @@ def test_keyspace_keys():
     assert ks_abc.b == 0xBB
     assert ks_abc.c == 0xCC
     assert ks_abc.get_key() == 0x00CCBBAA
-    assert ks_abc.get_key("All") == 0x00CCBBAA
-    assert ks_abc.get_key("A") == 0x000000AA
-    assert ks_abc.get_key("B") == 0x0000BB00
-    assert ks_abc.get_key("C") == 0x00CC0000
+    assert ks_abc.get_key(field = "a") == 0x000000AA
+    assert ks_abc.get_key(field = "b") == 0x0000BB00
+    assert ks_abc.get_key(field = "c") == 0x00CC0000
+    assert ks_abc.get_key(tag = "All") == 0x00CCBBAA
+    assert ks_abc.get_key(tag = "A") == 0x000000AA
+    assert ks_abc.get_key(tag = "B") == 0x0000BB00
+    assert ks_abc.get_key(tag = "C") == 0x00CC0000
     
     # Test some special-case values
     ks_a0 = ks(a=0)
-    assert ks_a0.get_key("A") == 0x00000000
+    assert ks_a0.get_key(field = "a") == 0x00000000
     ks_a1 = ks(a=1)
-    assert ks_a1.get_key("A") == 0x00000001
+    assert ks_a1.get_key(field = "a") == 0x00000001
     ks_aFF = ks(a=0xFF)
-    assert ks_aFF.get_key("A") == 0x000000FF
+    assert ks_aFF.get_key(field = "a") == 0x000000FF
+
+
+def test_keyspace_tags():
+    # Test the ability to define tags in different ways
+    ks = Keyspace(6)
+    ks.add_field("a", length = 1, start_at = 0)
+    ks.add_field("b", length = 1, start_at = 1, tags = "B")
+    ks.add_field("c", length = 1, start_at = 2, tags = "C C_")
+    ks.add_field("d", length = 1, start_at = 3, tags = ["D"])
+    ks.add_field("e", length = 1, start_at = 4, tags = ["E", "E_"])
+
+    ks_def = ks (a = 1, b = 1, c = 1, d = 1, e = 1)
+    assert ks_def.get_mask() == 0x1F
+    assert ks_def.get_mask("B") == 0x02
+    assert ks_def.get_mask("C") == 0x04
+    assert ks_def.get_mask("C_") == 0x04
+    assert ks_def.get_mask("D") == 0x08
+    assert ks_def.get_mask("E") == 0x10
+    assert ks_def.get_mask("E_") == 0x10
+    
+    assert ks_def.get_key() == 0x1F
+    assert ks_def.get_key("B") == 0x02
+    assert ks_def.get_key("C") == 0x04
+    assert ks_def.get_key("C_") == 0x04
+    assert ks_def.get_key("D") == 0x08
+    assert ks_def.get_key("E") == 0x10
+    assert ks_def.get_key("E_") == 0x10
+    
+    # Test that non-existant tags cause an error
+    with pytest.raises(ValueError):
+        _ = ks.get_mask("Non-existant")
+    with pytest.raises(ValueError):
+        _ = ks.get_key("Non-existant")
+    
+    # Test that tags are not available when a field is not selected
+    ks_a0 = ks(a = 0)
+    ks_a0.add_field("a0", length = 1, start_at = 5, tags = "A0")
+    ks_a1 = ks(a = 1)
+    ks_a1.add_field("a1", length = 1, start_at = 5, tags = "A1")
+    
+    with pytest.raises(ValueError):
+        _ = ks.get_mask("A0")
+    with pytest.raises(ValueError):
+        _ = ks.get_mask("A1")
+    
+    # Test that fields become available when selected
+    assert ks_a0.get_mask("A0") == 0b100000
+    assert ks_a0(a0=1).get_key("A0") == 0b100000
+    with pytest.raises(ValueError):
+        _ = ks_a0.get_mask("A1")
+    
+    assert ks_a1.get_mask("A1") == 0b100000
+    assert ks_a1(a1 = 1).get_mask("A1") == 0b100000
+    with pytest.raises(ValueError):
+        _ = ks_a1.get_mask("A0")
+    
 
 
 def test_keyspace_hierachy():
@@ -265,7 +327,7 @@ def test_auto_length():
     
     # Test that fields can be generated hierarchically
     ks_h = Keyspace(16)
-    ks_h.add_field("split", start_at = 8, tags = "TopLevel")
+    ks_h.add_field("split", start_at = 8)
     ks_h_s0 = ks_h(split = 0)
     ks_h_s0.add_field("s0", start_at = 0)
     ks_h_s2 = ks_h(split = 2)
@@ -290,37 +352,37 @@ def test_auto_length():
     
     # Getting the mask for a higher-level field shouldn't cause the field to
     # become fixed in size either
-    assert ks_h.get_mask("TopLevel") == 0x0300
+    assert ks_h.get_mask(field = "split") == 0x0300
     assert ks_h(split = 2, s2 = 0x7F).s2 == 0x7F
 
 def test_auto_start_at():
     # Test automatic positioning of fixed-length fields
     ks = Keyspace(32)
     
-    ks.add_field("a", length = 4, tags = "A")
-    ks.add_field("b", length = 4, tags = "B")
-    ks.add_field("c", length = 4, tags = "C")
+    ks.add_field("a", length = 4)
+    ks.add_field("b", length = 4)
+    ks.add_field("c", length = 4)
     
     # Test that all fields are allocated at once and in order of insertion (even
     # if requested out of order).
-    assert ks.get_mask("C") == 0x00000F00
-    assert ks.get_mask("B") == 0x000000F0
-    assert ks.get_mask("A") == 0x0000000F
+    assert ks.get_mask(field = "c") == 0x00000F00
+    assert ks.get_mask(field = "b") == 0x000000F0
+    assert ks.get_mask(field = "a") == 0x0000000F
     assert ks.get_mask() == 0x00000FFF
     
     # Test positioning when a space is fully obstructed 
     ks.add_field("full_obstruction", length = 4, start_at = 12)
-    ks.add_field("d", length = 4, tags = "D")
-    assert ks.get_mask("D") == 0x000F0000
+    ks.add_field("d", length = 4)
+    assert ks.get_mask(field = "d") == 0x000F0000
     
     # Test positioning when a space is partially obstructed. The first field
     # will end up after the second field since the second field can fill the
     # gap left by the partial obstruction.
     ks.add_field("partial_obstruction", length = 4, start_at = 22)
-    ks.add_field("e", length = 4, tags = "E")
-    ks.add_field("f", length = 2, tags = "F")
-    assert ks.get_mask("E") == 0x3C000000
-    assert ks.get_mask("F") == 0x00300000
+    ks.add_field("e", length = 4)
+    ks.add_field("f", length = 2)
+    assert ks.get_mask(field = "e") == 0x3C000000
+    assert ks.get_mask(field = "f") == 0x00300000
     
     # Ensure we can define fields which don't fit when placed
     ks.add_field("last_straw", length = 4)
@@ -329,32 +391,32 @@ def test_auto_start_at():
     
     # Test that auto-placed fields can be created heirachically
     ks_h = Keyspace(32)
-    ks_h.add_field("split", length = 4, tags = "Split")
+    ks_h.add_field("split", length = 4)
     
     # Ensure that additional top-level fields are placed before all split
     # fields when defined before
-    ks_h.add_field("always_before", length = 4, tags = "AlwaysBefore")
+    ks_h.add_field("always_before", length = 4)
     
     ks_h_s0 = ks_h(split = 0)
-    ks_h_s0.add_field("s0", length = 4, tags = "S0")
+    ks_h_s0.add_field("s0", length = 4)
     ks_h_s1 = ks_h(split = 1)
-    ks_h_s1.add_field("s1", length = 8, tags = "S1")
+    ks_h_s1.add_field("s1", length = 8)
     
     # Check that as soon as we access one side of the split, all fields are
     # fixed.
-    assert ks_h(split = 0).get_mask("Split") == 0x0000000F
+    assert ks_h(split = 0).get_mask(field = "split") == 0x0000000F
     with pytest.raises(ValueError):
         ks_h_s0.add_field("obstructed", start_at = 8)
-    assert ks_h(split = 0).get_mask("AlwaysBefore") == 0x000000F0
-    assert ks_h(split = 0).get_mask("S0") == 0x00000F00
+    assert ks_h(split = 0).get_mask(field = "always_before") == 0x000000F0
+    assert ks_h(split = 0).get_mask(field = "s0") == 0x00000F00
     assert ks_h(split = 0).get_mask() == 0x00000FFF
     
     # But ensure fields on the other side of the field are not
-    ks_h_s1.add_field("obstruction", length = 4, start_at = 8, tags = "Obstruction")
-    assert ks_h(split = 1).get_mask("Split") == 0x0000000F
-    assert ks_h(split = 1).get_mask("AlwaysBefore") == 0x000000F0
-    assert ks_h(split = 1).get_mask("Obstruction") == 0x00000F00
-    assert ks_h(split = 1).get_mask("S1") == 0x000FF000
+    ks_h_s1.add_field("obstruction", length = 4, start_at = 8)
+    assert ks_h(split = 1).get_mask(field = "split") == 0x0000000F
+    assert ks_h(split = 1).get_mask(field = "always_before") == 0x000000F0
+    assert ks_h(split = 1).get_mask(field = "obstruction") == 0x00000F00
+    assert ks_h(split = 1).get_mask(field = "s1") == 0x000FF000
     assert ks_h(split = 1).get_mask() == 0x000FFFFF
 
 
@@ -362,15 +424,15 @@ def test_full_auto():
     # Brief test that automatic placement and length assignment can happen
     # simultaneously
     ks = Keyspace(32)
-    ks.add_field("a", tags = "A")
-    ks.add_field("b", tags = "B")
+    ks.add_field("a")
+    ks.add_field("b")
     
     # Give the fields values to force their sizes
     ks(a = 0xFF, b = 0xFFF)
     
     # Check the masks come out correctly
-    assert ks.get_mask("A") == 0x000000FF
-    assert ks.get_mask("B") == 0x000FFF00
+    assert ks.get_mask(field = "a") == 0x000000FF
+    assert ks.get_mask(field = "b") == 0x000FFF00
     assert ks.get_mask() == 0x000FFFFF
 
 

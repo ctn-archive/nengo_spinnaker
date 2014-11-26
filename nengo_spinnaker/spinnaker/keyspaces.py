@@ -285,6 +285,32 @@ class Keyspace(object):
         
         return Keyspace(self.length, self.fields, field_values)
     
+    def _assert_field_available(self, identifier):
+        """Raise a human-readable ValueError if the spcified field is not
+        enabled or does not exist.
+        """
+        if identifier not in self.fields:
+            raise AttributeError(
+                "Field '{}' does not exist.".format(identifier))
+        elif identifier not in (i for (i,f) in self._enabled_fields(self.field_values)):
+            raise AttributeError("Field '{}' requires that {}.".format(
+                identifier,
+                ", ".join("'{}' == {}".format(cond_ident, cond_val)
+                    for cond_ident, cond_val
+                        in self.fields[identifier].conditions.items()
+                            if self.field_values.get(cond_ident, None)
+                                != cond_val)))
+    
+    def _assert_tag_exists(self, tag):
+        """Raise a human-readable ValueError if the supplied tag is not used by
+        any enabled field.
+        """
+        
+        for identifier, field in self._enabled_fields(self.field_values):
+            if tag in field.tags:
+                return
+        raise ValueError("Tag '{}' does not exist.".format(tag))
+    
     def __getattr__(self, identifier):
         """Get the value of a field.
         
@@ -299,51 +325,47 @@ class Keyspace(object):
             If the field requested does not exist or is not available given
             current field values.
         """
-        enabled_field_idents = [
-            i for (i,f) in self._enabled_fields(self.field_values)]
+        self._assert_field_available(identifier)
         
-        if identifier in enabled_field_idents:
-            return self.field_values.get(identifier, None)
-        else:
-            if identifier in self.fields:
-                raise AttributeError("Field '{}' requires that {}.".format(
-                    identifier,
-                    ", ".join("'{}' == {}".format(cond_ident, cond_val)
-                        for cond_ident, cond_val
-                            in self.fields[identifier].conditions.items()
-                                if self.field_values.get(cond_ident, None)
-                                    != cond_val)))
-            else:
-                raise AttributeError(
-                    "Field '{}' does not exist.".format(identifier))
+        return self.field_values.get(identifier, None)
     
-    def get_key(self, tag = None):
-        """Get the key with fields with the supplied tag set according to this
-        keyspace.
+    def get_key(self, tag = None, field = None):
+        """Generate a key based on the currently defined field values.
         
-        Calling this method will cause any fields whose length or position is
-        not defined to become fixed. As a result, users should take care to call
-        this method after assigning all keys to the variable-sized fields used
-        in this key.
+        Calling this method will cause all defined fields whose length or
+        position is not defined to become fixed. As a result, users should only
+        call this method after assigning all keys otherwise the fields may be at
+        an inadequate size.
         
         Parameters
         ----------
         tag : str
-            Optionally specifies that the key should only contain fields with
-            the specified tag.
-        
-        Raises
-        ------
+            Optionally specifies that the key should only contain bits for
+            fields with the specified tag. All other fields will be given as 0.
+        field : str
+            Optionally specifies that the key should only contain bits for the
+            specified field. All other fields will be given as 0.
         """
+        assert not (tag is not None and field is not None)
+        
         enabled_field_idents = [
             i for (i,f) in self._enabled_fields(self.field_values)
             if tag is None or tag in f.tags]
-        selected_field_idents = [
-            i for i in self.field_values.keys()
-            if tag is None or tag in self.fields[i].tags]
+        
+        if tag is not None:
+            self._assert_tag_exists(tag)
+        
+        if field is not None:
+            self._assert_field_available(field)
+            selected_field_idents = [field]
+        else:
+            selected_field_idents = [
+                i for i in enabled_field_idents
+                if tag is None or tag in self.fields[i].tags]
         
         # Check all fields are present
-        missing_fields = set(enabled_field_idents) - set(selected_field_idents)
+        defined_fields = self.field_values.keys()
+        missing_fields = set(selected_field_idents) - set(defined_fields)
         if missing_fields:
             raise ValueError(
                 "Cannot generate key with undefined fields {}.".format(
@@ -358,7 +380,7 @@ class Keyspace(object):
         
         return key
     
-    def get_mask(self, tag = None):
+    def get_mask(self, tag = None, field = None):
         """Get the mask for the fields with the given tag and selected by the
         current keyspace values.
         
@@ -370,17 +392,27 @@ class Keyspace(object):
         Parameters
         ----------
         tag : str
-            Optionally specifies that the key should only contain fields with
-            the specified tag.
-        
-        Raises
-        ------
+            Optionally specifies that the key should only contain bits for
+            fields with the specified tag. All other fields will be given as 0.
+        field : str
+            Optionally specifies that the key should only contain bits for the
+            specified field. All other fields will be given as 0.
         """
+        assert not (tag is not None and field is not None)
+        
         enabled_field_idents = [
             i for (i,f) in self._enabled_fields(self.field_values)]
-        selected_field_idents = [
-            i for i in enabled_field_idents
-            if (tag is None) or (tag in self.fields[i].tags)]
+        
+        if tag is not None:
+            self._assert_tag_exists(tag)
+        
+        if field is not None:
+            self._assert_field_available(field)
+            selected_field_idents = [field]
+        else:
+            selected_field_idents = [
+                i for i in enabled_field_idents
+                if (tag is None) or (tag in self.fields[i].tags)]
         
         self._assign_field_bits(enabled_field_idents)
         
