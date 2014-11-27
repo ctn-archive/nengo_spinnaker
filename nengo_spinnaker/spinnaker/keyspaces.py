@@ -30,19 +30,19 @@ class Keyspace(object):
 
         # Returns a new `Keyspace` object with the specified fields set
         # accordingly.
-        start_master = ks(chip = 0, core = 1, type = 0x01)
+        start_master = ks(chip=0, core=1, type=0x01)
 
     We can also specify just some keys at a time. This means that the fields
     can be specified at different points in execution where it makes most
     sense. As an example::
 
-        master_core = ks(chip = 0, core = 1)
+        master_core = ks(chip=0, core=1)
 
         # chip = 0, core = 1, type = 0x01 (same as previous example)
-        start_master = master_core(type = 0x01)
+        start_master = master_core(type=0x01)
 
         # chip = 0, core = 1, type = 0x02
-        stop_master = master_core(type = 0x02)
+        stop_master = master_core(type=0x02)
 
     Fields can also exist in a hierarchical structure. For example, we may have
     a field which defines that a key is destined for an external device which
@@ -53,18 +53,18 @@ class Keyspace(object):
 
         ks2.add_field("external")
 
-        ks2_internal = ks2(external = 0)
+        ks2_internal = ks2(external=0)
         ks2_internal.add_field("chip")
         ks2_internal.add_field("core")
         ks2_internal.add_field("type")
 
-        ks2_external = ks2(external = 1)
+        ks2_external = ks2(external=1)
         ks2_internal.add_field("device_id")
         ks2_internal.add_field("command")
 
         # Keys can be derived from the top-level object
-        example_internal = ks(external = 0, chip = 0, core = 1, type = 0x01)
-        example_external = ks(external = 1, device_id = 0xBEEF, command = 0x0)
+        example_internal = ks(external=0, chip=0, core=1, type=0x01)
+        example_external = ks(external=1, device_id=0xBEEF, command=0x0)
 
     Now, whenever the `external` field is '0' we have fields `external`,
     `chip`, `core` and `type`. Whenever the `external` field is '1' we have
@@ -107,13 +107,13 @@ class Keyspace(object):
 
         # Manually specified field sizes/positions
         ks3_external = ks3(external = 1)
-        ks3_internal.add_field("device_id", length = 16, start_at = 0)
-        ks3_internal.add_field("command", length = 4, start_at = 24)
+        ks3_internal.add_field("device_id", length=16, start_at=0)
+        ks3_internal.add_field("command", length=4, start_at=24)
 
     In order to turn a `Keyspace` whose fields have been given values into an
     actual routing key we can use::
 
-        start_master = ks3(external = 0, chip = 0, core = 1, type = 0x01)
+        start_master = ks3(external=0, chip=0, core=1, type=0x01)
         print(hex(start_master.get_key()))
 
     We can also generate a mask which selects only those bits used by fields in
@@ -138,43 +138,45 @@ class Keyspace(object):
     In fact, we can route entirely based on `external`, `device_id` and `chip`
     when we're not on the target chip. If we re-write our keyspace definition
     one final time we can apply tags to these subsets of fields to enable us to
-    easily generate keys/masks based only on these fields::
+    easily generate keys/masks based only on these fields. When a tag is
+    applied, it is added to all currently set fields too. This means we can
+    easily identify the fields used for routing by just assigning a tag to the
+    fields that, semantically, are actually used for routing.
 
         ks4 = Keyspace(32)
 
-        ks4.add_field("external", length = 1, start_at = 31,
-            tags = "routing local_routing")
+        ks4.add_field("external", length=1, start_at=31)
 
-        ks4_internal = ks4(external = 0)
-        ks4_internal.add_field("chip", tags = "routing local_routing")
-        ks4_internal.add_field("core", tags = "local_routing")
+        ks4_internal = ks4(external=0)
+        ks4_internal.add_field("chip", tags="routing local_routing")
+        ks4_internal.add_field("core", tags="local_routing")
         ks4_internal.add_field("type")
 
         ks4_external = ks4(external = 1)
-        ks4_internal.add_field("device_id", length = 16, start_at = 0,
+        ks4_internal.add_field("device_id", length=16, start_at=0,
             tags = "routing local_routing")
-        ks4_internal.add_field("command", length = 4, start_at = 24)
+        ks4_internal.add_field("command", length=4, start_at=24)
 
-        start_master = ks4(external = 0, chip = 0, core = 1, type = 0x01)
+        start_master = ks4(external=0, chip=0, core=1, type=0x01)
 
         # Keys/masks for the target chip
-        print(hex(start_master.get_key(tag = "local_routing")))
-        print(hex(start_master.get_mask(tag = "local_routing")))
+        print(hex(start_master.get_key(tag="local_routing")))
+        print(hex(start_master.get_mask(tag="local_routing")))
 
         # Keys/masks for other chips
-        print(hex(start_master.get_key(tag = "routing")))
-        print(hex(start_master.get_mask(tag = "routing")))
+        print(hex(start_master.get_key(tag="routing")))
+        print(hex(start_master.get_mask(tag="routing")))
 
         device = ks4(external = 1, device_id = 12)
 
         # Keys/masks for a device (note that we don't need to define the
         # command field since it does not have the routing tag.
-        print(hex(device.get_key(tag = "routing")))
-        print(hex(device.get_mask(tag = "routing")))
+        print(hex(device.get_key(tag="routing")))
+        print(hex(device.get_mask(tag="routing")))
 
         # Equivalently:
-        print(hex(device.get_key(tag = "local_routing")))
-        print(hex(device.get_mask(tag = "local_routing")))
+        print(hex(device.get_key(tag="local_routing")))
+        print(hex(device.get_mask(tag="local_routing")))
     """
 
     def __init__(self, length=32, fields=None, field_values=None):
@@ -230,7 +232,8 @@ class Keyspace(object):
             A (possibly empty) set of tags used to classify the field.  Tags
             should be valid Python identifiers. If a string, the string must be
             a single tag or a space-separated list of tags. If *None*, an empty
-            set of tags is assumed.
+            set of tags is assumed. These tags are applied recursively to all
+            fields of which this field is a child.
 
         Raises
         ------
@@ -282,6 +285,15 @@ class Keyspace(object):
         else:
             tags = set(tags)
 
+        # Add tags to all parents of this field
+        parent_identifiers = list(self.field_values.keys())
+        while parent_identifiers:
+            parent_identifier = parent_identifiers.pop(0)
+            parent = self.fields[parent_identifier]
+            parent.tags.update(tags)
+            parent_identifiers.extend(parent.conditions.keys())
+        
+        # Add the field
         self.fields[identifier] = Keyspace.Field(
             length, start_at, tags, dict(self.field_values))
 

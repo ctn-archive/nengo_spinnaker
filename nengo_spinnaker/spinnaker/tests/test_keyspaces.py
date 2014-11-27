@@ -190,27 +190,23 @@ def test_keyspace_tags():
     with pytest.raises(ValueError):
         ks.get_key("Non-existant")
 
-    # Test that tags are not available when a field is not selected
     ks_a0 = ks(a=0)
     ks_a0.add_field("a0", length=1, start_at=5, tags="A0")
     ks_a1 = ks(a=1)
     ks_a1.add_field("a1", length=1, start_at=5, tags="A1")
 
-    with pytest.raises(ValueError):
-        ks.get_mask("A0")
-    with pytest.raises(ValueError):
-        ks.get_mask("A1")
+    # Test that tags are applied heirachically to parents
+    assert ks.get_mask("A0") == 0x01
+    assert ks.get_mask("A1") == 0x01
 
     # Test that fields become available when selected
-    assert ks_a0.get_mask("A0") == 0b100000
+    assert ks_a0.get_mask("A0") == 0b100001
     assert ks_a0(a0=1).get_key("A0") == 0b100000
-    with pytest.raises(ValueError):
-        ks_a0.get_mask("A1")
+    assert ks.get_mask("A1") == 0x01
 
-    assert ks_a1.get_mask("A1") == 0b100000
-    assert ks_a1(a1=1).get_mask("A1") == 0b100000
-    with pytest.raises(ValueError):
-        ks_a1.get_mask("A0")
+    assert ks_a1.get_mask("A1") == 0b100001
+    assert ks_a1(a1=1).get_key("A1") == 0b100001
+    assert ks.get_mask("A0") == 0x01
 
 
 def test_keyspace_hierachy():
