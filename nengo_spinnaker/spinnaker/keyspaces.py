@@ -292,7 +292,7 @@ class Keyspace(object):
             parent = self.fields[parent_identifier]
             parent.tags.update(tags)
             parent_identifiers.extend(parent.conditions.keys())
-        
+
         # Add the field
         self.fields[identifier] = Keyspace.Field(
             length, start_at, tags, dict(self.field_values))
@@ -471,6 +471,17 @@ class Keyspace(object):
 
         return mask
 
+    def __eq__(self, other):
+        """Test that this keyspace is equivalent to another.
+
+        In order to be equal, the other keyspace must be a descendent of the
+        same original Keyspace (and thus will *always* have exactly the same
+        set of fields). It must also have the same field values defined.
+        """
+        return (self.length == other.length
+                and self.fields is other.fields
+                and self.field_values == other.field_values)
+
     def __repr__(self):
         """Produce a human-readable representation of this Keyspace and its
         current value.
@@ -641,7 +652,7 @@ class Keyspace(object):
             if start_at is None:
                 # Force a failure if no better space is found
                 start_at = self.length
-                
+
                 # Try every position until a space is found
                 for bit in range(0, self.length - length):
                     field_bits = ((1 << length) - 1) << bit

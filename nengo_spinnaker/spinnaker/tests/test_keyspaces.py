@@ -444,6 +444,59 @@ def test_full_auto():
     assert ks.get_mask() == 0x000FFFFF
 
 
+def test_eq():
+    # Check that two Keyspaces with the same fields and values (but defined
+    # seperately) are not equivilent.
+    ks1 = Keyspace(32)
+    ks2 = Keyspace(32)
+    assert ks1 != ks2
+    
+    ks1.add_field("test", length=2, start_at=1)
+    ks2.add_field("test", length=2, start_at=1)
+    assert ks1 != ks2
+    
+    ks1_val = ks1(test=1)
+    ks2_val = ks2(test=1)
+    assert ks1_val != ks2_val
+    
+    # And that they're still different when completely different fields/values
+    # are given
+    ks1.add_field("test1", length=10, start_at=20)
+    ks2.add_field("test2", length=20, start_at=10)
+    assert ks1 != ks2
+    
+    ks1_val2 = ks1(test1=10)
+    ks2_val2 = ks2(test2=20)
+    assert ks1_val2 != ks2_val2
+    
+    # Check self-equivilence, even with fields and values set
+    ks = Keyspace(32)
+    assert ks == ks
+    
+    ks.add_field("test")
+    ks.add_field("split")
+    
+    ks_s0 = ks(split=0)
+    ks_s0.add_field("s0")
+    ks_s1 = ks(split=1)
+    ks_s1.add_field("s1")
+    
+    assert ks == ks
+    
+    ks_val0 = ks(test=0, split=1, s1=2)
+    ks_val1 = ks(test=0)(split=1, s1=2)
+    ks_val2 = ks(test=0, split=1)(s1=2)
+    ks_val3 = ks(test=0)(split=1)(s1=2)
+    
+    assert ks_val0 == ks_val1 == ks_val2 == ks_val3
+    
+    # Check inequality when values do differ
+    assert ks != ks_val0
+    
+    ks_val_diff = ks(test=123)
+    assert ks_val_diff != ks_val0
+
+
 def test_repr():
     # Very rough tests to ensure the string representation of a keyspace is
     # reasonably sane.
