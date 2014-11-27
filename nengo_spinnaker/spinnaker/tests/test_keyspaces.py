@@ -273,8 +273,21 @@ def test_keyspace_hierachy():
         ks_s1_selected.s0_top
 
     # Should not be able to set child fields before parent field is set
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         ks(s0_btm=3, s0_top=5)
+    
+    # Test that if a subfield blocks a space, another field cannot be added
+    # there at a higher level in the hierarchy
+    ks_obst = Keyspace(32)
+    ks_obst.add_field("split")
+    ks_obst_s1 = ks_obst(split = 1)
+    ks_obst_s1.add_field("obstruction", start_at = 0)
+    with pytest.raises(ValueError):
+        ks_obst.add_field("obstructed", start_at = 0)
+    
+    # And that such a field does not get auto-positioned there
+    ks_obst.add_field("obstructed")
+    assert ks_obst.get_mask(field="obstructed") == 0x00000002
 
 
 def test_auto_length():

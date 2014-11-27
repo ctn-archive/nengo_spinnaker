@@ -191,12 +191,13 @@ class Keyspace(object):
         """
         self.length = length
 
-        # Field definitions (globally shared by all descendents of a keyspace).
-        # An :py:class:`collections.OrderedDict` which maps human-friendly
-        # field-identifiers (e.g. strings) to corresponding
-        # :py:class:`~.spinnaker.keyspaces.Keyspace.Field` instances. Insertion
-        # ordering is maintained to make auto-allocation of field positions
-        # more predictable.
+        # An OrderedDict if field definitions (globally shared by all
+        # derivatives of the same keyspace) which maps human-friendly
+        # field-identifiers (e.g.  strings) to corresponding Keyspace.Field
+        # instances. An OrderedDict preserves insertion ordering which is used
+        # to automatic field positioning more predictable and also ensures the
+        # fields are stored under the partial ordering of their hierarchy (a
+        # property used by this code).
         self.fields = fields if fields is not None else OrderedDict()
 
         if field_values is not None:
@@ -239,6 +240,7 @@ class Keyspace(object):
             positions do not undergo such checks until their length and
             position become known.
         """
+        # Check for duplicate names
         if identifier in self.fields:
             raise ValueError(
                 "Field with identifier '{}' already exists.".format(
@@ -249,31 +251,30 @@ class Keyspace(object):
             raise ValueError("Fields must be at least one bit in length.")
 
         # Check for fields which don't fit in the keyspace
-        if start_at is not None and (
-            0 <= start_at >= self.length
-                or (length is not None and start_at + length > self.length)):
-                raise ValueError(
-                    "Field doesn't fit within {}-bit keyspace.".format(
-                        self.length))
+        if (start_at is not None
+            and (0 <= start_at >= self.length
+                 or start_at + (length or 1) > self.length)):
+            raise ValueError(
+                "Field doesn't fit within {}-bit keyspace.".format(
+                    self.length))
 
         # Check for fields which occupy the same bits
         if start_at is not None:
+            end_at = start_at + (length or 1)
             for other_identifier, other_field in self._potential_fields():
                 if other_field.start_at is not None:
-                    if (start_at + (length or 1)) > other_field.start_at and \
-                        (other_field.start_at + (other_field.length or 1)) \
-                            > start_at:
+                    other_start_at = other_field.start_at
+                    other_end_at = other_start_at + (other_field.length or 1)
+                    if end_at > other_start_at and other_end_at > start_at:
                             raise ValueError(
                                 "Field '{}' (range {}-{}) "
                                 "overlaps field '{}' (range {}-{})".format(
                                     identifier,
-                                    start_at,
-                                    start_at + (length or 1),
+                                    start_at, end_at,
                                     other_identifier,
-                                    other_field.start_at,
-                                    other_field.start_at + (
-                                        other_field.length or 1)))
+                                    other_start_at, other_end_at))
 
+        # Normalise tags type
         if type(tags) is str:
             tags = set(tags.split())
         elif tags is None:
@@ -297,47 +298,42 @@ class Keyspace(object):
         Raises
         ------
         :py:class:`ValueError`
-            If any field has already been assigned a value or a field is
-            specified which is not present given other fields' values.
+            If any field has already been assigned a value or the value is too
+            large for the field.
+        :py:class:`AttributeError`
+            If a field is specified which is not present.
         """
         # Ensure fields exist
         for identifier in field_values.keys():
             if identifier not in self.fields:
                 raise ValueError("Field '{}' not defined.".format(identifier))
 
-        # Accumulate all field values checking to ensure no value is
-        # overwritten
+        # Make sure no values are changed
         for identifier, value in self.field_values.items():
             if identifier in field_values:
                 raise ValueError(
                     "Field '{}' already has value.".format(identifier))
-            else:
-                field_values[identifier] = value
+
+        field_values.update(self.field_values)
 
         # Ensure no fields are specified which are not enabled
-        enabled_fields = dict(self._enabled_fields(field_values))
         for identifier in field_values:
-            if identifier not in enabled_fields:
-                raise ValueError("Field '{}' requires that {}.".format(
-                    identifier,
-                    ", ".join("'{}' == {}".format(cond_ident, cond_val)
-                                 for cond_ident, cond_val
-                                 in self.fields[identifier].conditions.items()
-                                 if field_values.get(cond_ident, None)
-                                 != cond_val)))
+            self._assert_field_available(identifier, field_values)
 
-        # Ensure values are within range and record maximum observed values
+        # Ensure values are within range
         for identifier, value in field_values.items():
-            field = self.fields[identifier]
-
-            if field.length is not None and value >= (1 << field.length):
+            field_length = self.fields[identifier].length
+            if value < 0:
+                raise ValueError("Fields must be positive.")
+            elif field_length is not None and value >= (1 << field_length):
                 raise ValueError(
                     "Value {} too large for {}-bit field '{}'.".format(
-                        value, field.length, identifier))
-            elif field.length is not None and value < 0:
-                raise ValueError("Negative values not permitted in fields.")
+                        value, field_length, identifier))
 
-            field.max_value = max(field.max_value, value)
+        # Update maximum observed values
+        for identifier, value in field_values.items():
+            self.fields[identifier].max_value = max(
+                self.fields[identifier].max_value, value)
 
         return Keyspace(self.length, self.fields, field_values)
 
@@ -352,12 +348,11 @@ class Keyspace(object):
 
         Raises
         ------
-        AttributeError
+        :py:class:`AttributeError`
             If the field requested does not exist or is not available given
             current field values.
         """
         self._assert_field_available(identifier)
-
         return self.field_values.get(identifier, None)
 
     def get_key(self, tag=None, field=None):
@@ -384,33 +379,32 @@ class Keyspace(object):
             If a field whose length or position was unspecified does not fit
             within the Keyspace.
         """
-        assert not (tag is not None and field is not None)
+        assert not (tag is not None and field is not None), \
+            "Cannot filter by tag and field simultaneously."
 
-        enabled_field_idents = [
-            i for (i, f) in self._enabled_fields()
-            if tag is None or tag in f.tags]
-
-        if tag is not None:
-            self._assert_tag_exists(tag)
-
+        # Build a filtered list of fields to be used in the key
         if field is not None:
             self._assert_field_available(field)
             selected_field_idents = [field]
+        elif tag is not None:
+            self._assert_tag_exists(tag)
+            selected_field_idents = [i for (i, f) in self._enabled_fields()
+                                     if tag in f.tags]
         else:
-            selected_field_idents = [
-                i for i in enabled_field_idents
-                if tag is None or tag in self.fields[i].tags]
+            selected_field_idents = [i for (i, f) in self._enabled_fields()]
 
-        # Check all fields are present
-        defined_fields = self.field_values.keys()
-        missing_fields = set(selected_field_idents) - set(defined_fields)
-        if missing_fields:
+        # Check all selected fields are defined
+        missing_fields_idents = \
+            set(selected_field_idents) - set(self.field_values.keys())
+        if missing_fields_idents:
             raise ValueError(
                 "Cannot generate key with undefined fields {}.".format(
-                    ", ".join(missing_fields)))
+                    ", ".join(missing_fields_idents)))
 
-        self._assign_field_bits(enabled_field_idents)
+        # Ensure all enabled fields have defined lengths and positions
+        self._assign_field_bits()
 
+        # Build the key
         key = 0
         for identifier in selected_field_idents:
             key |= (self.field_values[identifier] <<
@@ -443,22 +437,21 @@ class Keyspace(object):
         """
         assert not (tag is not None and field is not None)
 
-        enabled_field_idents = [
-            i for (i, f) in self._enabled_fields()]
-
-        if tag is not None:
-            self._assert_tag_exists(tag)
-
+        # Build a filtered list of fields to be used in the key
         if field is not None:
             self._assert_field_available(field)
             selected_field_idents = [field]
+        elif tag is not None:
+            self._assert_tag_exists(tag)
+            selected_field_idents = [i for (i, f) in self._enabled_fields()
+                                     if tag in f.tags]
         else:
-            selected_field_idents = [
-                i for i in enabled_field_idents
-                if (tag is None) or (tag in self.fields[i].tags)]
+            selected_field_idents = [i for (i, f) in self._enabled_fields()]
 
-        self._assign_field_bits(enabled_field_idents)
+        # Ensure all enabled fields have defined lengths and positions
+        self._assign_field_bits()
 
+        # Build the mask
         mask = 0
         for identifier in selected_field_idents:
             field = self.fields[identifier]
@@ -475,10 +468,9 @@ class Keyspace(object):
 
         return "<{}-bit Keyspace {}>".format(
             self.length,
-            ", ".join(
-                "'{}':{}".format(identifier,
-                                 self.field_values.get(identifier, "?"))
-                for identifier in enabled_field_idents))
+            ", ".join("'{}':{}".format(identifier,
+                                       self.field_values.get(identifier, "?"))
+                      for identifier in enabled_field_idents))
 
     class Field(object):
         """Internally used class which defines a field.
@@ -512,25 +504,45 @@ class Keyspace(object):
             """
             self.length = length
             self.start_at = start_at
-            self.tags = tags if tags is not None else set()
-            self.conditions = conditions if conditions is not None else set()
+            self.tags = tags or set()
+            self.conditions = conditions or dict()
             self.max_value = max_value
 
-    def _assert_field_available(self, identifier):
+    def _assert_field_available(self, identifier, field_values=None):
         """Raise a human-readable ValueError if the specified field does not
         exist or is not enabled by the current field values.
+
+        Parameters
+        ----------
+        identifier : str
+            The field to check for availability.
+        field_values : dict or None
+            The values currently assigned to fields.
         """
+        if field_values is None:
+            field_values = self.field_values
+
         if identifier not in self.fields:
             raise AttributeError(
                 "Field '{}' does not exist.".format(identifier))
-        elif identifier not in (i for (i, f) in self._enabled_fields()):
+        elif identifier not in (i for (i, f) in
+                                self._enabled_fields(field_values)):
+            # Accumulate the complete list of conditions which must be true for
+            # the given field to exist
+            unmet_conditions = []
+            unchecked_fields = [identifier]
+            while unchecked_fields:
+                field = self.fields[unchecked_fields.pop(0)]
+                for cond_identifier, cond_value in field.conditions.items():
+                    actual_value = field_values.get(cond_identifier, None)
+                    if actual_value != cond_value:
+                        unmet_conditions.append((cond_identifier, cond_value))
+                        unchecked_fields.append(cond_identifier)
+
             raise AttributeError("Field '{}' requires that {}.".format(
                 identifier,
                 ", ".join("'{}' == {}".format(cond_ident, cond_val)
-                          for cond_ident, cond_val
-                          in self.fields[identifier].conditions.items()
-                          if self.field_values.get(cond_ident, None)
-                          != cond_val)))
+                          for cond_ident, cond_val in unmet_conditions)))
 
     def _assert_tag_exists(self, tag):
         """Raise a human-readable ValueError if the supplied tag is not used by
@@ -556,15 +568,10 @@ class Keyspace(object):
             field_values = self.field_values
 
         for identifier, field in self.fields.items():
-            if field.conditions:
-                met = True
-                for cond_field, cond_value in field.conditions.items():
-                    if field_values.get(cond_field, None) != cond_value:
-                        met = False
-                        break
-                if met:
-                    yield (identifier, field)
-            else:
+            if not field.conditions or \
+               all(field_values.get(cond_field, None) == cond_value
+                   for cond_field, cond_value
+                   in field.conditions.items()):
                 yield (identifier, field)
 
     def _potential_fields(self, field_values=None):
@@ -581,68 +588,62 @@ class Keyspace(object):
         if field_values is None:
             field_values = self.field_values
 
-        # The ordered dictionary of fields under a partial ordering of
-        # dependency.  Simply accumulate blocked fields which either depend on
-        # a field value which has been defined as a non-matching value or
-        # depend on fields which have already been blocked.
+        # Fields are blocked when their conditions can't be met. This only
+        # occurs if a condition field's value can't be as the condition
+        # requires. This can occur either because the user has already assigned
+        # a value which doesn't mean the condition or the conditional field
+        # itself has been blocked (and thus can't ever be set to meet the
+        # condition). Since fields are partially ordered by hierarchy, we can
+        # simply build up a set of blocked fields as we go and be guaranteed
+        # to have already seen any field which appears in a condition.
         blocked = set()
         for identifier, field in self.fields.items():
-            if field.conditions:
-                met = True
-                for cond_field, cond_value in field.conditions.items():
-                    if cond_field in blocked or \
-                       field_values.get(cond_field, None) != cond_value:
-                        met = False
-                        break
-                if met:
-                    yield (identifier, field)
-                else:
-                    blocked.add(identifier)
-            else:
+            if not field.conditions \
+               or all(cond_field not in blocked and
+                      field_values.get(cond_field, cond_value) == cond_value
+                      for cond_field, cond_value
+                      in field.conditions.items()):
                 yield (identifier, field)
+            else:
+                blocked.add(identifier)
 
-    def _assign_field_bits(self, field_identifiers):
-        """Assign a position & length to any listed fields which do not have
+    def _assign_field_bits(self):
+        """Assign a position & length to any enabled fields which do not have
         one.
-
-        Parameters
-        ----------
-        fields : collection
-            The identifiers of the fields to check.
         """
-        # Get the currently allocated bits which are in visible fields
         assigned_bits = 0
+        unassigned_fields = []
         for identifier, field in self._enabled_fields():
             if field.length is not None and field.start_at is not None:
                 assigned_bits |= ((1 << field.length) - 1) << field.start_at
+            else:
+                unassigned_fields.append((identifier, field))
 
-        # Iterate through the fields in the order they appear in the
-        # OrderedDict since this is sorted by the partial ordering imposed by
-        # the hierarchy. This ordering ensures that fields higher up the
-        # hierarchy are packed together.
-        for identifier, field in self.fields.items():
-            if identifier in field_identifiers:
+        for identifier, field in unassigned_fields:
+            length = field.length
+            if length is None:
                 # Assign lengths based on values
-                if field.length is None:
-                    field.length = int(log(field.max_value, 2)) + 1
+                length = int(log(field.max_value, 2)) + 1
 
-                # Assign the next available free space starting from the least
-                # significant bit
-                if field.start_at is None:
-                    for bit in range(0, self.length - field.length):
-                        field_bits = ((1 << field.length) - 1) << bit
-                        if not (assigned_bits & field_bits):
-                            field.start_at = bit
-                            assigned_bits |= field_bits
-                            break
+            start_at = field.start_at
+            if start_at is None:
+                # Force a failure if no better space is found
+                start_at = self.length
+                
+                # Try every position until a space is found
+                for bit in range(0, self.length - length):
+                    field_bits = ((1 << length) - 1) << bit
+                    if not (assigned_bits & field_bits):
+                        start_at = bit
+                        assigned_bits |= field_bits
+                        break
 
-                    # Fail
-                    if field.start_at is None:
-                        field.start_at = self.length
-
-                # Check that the field is within the keyspace
-                if field.start_at + field.length > self.length:
-                    raise ValueError(
-                        "{}-bit field '{}' "
-                        "does not fit in keyspace.".format(
-                            field.length, identifier))
+            # Check that the calculated field is within the Keyspace
+            if start_at + length <= self.length:
+                field.length = length
+                field.start_at = start_at
+            else:
+                raise ValueError(
+                    "{}-bit field '{}' "
+                    "does not fit in keyspace.".format(
+                        field.length, identifier))
