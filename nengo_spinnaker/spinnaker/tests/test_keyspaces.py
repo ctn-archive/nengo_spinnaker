@@ -283,6 +283,7 @@ def test_keyspace_hierachy():
 
     # And that such a field does not get auto-positioned there
     ks_obst.add_field("obstructed")
+    ks_obst.assign_fields()
     assert ks_obst.get_mask(field="obstructed") == 0x00000002
 
 
@@ -291,17 +292,24 @@ def test_auto_length():
     # Test that fields never given any values just become single-bit fields
     ks_never = Keyspace(8)
     ks_never.add_field("never", start_at=0)
+    ks_never.assign_fields()
     assert ks_never.get_mask() == 0x01
 
     # Test that we can't start an auto-length field within an existing field.
     with pytest.raises(ValueError):
         ks_never.add_field("obstructed", start_at=0)
 
-    # Make sure that get_key() also forces a fixing of the size
+    # Make sure that assign_fields() also forces a fixing of the size
     ks_once = Keyspace(8)
     ks_once.add_field("once", start_at=0)
-    assert ks_once(once=0x0F).get_key() == 0x0F
-    assert ks_once.get_mask() == 0x0F
+    once_fifteen = ks_once(once=0x0F)
+    with pytest.raises(ValueError):
+        ks_once.get_mask()
+    with pytest.raises(ValueError):
+        once_fifteen.get_key()
+    ks_once.assign_fields()
+    assert once_fifteen.get_key() == 0x0F
+    assert once_fifteen.get_mask() == 0x0F
 
     # The signle-bit value should happily fit only 0 and 1
     assert ks_never(never=0).never == 0
@@ -319,16 +327,22 @@ def test_auto_length():
         assert ks_val.auto_length == val
 
     # The resulting field should be 32 bits long
+    ks.assign_fields()
     assert ks.get_mask() == 0xFFFFFFFF00000000
 
     # The field's length should now be fixed
     with pytest.raises(ValueError):
         ks(auto_length=0x100000000)
 
-    # Test that fields can be created which when auto-lengthed, don't fit
+    # Test that fields can be created which, when auto-lengthed after a large
+    # field value, don't fit.
     ks_long = Keyspace(16)
     ks_long.add_field("too_long", start_at=0)
-    assert ks_long(too_long=0x10000).too_long == 0x10000
+    ks_long(too_long=0x10000)
+    with pytest.raises(ValueError):
+        ks_long.assign_fields()
+
+    # Unfixed field should render the mask inaccessible
     with pytest.raises(ValueError):
         ks_long.get_mask()
 
@@ -340,9 +354,10 @@ def test_auto_length():
     ks_h_s2 = ks_h(split=2)
     ks_h_s2.add_field("s2", start_at=0)
 
-    # Test that when working on on a child on one side of the split, the field
-    # sizes don't get fixed on the other.
+    # Test that after assigning fields, the field sizes become fixed on both
+    # sides (even if the assign_fields call occurs on one side of the split)
     ks_h_s0_val = ks_h(split=0, s0=0x10)
+    ks_h_s0_val.assign_fields()
     assert ks_h_s0_val.get_mask() == 0x031F
     assert ks_h_s0_val.get_key() == 0x0010
 
@@ -352,15 +367,11 @@ def test_auto_length():
     with pytest.raises(ValueError):
         ks_h(split=4)
 
-    # Make sure the other side of the split is still not fixed (this will fail
-    # if it has been fixed since its size would be fixed as 0 as no values have
-    # been assigned to it).
-    assert ks_h(split=2, s2=0x3F).s2 == 0x3F
-
-    # Getting the mask for a higher-level field shouldn't cause the field to
-    # become fixed in size either
-    assert ks_h.get_mask(field="split") == 0x0300
-    assert ks_h(split=2, s2=0x7F).s2 == 0x7F
+    # Make sure the other side of the split is also fixed (this will raise an
+    # exception if it has been fixed since its size would be fixed as 1 as no
+    # values have been assigned to it).
+    with pytest.raises(ValueError):
+        ks_h(split=2, s2=0x3F)
 
 
 def test_auto_start_at():
@@ -371,8 +382,15 @@ def test_auto_start_at():
     ks.add_field("b", length=4)
     ks.add_field("c", length=4)
 
+    # Shouldn't be able to get keys/masks before field positions assigned
+    with pytest.raises(ValueError):
+        ks.get_mask()
+    with pytest.raises(ValueError):
+        ks(a=0).get_key(field="a")
+
+    ks.assign_fields()
+
     # Test that all fields are allocated at once and in order of insertion
-    # (even if requested out of order).
     assert ks.get_mask(field="c") == 0x00000F00
     assert ks.get_mask(field="b") == 0x000000F0
     assert ks.get_mask(field="a") == 0x0000000F
@@ -381,6 +399,7 @@ def test_auto_start_at():
     # Test positioning when a space is fully obstructed
     ks.add_field("full_obstruction", length=4, start_at=12)
     ks.add_field("d", length=4)
+    ks.assign_fields()
     assert ks.get_mask(field="d") == 0x000F0000
 
     # Test positioning when a space is partially obstructed. The first field
@@ -389,13 +408,14 @@ def test_auto_start_at():
     ks.add_field("partial_obstruction", length=4, start_at=22)
     ks.add_field("e", length=4)
     ks.add_field("f", length=2)
+    ks.assign_fields()
     assert ks.get_mask(field="e") == 0x3C000000
     assert ks.get_mask(field="f") == 0x00300000
 
     # Ensure we can define fields which don't fit when placed
     ks.add_field("last_straw", length=4)
     with pytest.raises(ValueError):
-        ks.get_mask()
+        ks.assign_fields()
 
     # Test that auto-placed fields can be created heirachically
     ks_h = Keyspace(32)
@@ -410,22 +430,21 @@ def test_auto_start_at():
     ks_h_s1 = ks_h(split=1)
     ks_h_s1.add_field("s1", length=8)
 
-    # Check that as soon as we access one side of the split, all fields are
-    # fixed.
+    # Check that assigning fields on one side of the split fixes all fields
+    ks_h(split=0).assign_fields()
     assert ks_h(split=0).get_mask(field="split") == 0x0000000F
-    with pytest.raises(ValueError):
-        ks_h_s0.add_field("obstructed", start_at=8)
     assert ks_h(split=0).get_mask(field="always_before") == 0x000000F0
     assert ks_h(split=0).get_mask(field="s0") == 0x00000F00
     assert ks_h(split=0).get_mask() == 0x00000FFF
+    with pytest.raises(ValueError):
+        ks_h_s0.add_field("obstructed", start_at=8)
 
-    # But ensure fields on the other side of the field are not
-    ks_h_s1.add_field("obstruction", length=4, start_at=8)
     assert ks_h(split=1).get_mask(field="split") == 0x0000000F
     assert ks_h(split=1).get_mask(field="always_before") == 0x000000F0
-    assert ks_h(split=1).get_mask(field="obstruction") == 0x00000F00
-    assert ks_h(split=1).get_mask(field="s1") == 0x000FF000
-    assert ks_h(split=1).get_mask() == 0x000FFFFF
+    assert ks_h(split=1).get_mask(field="s1") == 0x0000FF00
+    assert ks_h(split=1).get_mask() == 0x0000FFFF
+    with pytest.raises(ValueError):
+        ks_h_s1.add_field("obstructed", length=4, start_at=8)
 
 
 def test_full_auto():
@@ -439,9 +458,28 @@ def test_full_auto():
     ks(a=0xFF, b=0xFFF)
 
     # Check the masks come out correctly
+    ks.assign_fields()
     assert ks.get_mask(field="a") == 0x000000FF
     assert ks.get_mask(field="b") == 0x000FFF00
     assert ks.get_mask() == 0x000FFFFF
+
+    # Also test that assignment of fields works at multiple levels of heirarchy
+    ks_h = Keyspace(32)
+    ks_h.add_field("s")
+    ks_h(s=0).add_field("s0")
+    ks_h(s=0,s0=0).add_field("s00")
+    ks_h(s=0,s0=1).add_field("s01")
+    ks_h(s=1).add_field("s1")
+    ks_h(s=1,s1=0).add_field("s10")
+    ks_h(s=1,s1=1).add_field("s11")
+    ks_h.assign_fields()
+    assert ks_h.get_mask(field="s") == 0x00000001
+    assert ks_h(s=0).get_mask(field="s0") == 0x00000002
+    assert ks_h(s=1).get_mask(field="s1") == 0x00000002
+    assert ks_h(s=0, s0=0).get_mask(field="s00") == 0x00000004
+    assert ks_h(s=0, s0=1).get_mask(field="s01") == 0x00000004
+    assert ks_h(s=1, s1=0).get_mask(field="s10") == 0x00000004
+    assert ks_h(s=1, s1=1).get_mask(field="s11") == 0x00000004
 
 
 def test_eq():

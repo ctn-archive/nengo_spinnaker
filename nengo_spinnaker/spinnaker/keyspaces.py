@@ -90,9 +90,10 @@ class Keyspace(object):
     long enough to represent the maximum value held by a key. Lets re-write the
     above example but this time lets specify the length and position of the
     fields used by external peripherals while leaving internal fields' lengths
-    and positions unspecified. These fields will be automatically assigned a
-    free space (working from the least-significant bit upwards) in the keyspace
-    large enough for the largest value ever assigned to the field.
+    and positions unspecified. These fields will be assigned a free space
+    (working from the least-significant bit upwards) in the keyspace large
+    enough for the largest value ever assigned to the field when we call
+    `assign_fields()`.
 
         ks3 = Keyspace(32)
 
@@ -110,10 +111,15 @@ class Keyspace(object):
         ks3_internal.add_field("device_id", length=16, start_at=0)
         ks3_internal.add_field("command", length=4, start_at=24)
 
+        start_master = ks3(external=0, chip=0, core=1, type=0x01)
+        # ... assign all other keys ...
+
+        # Set field sizes/positions accordingly
+        ks3.assign_fields()
+
     In order to turn a `Keyspace` whose fields have been given values into an
     actual routing key we can use::
 
-        start_master = ks3(external=0, chip=0, core=1, type=0x01)
         print(hex(start_master.get_key()))
 
     We can also generate a mask which selects only those bits used by fields in
@@ -121,16 +127,12 @@ class Keyspace(object):
 
         print(hex(start_master.get_mask()))
 
-    Generating a routing key requires that all fields involved have fixed
-    lengths and positions. As a result, any fields in the key whose length or
-    position is undefined will be assigned one. The main side-effect of this is
-    that the field lengths chosen will be large enough only for the largest
-    value ever assigned to that field up until that point in the program. In
-    the above example, that means the fields `chip`, `core` and `type` will
-    have been assigned a length of 1. Attempting to define a key with these
-    fields larger than 1 will now fail. As a result, users are advised to
-    define all field values in one phase of execution and then generate keys in
-    a second distinct phase.
+    Generating a key with `get_key()` requires that all fields involved have
+    fixed lengths and positions. Note that `assign_fields()` sets field sizes
+    according to the largest value observed being assigned to a field prior to
+    that call. As a result, users should be careful to create keyspaces with
+    all required field values prior to calling `assign_fields()` since fields
+    cannot later be enlarged.
 
     With keys broken down into fields, routing can also be simplified by only
     routing based on only a subset of fields. Continuing our example we need
@@ -158,6 +160,9 @@ class Keyspace(object):
         ks4_internal.add_field("command", length=4, start_at=24)
 
         start_master = ks4(external=0, chip=0, core=1, type=0x01)
+        device = ks4(external = 1, device_id = 12)
+        
+        ks4.assign_fields()
 
         # Keys/masks for the target chip
         print(hex(start_master.get_key(tag="local_routing")))
@@ -166,8 +171,6 @@ class Keyspace(object):
         # Keys/masks for other chips
         print(hex(start_master.get_key(tag="routing")))
         print(hex(start_master.get_mask(tag="routing")))
-
-        device = ks4(external = 1, device_id = 12)
 
         # Keys/masks for a device (note that we don't need to define the
         # command field since it does not have the routing tag.
@@ -371,11 +374,6 @@ class Keyspace(object):
         """Generate a key whose fields are set appropriately and with all other
         bits set to zero.
 
-        Calling this method will cause all defined fields whose length or
-        position is not defined to become fixed. As a result, users should only
-        call this method after all field values have been assigned to keyspaces
-        otherwise fields may be fixed at an inadequate size.
-
         Parameters
         ----------
         tag : str
@@ -388,8 +386,9 @@ class Keyspace(object):
         Raises
         ------
         :py:class:`ValueError`
-            If a field whose length or position was unspecified does not fit
-            within the Keyspace.
+            If a field whose length or position has not been defined. (i.e.
+            `assign_fields()` has not been called when a field's size/position
+            has not been fixed.
         """
         assert not (tag is not None and field is not None), \
             "Cannot filter by tag and field simultaneously."
@@ -413,24 +412,21 @@ class Keyspace(object):
                 "Cannot generate key with undefined fields {}.".format(
                     ", ".join(missing_fields_idents)))
 
-        # Ensure all enabled fields have defined lengths and positions
-        self._assign_field_bits()
-
         # Build the key
         key = 0
         for identifier in selected_field_idents:
+            field = self.fields[identifier]
+            if field.length is None or field.start_at is None:
+                raise ValueError(
+                    "Field '{}' does not have a fixed size/position.".format(
+                        identifier))
             key |= (self.field_values[identifier] <<
-                    self.fields[identifier].start_at)
+                    field.start_at)
 
         return key
 
     def get_mask(self, tag=None, field=None):
-        """Get the for all fields which exist in the current keyspace.
-
-        Calling this method will cause all defined fields whose length or
-        position is not defined to become fixed. As a result, users should only
-        call this method after all field values have been assigned to keyspaces
-        otherwise fields may be fixed at an inadequate size.
+        """Get the mask for all fields which exist in the current keyspace.
 
         Parameters
         ----------
@@ -444,8 +440,9 @@ class Keyspace(object):
         Raises
         ------
         :py:class:`ValueError`
-            If a field whose length or position was unspecified does not fit
-            within the Keyspace.
+            If a field whose length or position has not been defined. (i.e.
+            `assign_fields()` has not been called when a field's size/position
+            has not been fixed.
         """
         assert not (tag is not None and field is not None)
 
@@ -460,16 +457,48 @@ class Keyspace(object):
         else:
             selected_field_idents = [i for (i, f) in self._enabled_fields()]
 
-        # Ensure all enabled fields have defined lengths and positions
-        self._assign_field_bits()
-
-        # Build the mask
+        # Build the mask (and throw an exception if we encounter a field
+        # without a fixed size/length.
         mask = 0
         for identifier in selected_field_idents:
             field = self.fields[identifier]
+            if field.length is None or field.start_at is None:
+                raise ValueError(
+                    "Field '{}' does not have a fixed size/position.".format(
+                        identifier))
             mask |= ((1 << field.length) - 1) << field.start_at
 
         return mask
+
+    def assign_fields(self):
+        """Assign a position & length to any fields which do not have one.
+
+        Users should typically call this method after all field values have
+        been assigned to keyspaces otherwise fields may be fixed at an
+        inadequate size.
+        """
+        # We must fix fields at every level of the heirarchy sepeartely
+        # (otherwise fields of children won't be allowed to overlap). Here we
+        # do a breadth-first iteration over the heirarchy, fixing the fields at
+        # each level.
+        unsearched_heirarchy = [Keyspace(self.length, self.fields)]
+        while unsearched_heirarchy:
+            ks = unsearched_heirarchy.pop(0)
+            ks._assign_enabled_fields()
+            # Look for potential children in the herarchy
+            for identifier, field in ks._potential_fields():
+                enabled_field_idents = set(i for (i,f) in ks._enabled_fields())
+                set_fields = {}
+                for cond_ident, cond_value in field.conditions.items():
+                    # Fail if not a child
+                    if cond_ident not in enabled_field_idents:
+                        self.set_fields = {}
+                        break
+                    # Accumulate fields which must be set
+                    if getattr(ks, cond_ident) is None:
+                        set_fields[cond_ident] = cond_value
+                if set_fields:
+                    unsearched_heirarchy.append(ks(**set_fields))
 
     def __eq__(self, other):
         """Test that this keyspace is equivalent to another.
@@ -630,9 +659,9 @@ class Keyspace(object):
             else:
                 blocked.add(identifier)
 
-    def _assign_field_bits(self):
-        """Assign a position & length to any enabled fields which do not have
-        one.
+    def _assign_enabled_fields(self):
+        """For internal use only. Assign a position & length to any enabled
+        fields which do not have one.
         """
         assigned_bits = 0
         unassigned_fields = []
@@ -670,3 +699,4 @@ class Keyspace(object):
                     "{}-bit field '{}' "
                     "does not fit in keyspace.".format(
                         field.length, identifier))
+
