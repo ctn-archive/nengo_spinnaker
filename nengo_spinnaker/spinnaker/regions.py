@@ -206,9 +206,9 @@ class KeysRegion(Region):
         self.keys = keys
 
         if fill_in_field is None:
-            self.fields = [lambda k, i: k.key()]
+            self.fields = [lambda k, i: k.get_key()]
         else:
-            self.fields = [lambda k, i: k.key(**{fill_in_field: i})]
+            self.fields = [lambda k, i: k(**{fill_in_field: i}).get_key()]
 
         self.fields.extend(extra_fields)
 

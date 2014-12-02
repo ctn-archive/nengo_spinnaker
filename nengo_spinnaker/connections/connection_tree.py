@@ -189,7 +189,7 @@ class ConnectionTree(object):
         # Return a new connectivity tree
         return self.__class__(connectivity_tree)
 
-    def get_new_tree_with_applied_keyspace(self, default_keyspace):
+    def get_new_tree_with_applied_keyspace(self, nengo_keyspace):
         """Return a new tree with keyspaces applied to outgoing connections.
 
         :rtype: :py:class:`ConnectionTree`
@@ -198,16 +198,16 @@ class ConnectionTree(object):
         connectivity_tree = _make_empty_connectivity_tree()
         for o, (obj, oconns) in enumerate(iteritems(self._connectivity_tree)):
             # Get the object keyspace
-            object_keyspace = default_keyspace(o=o)
+            object_keyspace = nengo_keyspace(n_object=o)
 
             # Copy each outgoing connection and add to the tree.
             for i, (out_conn, in_conns) in enumerate(iteritems(oconns)):
                 out_conn = copy.copy(out_conn)
 
                 # Fill in the keyspace for the connection
-                out_conn.keyspace = object_keyspace(i=i)
+                out_conn.keyspace = object_keyspace(n_connection=i)
 
-                # Copy in the incoming keyspaces
+                # Copy in the incoming connections
                 for in_conn in in_conns:
                     in_conn = copy.copy(in_conn)
                     connectivity_tree[obj][out_conn].append(in_conn)

@@ -91,7 +91,7 @@ def get_keyspaces_with_dimensions(outgoing_conns):
         dims = range(c.width)[c.post_slice]
 
         # Create the keyspaces
-        keyspaces.extend([c.keyspace(d=d) for d in dims])
+        keyspaces.extend([c.keyspace(n_dimension=d) for d in dims])
 
     # Return all the keyspaces
     return keyspaces
