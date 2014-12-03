@@ -2,8 +2,7 @@ import mock
 import numpy as np
 import pytest
 
-from pacman.model.graph_mapper.slice import Slice
-
+from ..partitioners import Slice
 from .. import regions
 
 
@@ -57,20 +56,20 @@ class TestMatrixRegion(object):
 
     def test_matrix_sizeof_undersized(self):
         mr = regions.MatrixRegion(np.zeros(100))
-        assert mr.sizeof(Slice(0, 9)) == 100
+        assert mr.sizeof(Slice(0, 10)) == 100
 
     def test_matrix_rows_sizeof(self):
         mr = regions.MatrixRegionPartitionedByRows(np.zeros((100, 5)))
-        assert mr.sizeof(Slice(0, 9)) == 5*10
+        assert mr.sizeof(Slice(0, 10)) == 5*10
 
     def test_matrix_columns_sizeof(self):
         mr = regions.MatrixRegionPartitionedByColumns(np.zeros((15, 100)))
-        assert mr.sizeof(Slice(0, 9)) == 10*15
+        assert mr.sizeof(Slice(0, 10)) == 10*15
 
     def test_create_subregion(self):
         data = np.array([[n]*5 for n in range(10)], dtype=np.uint32)
         mr = regions.MatrixRegionPartitionedByRows(data)
-        sr = mr.create_subregion(Slice(0, 9), 0)
+        sr = mr.create_subregion(Slice(0, 10), 0)
 
         assert np.all(
             np.frombuffer(sr.data, dtype=np.uint32).reshape(data.shape) ==
@@ -82,7 +81,7 @@ class TestMatrixRegion(object):
         data = np.array([[n]*5 for n in range(10)], dtype=np.uint32)
         mr = regions.MatrixRegionPartitionedByRows(data,
                                                    formatter=lambda x: x**2)
-        sr = mr.create_subregion(Slice(0, 9), 0)
+        sr = mr.create_subregion(Slice(0, 10), 0)
 
         assert np.all(
             np.frombuffer(sr.data, dtype=np.uint32).reshape(data.shape) ==
@@ -94,7 +93,7 @@ class TestMatrixRegion(object):
         data = np.array([[n]*5 for n in range(100)], dtype=np.uint32)
         mr = regions.MatrixRegionPartitionedByRows(data, prepends=[
             regions.MatrixRegionPrepends.N_ATOMS])
-        sr = mr.create_subregion(Slice(0, 9), 0)
+        sr = mr.create_subregion(Slice(0, 10), 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data[0] == 10
@@ -106,7 +105,7 @@ class TestMatrixRegion(object):
         data = np.array([[n]*5 for n in range(100)], dtype=np.uint32)
         mr = regions.MatrixRegionPartitionedByRows(data, prepends=[
             regions.MatrixRegionPrepends.SIZE])
-        sr = mr.create_subregion(Slice(0, 9), 0)
+        sr = mr.create_subregion(Slice(0, 10), 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data[0] == 50
@@ -119,7 +118,7 @@ class TestMatrixRegion(object):
         mr = regions.MatrixRegionPartitionedByRows(data, prepends=[
             regions.MatrixRegionPrepends.N_ATOMS,
             regions.MatrixRegionPrepends.SIZE])
-        sr = mr.create_subregion(Slice(0, 9), 0)
+        sr = mr.create_subregion(Slice(0, 10), 0)
 
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data[0] == 10
@@ -134,20 +133,20 @@ class TestMatrixRegion(object):
 
         # Unpartitioned matrix region
         mr = regions.MatrixRegion(data, shape=(5, ))
-        sr = mr.create_subregion(Slice(0, 0), 0)
+        sr = mr.create_subregion(Slice(0, 1), 0)
         assert np.all(np.frombuffer(sr.data, np.uint32) == data)
 
     def test_size_no_matrix(self):
         mr = regions.MatrixRegion(shape=(100, 5, 2), prepends=[
             regions.MatrixRegionPrepends.N_ATOMS,
             regions.MatrixRegionPrepends.SIZE])
-        assert mr.sizeof(Slice(0, 9)) == 100*5*2 + 2
+        assert mr.sizeof(Slice(0, 10)) == 100*5*2 + 2
 
     def test_size_no_matrix_rows(self):
         mr = regions.MatrixRegionPartitionedByRows(shape=(100, 5), prepends=[
             regions.MatrixRegionPrepends.N_ATOMS,
             regions.MatrixRegionPrepends.SIZE])
-        assert mr.sizeof(Slice(0, 9)) == 10*5 + 2
+        assert mr.sizeof(Slice(0, 10)) == 10*5 + 2
 
     def test_size_no_matrix_columns(self):
         mr = regions.MatrixRegionPartitionedByColumns(
@@ -155,7 +154,8 @@ class TestMatrixRegion(object):
                 regions.MatrixRegionPrepends.N_ATOMS,
                 regions.MatrixRegionPrepends.SIZE
             ])
-        assert mr.sizeof(Slice(0, 1)) == 100*2 + 2
+        s1 = Slice(0, 1)
+        assert mr.sizeof(Slice(0, 1)) == 100*s1.n_atoms + 2
 
 
 # Keys Region Tests
@@ -182,10 +182,10 @@ class TestKeysRegion(object):
         r = regions.KeysRegion(keys, fill_in_field='i')
 
         # Get the size of the region
-        assert r.sizeof(Slice(0, 9)) == len(keys)
+        assert r.sizeof(Slice(0, 10)) == len(keys)
 
         # Create a subregion and ensure that the keys are used correctly
-        sr = r.create_subregion(Slice(0, 9), 1)
+        sr = r.create_subregion(Slice(0, 10), 1)
 
         for k in keys:
             k.key.assert_called_once_with(**{'i': 1})
@@ -204,10 +204,10 @@ class TestKeysRegion(object):
                                prepend_n_keys=True)
 
         # Get the size of the region
-        assert r.sizeof(Slice(0, 9)) == 2*len(keys) + 1
+        assert r.sizeof(Slice(0, 10)) == 2*len(keys) + 1
 
         # Create a subregion and ensure that the keys are used correctly
-        sr = r.create_subregion(Slice(0, 9), 1)
+        sr = r.create_subregion(Slice(0, 10), 1)
 
         # Assert that a Subregion with the correct data is returned
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
@@ -221,10 +221,10 @@ class TestKeysRegion(object):
                                lambda k, i: k.routing_mask])
 
         # Get the size of the region
-        assert r.sizeof(Slice(0, 9)) == len(keys)*2
+        assert r.sizeof(Slice(0, 10)) == len(keys)*2
 
         # Create a subregion and ensure that the keys are used correctly
-        sr = r.create_subregion(Slice(0, 9), 1)
+        sr = r.create_subregion(Slice(0, 10), 1)
 
         # Assert that a Subregion with the correct data is returned
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
@@ -239,8 +239,10 @@ class TestKeysRegion(object):
                                fill_in_field='i')
 
         # Assert sizing is correct
-        assert r.sizeof(Slice(0, 9)) == 10 + 1
-        assert r.sizeof(Slice(3, 6)) == 4 + 1
+        s1 = Slice(0, 10)
+        s2 = Slice(3, 6)
+        assert r.sizeof(s1) == s1.n_atoms + 1
+        assert r.sizeof(s2) == s2.n_atoms + 1
 
         # Create a subregion and ensure that the keys are used correctly
         vslice = Slice(3, 6)
@@ -263,8 +265,10 @@ class TestKeysRegion(object):
                                    lambda k, i: i])
 
         # Assert sizing is correct
-        assert r.sizeof(Slice(0, 9)) == 2*10 + 1
-        assert r.sizeof(Slice(3, 6)) == 2*4 + 1
+        s1 = Slice(0, 10)
+        s2 = Slice(3, 6)
+        assert r.sizeof(s1) == 2*s1.n_atoms + 1
+        assert r.sizeof(s2) == 2*s2.n_atoms + 1
 
         # Create a subregion and ensure that the keys are used correctly
         vslice = Slice(3, 6)

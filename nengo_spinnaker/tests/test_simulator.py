@@ -3,6 +3,7 @@
 import mock
 import nengo
 import numpy as np
+import pytest
 
 from ..assembler import Assembler
 from ..builder import Builder
@@ -71,7 +72,8 @@ def test_simulator_calls_io_prepare_connection_tree(reset_builder):  # noqa
             ConnectionTree)
 
 
-def test_simulator_run_uses_assembler(reset_builder, reset_assembler):  # noqa
+@pytest.mark.xfail(reason="Simulator is unfinished.")  # noqa F811
+def test_simulator_run_uses_assembler(reset_builder, reset_assembler):
     """Test that running the simulator calls the assembler.
     """
     # Create a Assembler function for Ensembles, assert that it is called with

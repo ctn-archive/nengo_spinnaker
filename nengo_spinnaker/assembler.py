@@ -4,7 +4,8 @@ logger = logging.getLogger(__name__)
 
 
 class Assembler(object):
-    """An Assembler is the final stage in the build process prior to PACMAN.
+    """An Assembler is the final stage in the build process prior to
+    partitioning, placing and routing the model for simulation on SpiNNaker.
 
     The Assembler acts as an object builder which replaces instances of various
     objects in the connectivity tree that defines a simulation.  The Assembly

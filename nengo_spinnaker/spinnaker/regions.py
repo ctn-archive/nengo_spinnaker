@@ -34,7 +34,7 @@ class Region(object):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         """
         raise NotImplementedError
@@ -44,11 +44,10 @@ class Region(object):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         """
         raise NotImplementedError
-
 
 
 class Subregion(collections.namedtuple('Subregion',
@@ -106,7 +105,7 @@ class MatrixRegion(Region):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         """
         return (self.size_from_shape(vertex_slice) + len(self.prepends))
@@ -119,7 +118,7 @@ class MatrixRegion(Region):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         """
         # If the shape is n-D then multiply the length of the axes together,
@@ -136,7 +135,7 @@ class MatrixRegion(Region):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         subvertex_index : int
             The index of the subvertex containing this region.
@@ -217,7 +216,7 @@ class KeysRegion(Region):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         """
         length = len(self.keys)
@@ -230,7 +229,7 @@ class KeysRegion(Region):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         """
         length = self._get_n_keys(vertex_slice)
@@ -242,7 +241,7 @@ class KeysRegion(Region):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms that will be represented by the region.
         subvertex_index : int
             The index of the subvertex containing this region.
