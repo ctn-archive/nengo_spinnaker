@@ -250,13 +250,15 @@ class TestGetSplitEdges(object):
         # Get the split edges
         split_edges = partitioners.get_split_edges(es, split_vertices)
 
-        assert set(split_edges) == {
-            partitioners.SplitEdge(split_vertices[vs[0]][0],
-                                   split_vertices[vs[1]][0]),
-            partitioners.SplitEdge(split_vertices[vs[0]][1],
-                                   split_vertices[vs[1]][0]),
-            partitioners.SplitEdge(split_vertices[vs[0]][0],
-                                   split_vertices[vs[1]][1]),
-            partitioners.SplitEdge(split_vertices[vs[0]][1],
-                                   split_vertices[vs[1]][1]),
+        assert split_edges == {
+            es[0]: [
+                partitioners.SplitEdge(split_vertices[vs[0]][0],
+                                       split_vertices[vs[1]][0]),
+                partitioners.SplitEdge(split_vertices[vs[0]][0],
+                                       split_vertices[vs[1]][1]),
+                partitioners.SplitEdge(split_vertices[vs[0]][1],
+                                       split_vertices[vs[1]][0]),
+                partitioners.SplitEdge(split_vertices[vs[0]][1],
+                                       split_vertices[vs[1]][1]),
+            ]
         }

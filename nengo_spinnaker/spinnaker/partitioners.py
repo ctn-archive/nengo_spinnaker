@@ -190,13 +190,13 @@ def get_split_edges(edges, split_vertices):
     """Create a mapping of edges to split edges from a map of split vertices
     and a list of edges.
     """
-    split_edges = list()
+    split_edges = collections.defaultdict(list)
 
     # For each edge create new split edges that map from pre-splits to
     # post-splits.
     for edge in edges:
         for pre in split_vertices[edge.pre_vertex]:
             for post in split_vertices[edge.post_vertex]:
-                split_edges.append(SplitEdge(pre, post))
+                split_edges[edge].append(SplitEdge(pre, post))
 
     return split_edges
