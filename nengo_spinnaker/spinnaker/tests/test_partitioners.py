@@ -3,6 +3,7 @@ import mock
 import pytest
 
 from nengo_spinnaker.spinnaker import partitioners
+from nengo_spinnaker.spinnaker.partitioners import Slice
 
 
 class TestSlices(object):
@@ -26,6 +27,13 @@ class TestSlices(object):
         assert "10" in repr(sl2)
         assert "20" in repr(sl2)
         assert "slice" not in repr(sl2)
+
+    def test_create_fail(self):
+        with pytest.raises(ValueError):
+            Slice(-1)
+
+        with pytest.raises(ValueError):
+            Slice(10, 9)
 
     def test_eq_hash(self):
         """Test equality and hashing for Slices."""
@@ -169,8 +177,10 @@ class TestVertexPartitioner(object):
 
         # Get split vertices
         split_vertices = partitioners.get_split_vertices(partitions)
-        assert (split_vertices[vertex_cpu] | split_vertices[vertex_dtcm] |
-                split_vertices[vertex_atom] | split_vertices[vertex_many]) == {
+        assert (set(split_vertices[vertex_cpu]) |
+                set(split_vertices[vertex_dtcm]) |
+                set(split_vertices[vertex_atom]) |
+                set(split_vertices[vertex_many])) == {
             partitioners.SplitVertex(vertex_cpu, partitioners.Slice(0, 50)),
             partitioners.SplitVertex(vertex_cpu, partitioners.Slice(50, 100)),
             partitioners.SplitVertex(vertex_dtcm, partitioners.Slice(0, 50)),
@@ -203,12 +213,50 @@ class TestVertexPartitioner(object):
         assert len(partitions[v]) > 2
         # TODO Come up with a better test (better partitioner also?)
 
+    def test_fail(self):
+        """Test partitioning fails when requirements can't be brought into
+        desired range.
+        """
+        # Create a vertex
+        v = MockVertex(1, 0, 100)
+
+        # Create constraints to test against
+        cpu_constraint = partitioners.make_partitioner_constraint(
+            lambda v, vs: v.get_cpu_usage(vs), 100, 0.9)
+
+        # Partition
+        with pytest.raises(ValueError):
+            partitioners.partition_vertices([v], [cpu_constraint])
+
 
 class TestGetSplitEdges(object):
     """Check creation of "sub"edges from a list of split vertices and a list of
     edges.
     """
     def test_simple(self):
+        from ..edges import Edge
+
         # Create a set of split vertices and a set of edges, check that we
         # generate a meaningful hypergraph.
-        pass
+        vs = [MockVertex(100, 0, 0), MockVertex(100, 0, 0)]
+        es = [Edge(vs[0], vs[1], None)]
+        split_vertices = {
+            vs[0]: [partitioners.SplitVertex(vs[0], Slice(0, 50)),
+                    partitioners.SplitVertex(vs[0], Slice(50, 100))],
+            vs[1]: [partitioners.SplitVertex(vs[1], Slice(0, 50)),
+                    partitioners.SplitVertex(vs[1], Slice(50, 100))],
+        }
+
+        # Get the split edges
+        split_edges = partitioners.get_split_edges(es, split_vertices)
+
+        assert set(split_edges) == {
+            partitioners.SplitEdge(split_vertices[vs[0]][0],
+                                   split_vertices[vs[1]][0]),
+            partitioners.SplitEdge(split_vertices[vs[0]][1],
+                                   split_vertices[vs[1]][0]),
+            partitioners.SplitEdge(split_vertices[vs[0]][0],
+                                   split_vertices[vs[1]][1]),
+            partitioners.SplitEdge(split_vertices[vs[0]][1],
+                                   split_vertices[vs[1]][1]),
+        }

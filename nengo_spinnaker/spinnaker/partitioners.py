@@ -19,7 +19,7 @@ class Slice(collections.namedtuple('Slice', 'start stop n_atoms as_slice')):
     """
     def __new__(cls, start, stop=0):
         """Create a new Slice ranging from start to stop."""
-        if not (0 <= start < stop) and stop != 0:
+        if 0 > start or (start > stop and stop != 0):
             raise ValueError("Invalid start/stop values ({} {})".format(
                 start, stop))
 
@@ -176,6 +176,27 @@ def get_split_vertices(partitions):
 
     # For vertex create a set of split representing the slices.
     for vertex, slices in iteritems(partitions):
-        split_vertices[vertex] = {SplitVertex(vertex, s) for s in slices}
+        split_vertices[vertex] = [SplitVertex(vertex, s) for s in slices]
 
     return split_vertices
+
+
+class SplitEdge(collections.namedtuple('SplitEdge', 'pre_split post_split')):
+    """Represents an edge between split vertices."""
+    # TODO Add weight information
+
+
+def get_split_edges(edges, split_vertices):
+    """Create a mapping of edges to split edges from a map of split vertices
+    and a list of edges.
+    """
+    split_edges = list()
+
+    # For each edge create new split edges that map from pre-splits to
+    # post-splits.
+    for edge in edges:
+        for pre in split_vertices[edge.pre_vertex]:
+            for post in split_vertices[edge.post_vertex]:
+                split_edges.append(SplitEdge(pre, post))
+
+    return split_edges
