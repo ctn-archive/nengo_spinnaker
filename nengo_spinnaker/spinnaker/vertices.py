@@ -1,5 +1,7 @@
 import collections
 
+from .partitioners import make_partitioner_constraint
+
 
 PlacedVertex = collections.namedtuple(
     'PlacedVertex', 'x y p executable subregions timer_period')
@@ -10,6 +12,7 @@ class Vertex(object):
     SpiNNaker machine.
     """
     executable_path = None  # Path for the executable
+    max_atoms = None  # None means there is no limit to the number of atoms
 
     def __init__(self, n_atoms, label, regions=list(), constraints=None):
         """Create a new Vertex object.
@@ -109,3 +112,19 @@ class Vertex(object):
             The slice of atoms to get the usage requirements of.
         """
         raise NotImplementedError
+
+
+dtcm_partitioner_constraint = make_partitioner_constraint(
+    lambda v, vs: v.get_dtcm_usage_for_atoms(vs) + v.get_dtcm_usage_static(vs),
+    64 * 1024 * 1024,  # 64 KiB DTCM
+    0.9  # Target usage of 90%
+)
+sdram_partitioner_constraint = make_partitioner_constraint(
+    lambda v, vs: v.get_sdram_usage_for_atoms(vs),
+    7 * 1024 * 1024 * 1024,  # 7 MiB per core (128/18 is approx 7)
+    0.9  # Target usage of 90%
+)
+atoms_partitioner_constraint = make_partitioner_constraint(
+    lambda v, vs: vs.n_atoms,  # Number of atoms is the number in the slice
+    lambda v, vs: vs.n_atoms if v.max_atoms is None else v.max_atoms,
+)
