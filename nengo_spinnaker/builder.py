@@ -24,7 +24,7 @@ class Builder(object):
         connections and a list of probes.  It is expected to return a new list
         of objects and a new list of connections.
         """
-        cls.network_transforms.insert(0, transform)
+        cls.network_transforms.append(transform)
 
     @classmethod
     def add_object_builder(cls, object_type, builder):
@@ -117,11 +117,11 @@ class Builder(object):
         # connections may be simulated on host rather than on SpiNNaker.
         logger.info("Build step 4/8: Building connectivity tree")
         c_trees = ConnectionTree.from_intermediate_connections(
-            c for c in conns if (not isinstance(c.pre_obj, nengo.Node) and
-                                 not isinstance(c.post_obj, nengo.Node))
+            c for c in conns if not (isinstance(c.pre_obj, nengo.Node) and
+                                     isinstance(c.post_obj, nengo.Node))
         )
 
-        for c in [c for c in conns if isinstance(c.pre_obj, nengo.Node) or
+        for c in [c for c in conns if isinstance(c.pre_obj, nengo.Node) and
                   isinstance(c.post_obj, nengo.Node)]:
             logger.info('Connection {} will be simulated on host.'.format(c))
 

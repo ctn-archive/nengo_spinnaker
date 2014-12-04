@@ -156,6 +156,7 @@ def include_constant_inputs(connections):
                 callable(c.pre_obj.output)):
             # This Node just forms direct input, add it to direct input and
             # list the connection as requiring removal.
+            assert c.pre_obj.output is not None
             inp = c.pre_obj.output
             if c.function is not None:
                 inp = c.function(inp)
