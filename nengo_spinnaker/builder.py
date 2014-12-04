@@ -121,8 +121,8 @@ class Builder(object):
                                  not isinstance(c.post_obj, nengo.Node))
         )
 
-        for c in [c for c in conns if not(isinstance(c.pre_obj, nengo.Node) or
-                                          isinstance(c.post_obj, nengo.Node))]:
+        for c in [c for c in conns if isinstance(c.pre_obj, nengo.Node) or
+                  isinstance(c.post_obj, nengo.Node)]:
             logger.info('Connection {} will be simulated on host.'.format(c))
 
         # From this build the keyspace
