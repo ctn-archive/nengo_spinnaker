@@ -51,7 +51,7 @@ class Simulator(object):
         # Use the Builder system to build the network into a connection tree
         logger.info("Building model into intermediate representation.")
         model, self.rngs = Builder.build(network, self.config,
-            self.get_keyspace())
+                                         self.get_keyspace())
 
         # Process the connection tree for IO handling
         logger.info("Preparing model IO for simulation.")
@@ -60,11 +60,11 @@ class Simulator(object):
 
     def get_keyspace(self):
         """Get a new distinct keyspace.
-        
+
         Generates a unique Keyspace which is distinguished from Nengo's
         internal keyspace by the value of the `n_type` field.
         """
-        ks = self.keyspace(n_type = self.keyspace_next_type)
+        ks = self.keyspace(n_type=self.keyspace_next_type)
         self.keyspace_next_type += 1
         return ks
 

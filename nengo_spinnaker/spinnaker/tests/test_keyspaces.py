@@ -467,11 +467,11 @@ def test_full_auto():
     ks_h = Keyspace(32)
     ks_h.add_field("s")
     ks_h(s=0).add_field("s0")
-    ks_h(s=0,s0=0).add_field("s00")
-    ks_h(s=0,s0=1).add_field("s01")
+    ks_h(s=0, s0=0).add_field("s00")
+    ks_h(s=0, s0=1).add_field("s01")
     ks_h(s=1).add_field("s1")
-    ks_h(s=1,s1=0).add_field("s10")
-    ks_h(s=1,s1=1).add_field("s11")
+    ks_h(s=1, s1=0).add_field("s10")
+    ks_h(s=1, s1=1).add_field("s11")
     ks_h.assign_fields()
     assert ks_h.get_mask(field="s") == 0x00000001
     assert ks_h(s=0).get_mask(field="s0") == 0x00000002

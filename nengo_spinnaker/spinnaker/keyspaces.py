@@ -161,7 +161,7 @@ class Keyspace(object):
 
         start_master = ks4(external=0, chip=0, core=1, type=0x01)
         device = ks4(external = 1, device_id = 12)
-        
+
         ks4.assign_fields()
 
         # Keys/masks for the target chip
@@ -487,7 +487,8 @@ class Keyspace(object):
             ks._assign_enabled_fields()
             # Look for potential children in the herarchy
             for identifier, field in ks._potential_fields():
-                enabled_field_idents = set(i for (i,f) in ks._enabled_fields())
+                enabled_field_idents = set(i for (i, f) in
+                                           ks._enabled_fields())
                 set_fields = {}
                 for cond_ident, cond_value in field.conditions.items():
                     # Fail if not a child
@@ -699,4 +700,3 @@ class Keyspace(object):
                     "{}-bit field '{}' "
                     "does not fit in keyspace.".format(
                         field.length, identifier))
-

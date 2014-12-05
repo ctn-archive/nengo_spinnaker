@@ -1,12 +1,10 @@
 import logging
-import math
 import nengo
 from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 import numpy as np
 
 from .connections.intermediate import IntermediateConnection
 from .connections.connection_tree import ConnectionTree
-from .spinnaker.keyspaces import Keyspace
 from .utils import builder as builder_utils
 
 logger = logging.getLogger(__name__)
