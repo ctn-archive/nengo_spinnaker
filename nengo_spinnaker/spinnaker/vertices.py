@@ -1,22 +1,18 @@
 import collections
 
-from pacman.model.resources.resource_container import ResourceContainer
-from pacman.model.resources.cpu_cycles_per_tick_resource import \
-    CPUCyclesPerTickResource
-from pacman.model.resources.dtcm_resource import DTCMResource
-from pacman.model.resources.sdram_resource import SDRAMResource
-
-from pacman.model.partitionable_graph.abstract_constrained_vertex import \
-    AbstractConstrainedVertex
+from .partitioners import make_partitioner_constraint
 
 
 PlacedVertex = collections.namedtuple(
     'PlacedVertex', 'x y p executable subregions timer_period')
 
 
-class Vertex(AbstractConstrainedVertex):
-    """Helper for constructing Vertices for PACMAN."""
+class Vertex(object):
+    """Represents an instance (or set of instances) of an executable on a
+    SpiNNaker machine.
+    """
     executable_path = None  # Path for the executable
+    max_atoms = None  # None means there is no limit to the number of atoms
 
     def __init__(self, n_atoms, label, regions=list(), constraints=None):
         """Create a new Vertex object.
@@ -35,26 +31,10 @@ class Vertex(AbstractConstrainedVertex):
         constraints : list
             A list of constraints for the vertex.
         """
-        super(Vertex, self).__init__(label, constraints)
+        self.label = label
+        self.constrains = constraints if constraints is not None else list()
         self.n_atoms = n_atoms
         self.regions = regions
-
-    def get_resources_used_by_atoms(self, vertex_slice, graph):
-        """Get the resource requirements of a slice of atoms.
-
-        Parameters
-        ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
-            The slice of atoms to get the usage requirements of.
-        graph :
-            Unused.
-        """
-        return ResourceContainer(
-            cpu=CPUCyclesPerTickResource(
-                self.get_cpu_usage_for_atoms(vertex_slice)),
-            dtcm=DTCMResource(self.get_dtcm_usage_for_atoms(vertex_slice)),
-            sdram=SDRAMResource(self.get_sdram_usage_for_atoms(vertex_slice))
-        )
 
     def get_subregions(self, subvertex_index, vertex_slice):
         """Return subregions for the atoms indexed in the vertex slice.
@@ -63,7 +43,7 @@ class Vertex(AbstractConstrainedVertex):
         ----------
         subvertex_index : int
             Index of the subvertex for which subregions are desired.
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms for which subregions should be generated.
 
         Returns
@@ -71,6 +51,9 @@ class Vertex(AbstractConstrainedVertex):
         list :
             A list of :py:func:`Subregion`s.
         """
+        if vertex_slice.stop > self.n_atoms:
+            raise ValueError(
+                "Attempt to retrieve data for more atoms than present.")
         return [r.create_subregion(vertex_slice, subvertex_index) for r in
                 self.regions]
 
@@ -82,7 +65,7 @@ class Vertex(AbstractConstrainedVertex):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms to get the usage requirements of.
         """
         return 4*sum(r.sizeof(vertex_slice) for r in self.regions if
@@ -96,7 +79,7 @@ class Vertex(AbstractConstrainedVertex):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms to get the usage requirements of.
         """
         words = sum(r.sizeof(vertex_slice) for r in self.regions if
@@ -113,7 +96,7 @@ class Vertex(AbstractConstrainedVertex):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms to get the usage requirements of.
         """
         return 0
@@ -125,7 +108,23 @@ class Vertex(AbstractConstrainedVertex):
 
         Parameters
         ----------
-        vertex_slice : :py:class:`pacman.model.graph_mapper.slice.Slice`
+        vertex_slice : :py:class:`nengo_vertex.spinnaker.partitioners.Slice`
             The slice of atoms to get the usage requirements of.
         """
         raise NotImplementedError
+
+
+dtcm_partitioner_constraint = make_partitioner_constraint(
+    lambda v, vs: v.get_dtcm_usage_for_atoms(vs) + v.get_dtcm_usage_static(vs),
+    64 * 1024 * 1024,  # 64 KiB DTCM
+    0.9  # Target usage of 90%
+)
+sdram_partitioner_constraint = make_partitioner_constraint(
+    lambda v, vs: v.get_sdram_usage_for_atoms(vs),
+    7 * 1024 * 1024 * 1024,  # 7 MiB per core (128/18 is approx 7)
+    0.9  # Target usage of 90%
+)
+atoms_partitioner_constraint = make_partitioner_constraint(
+    lambda v, vs: vs.n_atoms,  # Number of atoms is the number in the slice
+    lambda v, vs: vs.n_atoms if v.max_atoms is None else v.max_atoms,
+)

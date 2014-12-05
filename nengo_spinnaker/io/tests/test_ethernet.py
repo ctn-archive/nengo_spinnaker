@@ -1,5 +1,6 @@
 import mock
 import nengo
+import pytest
 
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
@@ -62,9 +63,11 @@ class TestEthernetIO(object):
                 assert False, "Unexpected object {} found.".format(obj)
 
 
+@pytest.mark.xfail(reason="Not completed")
 def test_get_output_node_slices_to_core_map():
     raise NotImplementedError
 
 
+@pytest.mark.xfail(reason="Not completed")
 def test_get_input_core_to_node_slice_map():
     raise NotImplementedError

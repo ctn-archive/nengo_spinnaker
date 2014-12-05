@@ -6,7 +6,7 @@ import numpy as np
 import warnings
 
 import nengo.utils.builder as builder_utils
-from nengo.utils import distributions as dists
+from nengo import dists
 
 from . import lif, pes
 from .placeholder import PlaceholderEnsemble
@@ -46,8 +46,8 @@ def build_ensembles(objects, connections, probes, rngs):
                 n_points, ens.dimensions, rngs[ens])
             eval_points *= ens.radius
         else:
-            if all([ens.eval_points is not None,
-                    ens.eval_points.shape[0] != ens.n_eval_points]):
+            if (ens.eval_points is not None and
+                    ens.eval_points.shape[0] != ens.n_eval_points):
                 warnings.warn(
                     "Number of eval points doesn't match n_eval_points. "
                     "Ignoring n_eval_points."
@@ -156,6 +156,7 @@ def include_constant_inputs(connections):
                 callable(c.pre_obj.output)):
             # This Node just forms direct input, add it to direct input and
             # list the connection as requiring removal.
+            assert c.pre_obj.output is not None
             inp = c.pre_obj.output
             if c.function is not None:
                 inp = c.function(inp)

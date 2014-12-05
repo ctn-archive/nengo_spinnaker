@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 from nengo.builder.ensemble import sample as builder_sample
-from nengo.utils import distributions as dists
+from nengo import dists
 import nengo.utils.numpy as npext
 
 from . import decoders as decoder_utils

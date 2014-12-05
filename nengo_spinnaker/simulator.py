@@ -1,8 +1,5 @@
 import logging
 
-from pacman.model.partitionable_graph.partitionable_graph import \
-    PartitionableGraph
-
 from .assembler import Assembler
 from .builder import Builder
 from .config import Config
@@ -111,8 +108,7 @@ class Simulator(object):
         )
 
         # Convert the model into a graph for mapping to SpiNNaker
-        graph = PartitionableGraph(label=self.network.label, vertices=vertices,
-                                   edges=edges)
+        raise NotImplementedError
 
         # Partition and place
         logger.info("Run step 2/9: Partitioning and placing the model.")
@@ -144,7 +140,7 @@ class Simulator(object):
         logger.info(
             "Run step 8/9: Starting the simulation (run for {})."
             .format("ever" if time_in_seconds is None else "{:3f}s"
-                .format(time_in_seconds))
+                    .format(time_in_seconds))
         )
         raise NotImplementedError
 

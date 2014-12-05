@@ -1,8 +1,7 @@
 import mock
 import pytest
 
-from pacman.model.graph_mapper.slice import Slice
-
+from ..partitioners import Slice
 from ..vertices import Vertex
 from .. import regions
 
@@ -22,8 +21,8 @@ def test_get_sdram_usage_for_atoms():
     ]
     v = Vertex(100, '', rs)
 
-    assert (v.get_sdram_usage_for_atoms(Slice(0, 9)) ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs))
+    assert (v.get_sdram_usage_for_atoms(Slice(0, 10)) ==
+            4*sum(r.sizeof(Slice(0, 10)) for r in rs))
 
 
 def test_get_sdram_usage_for_atoms_none_region():
@@ -41,8 +40,8 @@ def test_get_sdram_usage_for_atoms_none_region():
     ]
     v = Vertex(100, '', rs)
 
-    assert (v.get_sdram_usage_for_atoms(Slice(0, 9)) ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs[:-1]))
+    assert (v.get_sdram_usage_for_atoms(Slice(0, 10)) ==
+            4*sum(r.sizeof(Slice(0, 10)) for r in rs[:-1]))
 
 
 def test_get_dtcm_usage_for_regions():
@@ -59,8 +58,8 @@ def test_get_dtcm_usage_for_regions():
     ]
     v = Vertex(100, '', rs)
 
-    assert (v.get_dtcm_usage_for_atoms(Slice(0, 9)) ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs))
+    assert (v.get_dtcm_usage_for_atoms(Slice(0, 10)) ==
+            4*sum(r.sizeof(Slice(0, 10)) for r in rs))
 
 
 def test_get_dtcm_usage_for_regions_non_dtcm_regions():
@@ -78,8 +77,8 @@ def test_get_dtcm_usage_for_regions_non_dtcm_regions():
     ]
     v = Vertex(100, '', rs)
 
-    assert (v.get_dtcm_usage_for_atoms(Slice(0, 9)) ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs[:-1]))
+    assert (v.get_dtcm_usage_for_atoms(Slice(0, 10)) ==
+            4*sum(r.sizeof(Slice(0, 10)) for r in rs[:-1]))
 
 
 def test_get_dtcm_usage_for_regions_none_regions():
@@ -97,8 +96,8 @@ def test_get_dtcm_usage_for_regions_none_regions():
     ]
     v = Vertex(100, '', rs)
 
-    assert (v.get_dtcm_usage_for_atoms(Slice(0, 9)) ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs[:-1]))
+    assert (v.get_dtcm_usage_for_atoms(Slice(0, 10)) ==
+            4*sum(r.sizeof(Slice(0, 10)) for r in rs[:-1]))
 
 
 def test_get_dtcm_usage_with_other_costs():
@@ -114,37 +113,14 @@ def test_get_dtcm_usage_with_other_costs():
     v = Vertex(100, '', rs)
     v.get_dtcm_usage_static = lambda sl: 10*(sl.n_atoms)
 
-    assert (v.get_dtcm_usage_for_atoms(Slice(0, 9)) ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs[:-1]) + 4*100)
+    assert (v.get_dtcm_usage_for_atoms(Slice(0, 10)) ==
+            4*sum(r.sizeof(Slice(0, 10)) for r in rs[:-1]) + 4*100)
 
 
 def test_get_cpu_usage_fail():
     v = Vertex(100, '', list())
     with pytest.raises(NotImplementedError):
-        v.get_cpu_usage_for_atoms(Slice(0, 9))
-
-
-def test_get_resources_used_by_atoms():
-    class SampleVertex(Vertex):
-        def get_cpu_usage_for_atoms(self, vertex_slice):
-            return 10
-
-    rs = [
-        regions.MatrixRegion(shape=(100, 5), prepends=[
-            regions.MatrixRegionPrepends.SIZE,
-            regions.MatrixRegionPrepends.N_ATOMS
-        ]),
-        regions.MatrixRegionPartitionedByColumns(shape=(5, 100),
-                                                 unfilled=True),
-        regions.MatrixRegionPartitionedByRows(shape=(100, 5), in_dtcm=False)
-    ]
-
-    v = SampleVertex(100, '', rs)
-    resources = v.get_resources_used_by_atoms(Slice(0, 9), None)
-
-    assert (resources.dtcm.get_value() ==
-            4*sum(r.sizeof(Slice(0, 9)) for r in rs[:-1]))
-    assert resources.cpu.get_value() == 10
+        v.get_cpu_usage_for_atoms(Slice(0, 10))
 
 
 # Subvertexing
@@ -159,9 +135,9 @@ def test_get_subregions():
 
     # Create some subregions, ensure the appropriate calls are made to the
     # regions.
-    v.get_subregions(0, Slice(0, 9))
+    v.get_subregions(0, Slice(0, 10))
     for r in rs:
-        r.create_subregion.assert_called_once_with(Slice(0, 9), 0)
+        r.create_subregion.assert_called_once_with(Slice(0, 10), 0)
 
     # Assert that an error is raised if too many atoms are specified
     with pytest.raises(ValueError):

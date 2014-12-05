@@ -1,7 +1,6 @@
 import mock
 import nengo
 
-from pacman.model.graph_mapper.slice import Slice
 from ...assembler import Assembler
 from ...connections.connection_tree import ConnectionTree
 from ...connections.intermediate import IntermediateConnection
@@ -40,6 +39,3 @@ def test_assemble_from_receive_object():
     # Check the SDP Tx Vertex
     assert sdp_tx_vertex.node is node_b
     assert len(sdp_tx_vertex.regions) == 3
-
-    # Ensure that we can get resources
-    sdp_tx_vertex.get_resources_used_by_atoms(Slice(0, 9), None)

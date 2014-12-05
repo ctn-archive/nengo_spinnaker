@@ -24,7 +24,7 @@ class Builder(object):
         connections and a list of probes.  It is expected to return a new list
         of objects and a new list of connections.
         """
-        cls.network_transforms.insert(0, transform)
+        cls.network_transforms.append(transform)
 
     @classmethod
     def add_object_builder(cls, object_type, builder):
@@ -119,12 +119,12 @@ class Builder(object):
         # connections may be simulated on host rather than on SpiNNaker.
         logger.info("Build step 4/8: Building connectivity tree")
         c_trees = ConnectionTree.from_intermediate_connections(
-            c for c in conns if (not isinstance(c.pre_obj, nengo.Node) and
-                                 not isinstance(c.post_obj, nengo.Node))
+            c for c in conns if not (isinstance(c.pre_obj, nengo.Node) and
+                                     isinstance(c.post_obj, nengo.Node))
         )
 
-        for c in [c for c in conns if not(isinstance(c.pre_obj, nengo.Node) or
-                                          isinstance(c.post_obj, nengo.Node))]:
+        for c in [c for c in conns if isinstance(c.pre_obj, nengo.Node) and
+                  isinstance(c.post_obj, nengo.Node)]:
             logger.info('Connection {} will be simulated on host.'.format(c))
 
         # From this build the keyspace
@@ -208,16 +208,16 @@ def _add_nengo_keyspace_fields(ks):
     will be tagged as both `n_routing` and `n_filter_routing`).
     """
     ks.add_field("n_external", length=1, start_at=31)
-    
+
     ks_internal = ks(n_external=0)
     ks_internal.add_field("n_system")
-    
+
     ks_nengo = ks_internal(n_system=0)
     ks_nengo.add_field("n_object", tags="n_routing n_filter_routing")
     ks_nengo.add_field("n_subobject", tags="n_routing")
     ks_nengo.add_field("n_connection", tags="n_routing n_filter_routing")
     ks_nengo.add_field("n_dimension")
-    
+
     ks_system = ks_internal(n_system=1)
     ks_system.add_field("n_system_object", tags="n_routing")
     ks_system.add_field("n_system_subobject", tags="n_routing")

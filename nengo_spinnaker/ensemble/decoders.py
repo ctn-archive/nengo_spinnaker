@@ -1,5 +1,6 @@
 """Tools for regularising the building and compression of decoders.
 """
+import nengo.solvers
 import numpy as np
 
 from ..utils import connections as connection_utils
@@ -15,8 +16,12 @@ def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
     def decoder_builder(outgoing_connection):
         """Build the decoder and decoder headers for the outgoing connection.
         """
+        # Get the solver
+        solver = (outgoing_connection.solver if outgoing_connection.solver
+                  is not None else nengo.solvers.LstsqL2())
+
         # Fail if this is a weight-matrix connection
-        if outgoing_connection.solver.weights:
+        if solver.weights:
             raise NotImplementedError(
                 "Nengo/SpiNNaker doesn't currently support weight matrices.")
 
@@ -28,8 +33,7 @@ def create_decoder_builder(encoders, radius, gain, bias, rates, rng):
         targets = outgoing_connection.get_targets()
 
         # Build the decoders
-        decoder, solver_info = outgoing_connection.solver(activities, targets,
-                                                          rng=rng)
+        decoder, solver_info = solver(activities, targets, rng=rng)
 
         # Transform the decoder
         decoder = outgoing_connection.transform.dot(decoder.T).T

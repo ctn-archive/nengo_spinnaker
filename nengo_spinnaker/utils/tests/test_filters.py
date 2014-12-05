@@ -1,13 +1,13 @@
 import mock
 import nengo
 import numpy as np
-from pacman.model.graph_mapper.slice import Slice
 
 from ...connections.reduced import (
     LowpassFilterParameter, _filter_types, StandardInputPort
 )
 from ...connections.intermediate import IntermediateConnection
 from ...connections.connection_tree import ConnectionTree
+from ...spinnaker.partitioners import Slice
 from .. import filters as filter_utils
 from ..fixpoint import bitsk
 
@@ -72,10 +72,10 @@ def test_get_filter_regions():
 
     # Assert the size of these regions is appropriate: Filter region should be
     # 4 * n_filters (4 words per filter) + 1 (n filters).
-    assert filter_region.sizeof(Slice(0, 99)) == len(inputs) * 4 + 1
+    assert filter_region.sizeof(Slice(0, 100)) == len(inputs) * 4 + 1
 
     # Keys region should be 4 * n_connections (4 words per connection) + 1
-    assert filter_routing_region.sizeof(Slice(0, 99)) == len(conns) * 4 + 1
+    assert filter_routing_region.sizeof(Slice(0, 100)) == len(conns) * 4 + 1
 
     # Get the filter regions using lists instead of dicts
     inputs = list(inputs.items())
@@ -84,10 +84,10 @@ def test_get_filter_regions():
 
     # Assert the size of these regions is appropriate: Filter region should be
     # 4 * n_filters (4 words per filter) + 1 (n filters).
-    assert filter_region.sizeof(Slice(0, 99)) == len(inputs) * 4 + 1
+    assert filter_region.sizeof(Slice(0, 100)) == len(inputs) * 4 + 1
 
     # Keys region should be 4 * n_connections (4 words per connection) + 1
-    assert filter_routing_region.sizeof(Slice(0, 99)) == len(conns) * 4 + 1
+    assert filter_routing_region.sizeof(Slice(0, 100)) == len(conns) * 4 + 1
 
 
 def test_filter_region():
@@ -164,11 +164,11 @@ def test_filter_routing_region():
 
     # Create the region
     routing_region = filter_utils.make_routing_region(filter_ids)
-    assert routing_region.sizeof(Slice(0, 99)) == 4+1
+    assert routing_region.sizeof(Slice(0, 100)) == 4+1
 
     # Create a subregion version and ensure that the data stored within is
     # correct.
-    sr = routing_region.create_subregion(Slice(0, 99), 0)
+    sr = routing_region.create_subregion(Slice(0, 100), 0)
     data = np.frombuffer(sr.data, dtype=np.uint32)
     assert data[0] == 1
     assert data[1:].tolist() == [keyspace.key(), keyspace.filter_mask,

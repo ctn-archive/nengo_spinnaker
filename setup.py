@@ -31,10 +31,7 @@ setup(
         "six",
     ],
     requires=[
-        "pacman",  # Temporary until this is moved to PyPi
-        "spinnman",  # As above
-        "spinnmachine",  # As above
-        "nengo (==2.0.0)",  # As above
+        "nengo (==2.0.0)",  # Temporary until this is moved to PyPi
     ],
     tests_require=['pytest>=2.3', 'mock'],
     extras_require={

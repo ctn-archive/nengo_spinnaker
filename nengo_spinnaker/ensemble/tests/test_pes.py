@@ -137,7 +137,7 @@ def sample_ctree_with_pes():
         # First learnt connection, rate = 1.0, width = 1
         lcm1 = nengo.Connection(a[0], d, synapse=0.3, modulatory=True)
         nengo.Connection(b, d, transform=[[1, 0, 0]],
-                         learning_rule_type=nengo.PES(lcm1))
+                         learning_rule_type=nengo.PES(lcm1, 1.0))
 
         # Second learnt connection, rate = 0.5, width = 3
         lcm2 = nengo.Connection(a, c, synapse=0.5, modulatory=True)
