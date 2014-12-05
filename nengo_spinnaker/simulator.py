@@ -4,6 +4,7 @@ from .assembler import Assembler
 from .builder import Builder
 from .config import Config
 from .io.ethernet import EthernetIO
+from .spinnaker.keyspaces import Keyspace
 
 
 logger = logging.getLogger(__name__)
@@ -41,14 +42,31 @@ class Simulator(object):
         self.dt = dt
         self.machine_timestep = int(self.dt * time_scaling * 10**6)
 
+        # Produce a keyspace which divides Nengo internal fields with those for
+        # other purposes (e.g. robots)
+        self.keyspace = Keyspace(32)
+        self.keyspace.add_field("n_type")
+        self.keyspace_next_type = 0
+
         # Use the Builder system to build the network into a connection tree
         logger.info("Building model into intermediate representation.")
-        model, self.rngs = Builder.build(network, self.config)
+        model, self.rngs = Builder.build(network, self.get_keyspace(),
+                                         self.config)
 
         # Process the connection tree for IO handling
         logger.info("Preparing model IO for simulation.")
         self.model = io_type.prepare_connection_tree(model)
         self.network = network
+
+    def get_keyspace(self):
+        """Get a new distinct keyspace.
+
+        Generates a unique Keyspace which is distinguished from Nengo's
+        internal keyspace by the value of the `n_type` field.
+        """
+        ks = self.keyspace(n_type=self.keyspace_next_type)
+        self.keyspace_next_type += 1
+        return ks
 
     def run(self, time_in_seconds=None):
         """Simulate for the given period of time, if no period of time is given

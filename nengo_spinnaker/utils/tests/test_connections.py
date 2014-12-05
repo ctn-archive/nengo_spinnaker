@@ -171,12 +171,12 @@ class TestGetKeyspacesWithDimensions(object):
         ks = mock.Mock()
         dim_ks = {d: mock.Mock(name='Keyspace1 d={}'.format(d)) for d in
                   range(5)}
-        ks.side_effect = lambda d: dim_ks[d]
+        ks.side_effect = lambda n_dimension: dim_ks[n_dimension]
 
         ks2 = mock.Mock()
         dim_ks2 = {d: mock.Mock(name='Keyspace2 d={}'.format(d)) for d in
                    range(3)}
-        ks2.side_effect = lambda d: dim_ks2[d]
+        ks2.side_effect = lambda n_dimension: dim_ks2[n_dimension]
 
         # Create a reduced outgoing connection
         orcs = [
@@ -192,8 +192,8 @@ class TestGetKeyspacesWithDimensions(object):
         keyspaces = get_keyspaces_with_dimensions(orcs)
 
         # Assert that the keyspace was called correctly
-        ks.assert_has_calls([mock.call(d=d) for d in range(5)])
-        ks2.assert_has_calls([mock.call(d=d) for d in range(3)])
+        ks.assert_has_calls([mock.call(n_dimension=d) for d in range(5)])
+        ks2.assert_has_calls([mock.call(n_dimension=d) for d in range(3)])
 
         # Assert the returned keys are in the correct order
         assert keyspaces == ([dim_ks[d] for d in range(5)] +

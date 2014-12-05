@@ -112,8 +112,8 @@ def make_routing_region(filter_ids):
     return regions.KeysRegion(
         filter_ids.keys(),
         extra_fields=[
-            lambda ks, i: ks.filter_mask,  # Filter mask
-            lambda ks, i: filter_ids[ks],  # Filter index
-            lambda ks, i: ks.mask_d,       # Dimension mask
+            lambda ks, i: ks.get_mask(tag="n_filter_routing"),  # Filter mask
+            lambda ks, i: filter_ids[ks],                      # Filter index
+            lambda ks, i: ks.get_mask(field="n_dimension"),    # Dimension mask
         ],
         prepend_n_keys=True)

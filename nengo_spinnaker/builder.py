@@ -1,12 +1,10 @@
 import logging
-import math
 import nengo
 from nengo.utils.builder import objs_and_connections, remove_passthrough_nodes
 import numpy as np
 
 from .connections.intermediate import IntermediateConnection
 from .connections.connection_tree import ConnectionTree
-from .spinnaker.keyspaces import create_keyspace
 from .utils import builder as builder_utils
 
 logger = logging.getLogger(__name__)
@@ -62,7 +60,7 @@ class Builder(object):
         return obj_builder
 
     @classmethod
-    def build(cls, network, config=None):
+    def build(cls, network, nengo_keyspace, config=None):
         """Build the network into an intermediate form.
 
         Parameters
@@ -72,6 +70,8 @@ class Builder(object):
             (represented through a connection tree).
         config : .config.Config
             Specific Nengo/SpiNNaker configuration options.
+        nengo_keyspace : :py:class:`~.spinnaker.keyspaces.Keyspace`
+            The Keyspace to use for Nengo internal communication.
 
         Returns
         -------
@@ -126,12 +126,12 @@ class Builder(object):
             logger.info('Connection {} will be simulated on host.'.format(c))
 
         # From this build the keyspace
-        logger.info("Build step 5/8: Generating default keyspace")
-        default_keyspace = _build_keyspace(c_trees)
+        logger.info("Build step 5/8: Adding fields to keyspace")
+        _add_nengo_keyspace_fields(nengo_keyspace)
 
         # Assign this keyspace to all connections which have no keyspace
         logger.info("Build step 6/8: Applying default keyspace")
-        c_trees = c_trees.get_new_tree_with_applied_keyspace(default_keyspace)
+        c_trees = c_trees.get_new_tree_with_applied_keyspace(nengo_keyspace)
 
         # Build all objects
         logger.info("Build step 7/8: Building objects")
@@ -173,59 +173,34 @@ def _convert_remaining_connections(connections):
     return new_conns
 
 
-def _build_keyspace(connection_tree, subobject_bits=7):
-    """Build a keyspace from the given connectivity trees.
+def _add_nengo_keyspace_fields(ks_nengo):
+    """Add the standard fields used by Nengo simulations to the keyspace.
 
-    Determines the minimum number of bits required to represent the object,
-    connection and dimension fields in the keyspace.  A new keyspace with
-    these field widths is returned.
+    The following fields (prefixed with `n_` will be added to the Keyspace:
+        - `n_object` indicates the originating object ID.
+        - `n_cluster` indicates the cluster of the partitions of the
+                      originating object, used only in routing.
+        - `n_connection` indicates the connection index.
+        - `n_dimension` indicates the index of the represented component.
 
-    The new keyspace will take the form of:
-        x|o|s|i|d
-    Where:
-     - `x` indicates that a packet is to be routed off board to a robot or to
-       the host via. FPGA.
-     - `o` indicates the originating object ID.
-     - `s` indicates the index of the partition of the originating object, used
-       only in routing.
-     - `i` indicates the connection index.
-     - `d` indicates the index of the represented component.
+    The following fields are tagged `n_routing`:
+    - `n_object`
+    - `n_cluster`
+    - `n_connection`
+    - `n_system_object`
+    - `n_system_subobject`
+
+    The following fields are tagged `n_filter_routing`:
+    - `n_object`
+    - `n_connection`
+
+    Note that the tags propagate up the keyspace's hierarchy (e.g. `n_system`
+    will be tagged as both `n_routing` and `n_filter_routing`).
     """
-    # Get the number of bits required for each field; all these calculations
-    # assume that a field cannot have length 0, relax this requirement.
-    # TODO Exclude connections that already have keyspaces from these
-    # calculations.
-    objs = connection_tree.get_objects()
-    num_o = 0
-    max_i = 0
-    max_d = 0
-
-    for o in objs:
-        out_conns = connection_tree.get_outgoing_connections(o)
-        if len(out_conns) > 0:
-            num_o += 1
-            max_i = max(max_i, len(out_conns))
-            max_d = max(max_d, max(c.width for c in out_conns))
-
-    x_bits = 1
-    o_bits = int(math.ceil(math.log(num_o + 1, 2)))
-    s_bits = subobject_bits
-    i_bits = int(math.ceil(math.log(max_i + 1, 2)))
-    d_bits = int(math.ceil(math.log(max_d + 1, 2)))
-
-    padding = 32 - sum([x_bits, o_bits, s_bits, i_bits, d_bits])
-
-    # Create the keyspace
-    return create_keyspace(
-        'NengoDefault', [('x', x_bits),   # Routed to external device
-                         ('o', o_bits),   # Sending object ID
-                         ('s', s_bits),   # Sending sub-object ID
-                         ('_', padding),  # Padding
-                         ('i', i_bits),   # Connection ID
-                         ('d', d_bits)],  # Component index (dimension)
-        'xosi',          # Fields used in routing
-        'xoi'            # Fields used in filter routing
-    )
+    ks_nengo.add_field("n_object", tags="n_routing n_filter_routing")
+    ks_nengo.add_field("n_cluster", tags="n_routing")
+    ks_nengo.add_field("n_connection", tags="n_routing n_filter_routing")
+    ks_nengo.add_field("n_dimension")
 
 
 def _get_seed(obj, rng):
