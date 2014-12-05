@@ -6,7 +6,7 @@ import pytest
 
 from ..builder import Builder
 from .. import builder
-from ..connections.connection_tree import ConnectionTree
+from ..spinnaker import keyspaces
 
 
 @pytest.fixture(scope='function')
@@ -63,7 +63,8 @@ class TestBuilderTransforms(object):
 
         # Create a fake network to ensure that objects are passed along
         model, (a, b, c), (c1, c2), (p,) = sample_model
-        Builder.build(model)
+        ks = mock.Mock()
+        Builder.build(model, ks)
 
         # Assert that the network transform was called with appropriate
         # arguments.
@@ -141,7 +142,8 @@ class TestBuilderTransforms(object):
         Builder.add_object_builder(nengo.Ensemble, ens_builder)
 
         # Build the network, and then ensure that the same seeds are passed
-        Builder.build(model)
+        ks = mock.Mock()
+        Builder.build(model, ks)
         assert ens_builder.call_count == 2
         assert (ens_builder.call_args_list[0][0][3] ==
                 ens_builder.call_args_list[1][0][3])
@@ -193,24 +195,21 @@ def test_convert_remaining_connections():
     assert new_conns[0].post_obj is b
 
 
-def test_build_keyspace(sample_model):
-    """Assert that an appropriate keyspace is built.
-    """
-    # Get the model and build the connection tree
-    model, (a, b, c), (c1, c2), (p,) = sample_model
-    new_conns = builder._convert_remaining_connections([c1, c2])
-    tree = ConnectionTree.from_intermediate_connections(new_conns)
+def test_add_nengo_keyspace_fields():
+    """Test that Nengo related keyspaces are added correctly."""
+    # Create an empty keyspace
+    empty_ks = keyspaces.Keyspace()
+    empty_ks.add_field('cls')
+    builder._add_nengo_keyspace_fields(empty_ks(cls=0))
 
-    # Build the keyspace
-    ks = builder._build_keyspace(tree, subobject_bits=7)
-    print ks.__field_lengths__
-    assert ks.__field_lengths__['x'] == 1  # eXternal bound packet
-    assert ks.__field_lengths__['o'] == 2  # Object index (3 objects, 2 bits)
-    assert ks.__field_lengths__['s'] == 7  # Sub-object index
-    assert ks.__field_lengths__['i'] == 1  # Connection Index
-    assert ks.__field_lengths__['d'] == 2  # Dimension index
-    assert ks.__routing_fields__ == 'xosi'
-    assert ks.__filter_fields__ == 'xoi'
+    # Check that the object, cluster, connection and dimension fields are
+    # present.
+    nengo_ks = empty_ks(cls=0)
+    for f in ['n_object', 'n_cluster', 'n_connection', 'n_dimension']:
+        try:
+            nengo_ks(**{f: 1})
+        except (ValueError, AttributeError) as e:
+            pytest.fail('{}s field not added to keyspace. ({})'.format(f, e))
 
 
 def test_runthrough():
@@ -222,4 +221,5 @@ def test_runthrough():
 
         nengo.Connection(a[0], b, function=lambda x: x**2)
 
-    conn_tree, rngs = Builder.build(model)  # noqa
+    ks = mock.Mock()
+    conn_tree, rngs = Builder.build(model, ks)  # noqa

@@ -50,8 +50,8 @@ class Simulator(object):
 
         # Use the Builder system to build the network into a connection tree
         logger.info("Building model into intermediate representation.")
-        model, self.rngs = Builder.build(network, self.config,
-                                         self.get_keyspace())
+        model, self.rngs = Builder.build(network, self.get_keyspace(),
+                                         self.config)
 
         # Process the connection tree for IO handling
         logger.info("Preparing model IO for simulation.")

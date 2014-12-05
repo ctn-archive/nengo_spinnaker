@@ -163,18 +163,20 @@ class TestKeysRegion(object):
     @pytest.fixture(scope='function')
     def keys(self):
         # Create a set of keys
-        keys = [mock.Mock(spec_set=['key']) for i in range(12)]
+        keys = [mock.Mock(spec_set=['']) for i in range(12)]
         for i, k in enumerate(keys):
-            k.key.return_value = i
+            j = k.return_value = mock.Mock(spec_set=['get_key', 'get_mask'])
+            j.get_key.return_value = i
         return keys
 
     @pytest.fixture(scope='function')
     def keys_with_routing(self):
         # Create a set of keys
-        keys = [mock.Mock(spec_set=['key', 'routing_mask']) for i in range(12)]
+        keys = [mock.Mock(spec_set=['get_mask']) for i in range(12)]
         for i, k in enumerate(keys):
-            k.key.return_value = i
-            k.routing_mask = 0xFFEEFFEE
+            j = k.return_value = mock.Mock(spec_set=['get_key', 'get_mask'])
+            j.get_key.return_value = i
+            k.get_mask.return_value = 0xFFEEFFEE
         return keys
 
     def test_fill_in_field(self, keys):
@@ -188,20 +190,22 @@ class TestKeysRegion(object):
         sr = r.create_subregion(Slice(0, 10), 1)
 
         for k in keys:
-            k.key.assert_called_once_with(**{'i': 1})
+            k.assert_called_once_with(**{'i': 1})
 
         # Assert that a Subregion with the correct data is returned
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         for i, k in enumerate(keys):
-            assert sr_data[i] == k.key.return_value
+            assert sr_data[i] == k().get_key.return_value
 
     def test_subregion_n_entries(self, keys_with_routing):
         keys = keys_with_routing
 
         # Create a new key region
-        r = regions.KeysRegion(keys, fill_in_field='i',
-                               extra_fields=[lambda k, i: k.routing_mask],
-                               prepend_n_keys=True)
+        r = regions.KeysRegion(
+            keys, fill_in_field='i',
+            extra_fields=[lambda k, i: k.get_mask('n_routing')],
+            prepend_n_keys=True
+        )
 
         # Get the size of the region
         assert r.sizeof(Slice(0, 10)) == 2*len(keys) + 1
@@ -218,7 +222,7 @@ class TestKeysRegion(object):
 
         # Create a new key region
         r = regions.KeysRegion(keys, fill_in_field='i', extra_fields=[
-                               lambda k, i: k.routing_mask])
+                               lambda k, i: k.get_mask('n_routing')])
 
         # Get the size of the region
         assert r.sizeof(Slice(0, 10)) == len(keys)*2
@@ -249,14 +253,14 @@ class TestKeysRegion(object):
         sr = r.create_subregion(vslice, 1)
 
         for k in keys[vslice.as_slice]:
-            k.key.assert_called_once_with(**{'i': 1})
+            k.assert_called_once_with(**{'i': 1})
 
         # Assert that a Subregion with the correct data is returned
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data.size == vslice.n_atoms + 1
         assert sr_data[0] == vslice.n_atoms
         for i, k in enumerate(keys[vslice.as_slice]):
-            assert sr_data[i+1] == k.key.return_value
+            assert sr_data[i+1] == k().get_key.return_value
 
     def test_with_partitioning_and_extra_fields(self, keys):
         # Create a new keys region that is partitioned
@@ -275,12 +279,12 @@ class TestKeysRegion(object):
         sr = r.create_subregion(vslice, 0xFEED)
 
         for k in keys[vslice.as_slice]:
-            k.key.assert_called_once_with(**{'i': 0xFEED})
+            k.assert_called_once_with(**{'i': 0xFEED})
 
         # Assert that a Subregion with the correct data is returned
         sr_data = np.frombuffer(sr.data, dtype=np.uint32)
         assert sr_data.size == 2*vslice.n_atoms + 1
         assert sr_data[0] == vslice.n_atoms
         for i, k in enumerate(keys[vslice.as_slice]):
-            assert sr_data[1+2*i] == k.key.return_value
+            assert sr_data[1+2*i] == k().get_key.return_value
             assert sr_data[1+2*i+1] == 0xFEED

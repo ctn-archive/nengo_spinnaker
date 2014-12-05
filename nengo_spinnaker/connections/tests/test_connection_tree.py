@@ -278,19 +278,21 @@ def test_apply_keyspace():
         0: mock.Mock(name="Object0Keyspace", spec_set=['__call__']),
         1: mock.Mock(name="Object1Keyspace", spec_set=['__call__']),
     }
-    keyspace.side_effect = lambda o: obj_keyspaces[o]
+    keyspace.side_effect = lambda n_object: obj_keyspaces[n_object]
 
     obj0_conn_keyspaces = {
         0: mock.Mock(name="Object0Connection0", spec_set=['__call__']),
         1: mock.Mock(name="Object0Connection1", spec_set=['__call__']),
     }
-    obj_keyspaces[0].side_effect = lambda i: obj0_conn_keyspaces[i]
+    obj_keyspaces[0].side_effect = \
+        lambda n_connection: obj0_conn_keyspaces[n_connection]
 
     obj1_conn_keyspaces = {
         0: mock.Mock(name="Object1Connection0", spec_set=['__call__']),
         1: mock.Mock(name="Object1Connection1", spec_set=['__call__']),
     }
-    obj_keyspaces[1].side_effect = lambda i: obj1_conn_keyspaces[i]
+    obj_keyspaces[1].side_effect = \
+        lambda n_connection: obj1_conn_keyspaces[n_connection]
 
     # Create objects to be the referents in connections
     a = mock.Mock(name='A', spec_set=['size_in'])
@@ -318,12 +320,13 @@ def test_apply_keyspace():
     new_tree = tree.get_new_tree_with_applied_keyspace(keyspace)
 
     # Check the top-level keyspace
-    keyspace.assert_has_calls([mock.call(o=0), mock.call(o=1)])
+    keyspace.assert_has_calls([mock.call(n_object=0), mock.call(n_object=1)])
     assert keyspace.call_count == 2
 
     # Check the keyspaces for objects
     for i in range(2):
-        obj_keyspaces[i].assert_has_calls([mock.call(i=0), mock.call(i=1)])
+        obj_keyspaces[i].assert_has_calls([mock.call(n_connection=0),
+                                           mock.call(n_connection=1)])
         assert obj_keyspaces[i].call_count == 2
 
     # Build a mapping of keyspace to connection and check that it as we expect,

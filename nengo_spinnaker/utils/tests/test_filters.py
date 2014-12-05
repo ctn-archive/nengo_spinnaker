@@ -154,10 +154,18 @@ def test_filter_routing_region():
     """Test that the region writes out filter routing values correctly.
     """
     # Create a mock keyspace to check that values are collected correctly.
-    keyspace = mock.Mock(spec_set=['key', 'filter_mask', 'mask_d'])
-    keyspace.key.return_value = 0xCAFECAFE
-    keyspace.filter_mask = 0xBEEFBEEF
-    keyspace.mask_d = 0xDEADABCD
+    keyspace = mock.Mock(spec_set=['get_mask', 'get_key'])
+    keyspace.get_key.return_value = 0xCAFECAFE
+
+    def get_mask(tag=None, field=None):
+        if field == "n_dimension" and tag is None:
+            return 0xDEADABCD
+        elif field is None and tag == "n_filter_routing":
+            return 0xBEEFBEEF
+        else:
+            raise ValueError
+
+    keyspace.get_mask.side_effect = get_mask
 
     # Create a mapping from keyspace to filter ID
     filter_ids = {keyspace: 0xFEFEFFFF}
@@ -165,11 +173,13 @@ def test_filter_routing_region():
     # Create the region
     routing_region = filter_utils.make_routing_region(filter_ids)
     assert routing_region.sizeof(Slice(0, 100)) == 4+1
+    assert keyspace.get_mask.has_calls([mock.call(tag="n_filter_routing"),
+                                        mock.call(field="n_dimension")])
 
     # Create a subregion version and ensure that the data stored within is
     # correct.
     sr = routing_region.create_subregion(Slice(0, 100), 0)
     data = np.frombuffer(sr.data, dtype=np.uint32)
     assert data[0] == 1
-    assert data[1:].tolist() == [keyspace.key(), keyspace.filter_mask,
-                                 filter_ids[keyspace], keyspace.mask_d]
+    assert data[1:].tolist() == [0xCAFECAFE, 0xBEEFBEEF,
+                                 filter_ids[keyspace], 0xDEADABCD]

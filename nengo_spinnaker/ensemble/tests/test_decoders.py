@@ -30,7 +30,7 @@ class TestBuildDecoders(object):
         keyspace = mock.Mock(name='Keyspace')
         keyspaces = {d: mock.Mock(name='Keyspace d={}'.format(d)) for d in
                      range(n_dims)}
-        keyspace.side_effect = lambda d: keyspaces[d]
+        keyspace.side_effect = lambda n_dimension: keyspaces[n_dimension]
 
         # Neuron type and a wrapper for the rates function
         neuron_type = nengo.LIF()

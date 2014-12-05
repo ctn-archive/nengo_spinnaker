@@ -60,7 +60,7 @@ class Builder(object):
         return obj_builder
 
     @classmethod
-    def build(cls, network, keyspace, config=None):
+    def build(cls, network, nengo_keyspace, config=None):
         """Build the network into an intermediate form.
 
         Parameters
@@ -70,8 +70,8 @@ class Builder(object):
             (represented through a connection tree).
         config : .config.Config
             Specific Nengo/SpiNNaker configuration options.
-        keyspace : :py:class:`~.spinnaker.keyspaces.Keyspace`
-            The Keyspace to use.
+        nengo_keyspace : :py:class:`~.spinnaker.keyspaces.Keyspace`
+            The Keyspace to use for Nengo internal communication.
 
         Returns
         -------
@@ -127,8 +127,7 @@ class Builder(object):
 
         # From this build the keyspace
         logger.info("Build step 5/8: Adding fields to keyspace")
-        _add_nengo_keyspace_fields(keyspace)
-        nengo_keyspace = keyspace(n_system=0)
+        _add_nengo_keyspace_fields(nengo_keyspace)
 
         # Assign this keyspace to all connections which have no keyspace
         logger.info("Build step 6/8: Applying default keyspace")
@@ -174,26 +173,19 @@ def _convert_remaining_connections(connections):
     return new_conns
 
 
-def _add_nengo_keyspace_fields(ks):
+def _add_nengo_keyspace_fields(ks_nengo):
     """Add the standard fields used by Nengo simulations to the keyspace.
 
     The following fields (prefixed with `n_` will be added to the Keyspace:
-    - `n_system` indicates that the packet is for system control purposes
-        - If `n_system` is 0:
-            - `n_object` indicates the originating object ID.
-            - `n_subobject` indicates the index of the partition of the
-              originating object, used only in routing.
-            - `n_connection` indicates the connection index.
-            - `n_dimension` indicates the index of the represented component.
-        - If `n_system` is 1:
-            - `n_system_object` indicates the target object ID.
-            - `n_system_subobject` indicates the index of the partition of
-              the target object, used only in routing.
-            - `n_system_command` indicates the command to execute
+        - `n_object` indicates the originating object ID.
+        - `n_cluster` indicates the cluster of the partitions of the
+                      originating object, used only in routing.
+        - `n_connection` indicates the connection index.
+        - `n_dimension` indicates the index of the represented component.
 
     The following fields are tagged `n_routing`:
     - `n_object`
-    - `n_subobject`
+    - `n_cluster`
     - `n_connection`
     - `n_system_object`
     - `n_system_subobject`
@@ -205,21 +197,10 @@ def _add_nengo_keyspace_fields(ks):
     Note that the tags propagate up the keyspace's hierarchy (e.g. `n_system`
     will be tagged as both `n_routing` and `n_filter_routing`).
     """
-    ks.add_field("n_external", length=1, start_at=31)
-
-    ks_internal = ks(n_external=0)
-    ks_internal.add_field("n_system")
-
-    ks_nengo = ks_internal(n_system=0)
     ks_nengo.add_field("n_object", tags="n_routing n_filter_routing")
-    ks_nengo.add_field("n_subobject", tags="n_routing")
+    ks_nengo.add_field("n_cluster", tags="n_routing")
     ks_nengo.add_field("n_connection", tags="n_routing n_filter_routing")
     ks_nengo.add_field("n_dimension")
-
-    ks_system = ks_internal(n_system=1)
-    ks_system.add_field("n_system_object", tags="n_routing")
-    ks_system.add_field("n_system_subobject", tags="n_routing")
-    ks_system.add_field("n_system_command")
 
 
 def _get_seed(obj, rng):
