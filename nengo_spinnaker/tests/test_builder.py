@@ -205,7 +205,7 @@ def test_build_keyspace(sample_model):
     ks = builder._build_keyspace(tree, subobject_bits=7)
     print ks.__field_lengths__
     assert ks.__field_lengths__['x'] == 1  # eXternal bound packet
-    assert ks.__field_lengths__['o'] == 1  # Object index
+    assert ks.__field_lengths__['o'] == 2  # Object index (3 objects, 2 bits)
     assert ks.__field_lengths__['s'] == 7  # Sub-object index
     assert ks.__field_lengths__['i'] == 1  # Connection Index
     assert ks.__field_lengths__['d'] == 2  # Dimension index

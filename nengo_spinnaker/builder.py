@@ -208,10 +208,10 @@ def _build_keyspace(connection_tree, subobject_bits=7):
             max_d = max(max_d, max(c.width for c in out_conns))
 
     x_bits = 1
-    o_bits = int(math.log(num_o + 1, 2))
+    o_bits = int(math.ceil(math.log(num_o + 1, 2)))
     s_bits = subobject_bits
-    i_bits = int(math.log(max_i + 1, 2))
-    d_bits = int(math.log(max_d + 1, 2))
+    i_bits = int(math.ceil(math.log(max_i + 1, 2)))
+    d_bits = int(math.ceil(math.log(max_d + 1, 2)))
 
     padding = 32 - sum([x_bits, o_bits, s_bits, i_bits, d_bits])
 
