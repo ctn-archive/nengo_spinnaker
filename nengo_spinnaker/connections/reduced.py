@@ -122,19 +122,23 @@ class OutgoingReducedEnsembleConnection(OutgoingReducedConnection):
         if self.function is None:
             targets = np.array(self.eval_points[:, self.pre_slice])
         else:
-            stop = (self.pre_slice.stop if self.pre_slice.stop is not None else
-                    len(self.eval_points))
             start = (self.pre_slice.start if self.pre_slice.start is not None
                      else 0)
+            stop = (self.pre_slice.stop if self.pre_slice.stop is not None else
+                    start + 1)
             in_size = stop - start
 
-            function_size = np.asarray(
-                checked_call(self.function, np.zeros(in_size))[0]).size
+            if in_size > 1:
+                function_size = np.asarray(
+                    checked_call(self.function, np.zeros(in_size)).value).size
+            else:
+                function_size = np.asarray(
+                    checked_call(self.function, 0).value).size
 
             # Build up the targets for the connection
             targets = np.zeros((self.eval_points.shape[0], function_size))
-            for i, ep in enumerate(self.eval_points):
-                targets[i] = np.array(self.function(ep[self.pre_slice]))
+            for i, ep in enumerate(self.eval_points[:, self.pre_slice]):
+                targets[i] = np.array(self.function(ep))
 
         targets.flags.writeable = False
         return targets
