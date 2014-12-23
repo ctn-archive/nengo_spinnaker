@@ -11,7 +11,7 @@ FLAG_NO_REPLY = 0x07
 class RangedIntAttribute(object):
     """Descriptor that ensures values fit within a range of values."""
     def __init__(self, minimum, maximum, min_inclusive=True,
-                 max_inclusive=False, allow_none=False):
+                 max_inclusive=False, allow_none=False, accept=list()):
         """Create a new ranged descriptor with specified minimum and maximum
         values.
         """
@@ -23,6 +23,7 @@ class RangedIntAttribute(object):
         if not minimum <= maximum:
             raise ValueError('min should be smaller than max')
 
+        self.accept = accept[:]
         self.default = minimum
         self.min = minimum
         self.max = maximum
@@ -39,7 +40,7 @@ class RangedIntAttribute(object):
             if not isinstance(value, int):
                 raise TypeError("Value should be an integer: {!s}"
                                 .format(value))
-            if not self.min <= value < self.max:
+            if not self.min <= value < self.max and value not in self.accept:
                 raise ValueError("Value outside range {}: [{} to {})"
                                  .format(value, self.min, self.max))
             self.data[instance] = value
@@ -78,7 +79,7 @@ class SDPPacket(object):
 
     tag = RangedIntAttribute(0, 256)
     dest_port = RangedIntAttribute(0, 8)
-    dest_cpu = RangedIntAttribute(0, 18)
+    dest_cpu = RangedIntAttribute(0, 18, accept=[31])  # For IPtags
     src_port = RangedIntAttribute(0, 8)
     src_cpu = RangedIntAttribute(0, 18)
     dest_x = RangedIntAttribute(0, 256)
