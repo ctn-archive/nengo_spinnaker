@@ -1,6 +1,14 @@
 """Communication primitives for the SDP protocol."""
+import collections
+from six.moves import queue
+import socket
 import threading
+import time
 from . import packets
+
+
+QueuedPacket = collections.namedtuple('QueuedPacket',
+                                      'packet address port callback')
 
 
 class SDPReactor(threading.Thread):
@@ -21,14 +29,33 @@ class SDPReactor(threading.Thread):
     certain characteristics are received.  Every callback that matches a
     received packet will be called.  Callbacks act to block the reactor and
     should be relatively light weight.
-    """
-    def __init__(self, out_ports=list()):
-        """Create a new SDPReactor.
 
-        Notes
-        -----
-        """
-        raise NotImplementedError
+    Notes
+    -----
+    At some later point the SDPReactor will be registered to talk to a given
+    SpiNNaker machine and may be given a map of what ranges of co-ordinates map
+    to which IP address and port.  For the moment, however, the user is
+    expected to know where they wish to send their packets.
+    """
+    def __init__(self, listen=17892):
+        """Create a new SDPReactor."""
+        # Prepare the thread
+        super(SDPReactor, self).__init__(name="SDPReactor")
+        self._halt = False
+
+        # Create the listening socket (non-blocking)
+        self.in_sock = socket.socket(type=socket.SOCK_DGRAM)
+        self.in_sock.bind(("", listen))
+        self.in_sock.setblocking(0)
+
+        # Create the transmitting socket (blocking)
+        self.out_sock = socket.socket(type=socket.SOCK_DGRAM)
+
+        # Create the outgoing queue
+        self.out_queue = queue.Queue()
+
+        # Create the list of callbacks
+        self._callbacks = list()
 
     def transmit(self, packet, address, port, transmitted_callback=None):
         """Send a SDP packet over UDP.
@@ -51,9 +78,10 @@ class SDPReactor(threading.Thread):
         Packets are added to a queue which is processed by the reactor.  This
         call may be modified to be blocking as and when required.
         """
-        raise NotImplementedError
+        self.out_queue.put(
+            QueuedPacket(packet, address, port, transmitted_callback))
 
-    def register_received_callback(self, callback, filter=None):
+    def register_received_callback(self, callback, sdp_filter=None):
         """Register a function which should be called when a packet is
         received.
 
@@ -64,7 +92,7 @@ class SDPReactor(threading.Thread):
             been received.  The packets which will trigger the callback are
             defined by the filter argument.  The callback should accept an
             :py:class`~.packets.SDPPacket`.
-        filter : :py:class:`~SDPFilter`
+        sdp_filter : :py:class:`~SDPFilter`
             Packets which match the filter will cause the callback to be
             called.
 
@@ -73,4 +101,47 @@ class SDPReactor(threading.Thread):
         Calling a callback blocks the reactor thread.  Any callbacks should be
         light-weight.
         """
-        raise NotImplementedError
+        self._callbacks.append((sdp_filter, callback))
+
+    def stop(self):
+        """Terminate the thread."""
+        self._halt = True
+        self.join()
+
+    def run(self):
+        # While not halted try to get data from the socket, then try to send,
+        # then sleep.
+        while not self._halt:
+            incoming = None
+            try:
+                incoming = self.in_sock.recv(512)
+            except IOError:
+                # There was no data to receive
+                pass
+
+            # If there was received data, then interpret it as an SDP packet
+            if incoming is not None:
+                packet = packets.SDPPacket.from_bytestring(incoming)
+
+                # Call all required callbacks
+                for (f, callback) in self._callbacks:
+                    if f(packet):
+                        callback(packet)
+
+            # Send a packet if the queue isn't empty
+            if not self.out_queue.empty():
+                try:
+                    qpacket = self.out_queue.get(block=False)
+
+                    # Send the packet
+                    self.out_sock.sendto(qpacket.packet.bytestring,
+                                         (qpacket.address, qpacket.port))
+
+                    # Call the callback
+                    qpacket.callback()
+                except queue.Empty:
+                    # The queue was empty, nothing to send
+                    pass
+
+            # Sleep to give other threads a chance.
+            time.sleep(0.0001)
