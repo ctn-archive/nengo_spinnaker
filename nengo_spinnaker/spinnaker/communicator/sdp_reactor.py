@@ -13,14 +13,14 @@ class SDPReactor(threading.Thread):
     transformation tools, e.g., for implementing flow-controlled SCP.
 
     Transmitting SDP Messages is trivial, once the reactor is running the
-    :py:func:`~SDPReactor.transmit` method may be called with a byte-string and
-    a destination: the bytestring is taken to be the complete packet.
+    :py:func:`~SDPReactor.transmit` method may be called with an SDP packet and
+    a destination.
 
     To receive packets a receive callback may be registered.  Callbacks may be
-    registered with filters such that they are only called when packets are
-    received on specific ports or from specific IP addresses.  Every callback
-    that matches a received packet will be called.  Callbacks act to block the
-    reactor and should be relatively light weight.
+    registered with filters such that they are only called when packets with
+    certain characteristics are received.  Every callback that matches a
+    received packet will be called.  Callbacks act to block the reactor and
+    should be relatively light weight.
     """
     def __init__(self, out_ports=list()):
         """Create a new SDPReactor.
@@ -30,7 +30,7 @@ class SDPReactor(threading.Thread):
         """
         raise NotImplementedError
 
-    def transmit(self, packet, address, port):
+    def transmit(self, packet, address, port, transmitted_callback=None):
         """Send a SDP packet over UDP.
 
         Parameters
@@ -40,7 +40,10 @@ class SDPReactor(threading.Thread):
         address : string
             The address to which the data should be transmitted.
         port : int
-            The port from which this packet should be sent.
+            The port to which this packet should be sent.
+        transmitted_callback : callable
+            A callback which will be called once this packet has been
+            transmitted.
 
         Notes
         -----
@@ -50,7 +53,7 @@ class SDPReactor(threading.Thread):
         """
         raise NotImplementedError
 
-    def register_received_callback(self, callback, filter=SDPFilter()):
+    def register_received_callback(self, callback, filter=None):
         """Register a function which should be called when a packet is
         received.
 

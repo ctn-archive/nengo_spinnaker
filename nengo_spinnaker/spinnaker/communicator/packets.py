@@ -1,4 +1,5 @@
 """Representations of SDP and SCP Packets."""
+from six import iteritems
 import struct
 from weakref import WeakKeyDictionary
 
@@ -10,7 +11,7 @@ FLAG_NO_REPLY = 0x07
 class RangedIntAttribute(object):
     """Descriptor that ensures values fit within a range of values."""
     def __init__(self, minimum, maximum, min_inclusive=True,
-                 max_inclusive=False):
+                 max_inclusive=False, allow_none=False):
         """Create a new ranged descriptor with specified minimum and maximum
         values.
         """
@@ -26,19 +27,27 @@ class RangedIntAttribute(object):
         self.min = minimum
         self.max = maximum
         self.data = WeakKeyDictionary()
+        self.allow_none = allow_none
 
     def __get__(self, instance, owner):
         # Get the value, or the default
         return self.data.get(instance, self.default)
 
     def __set__(self, instance, value):
-        # Check that min <= value < max
-        if not self.min <= value < self.max:
-            raise ValueError(
-                "Value outside range: [{} to {})".format(self.min, self.max))
-        if not isinstance(value, int):
-            raise TypeError("Value should be an integer: {!s}".format(value))
-        self.data[instance] = value
+        if value is not None:
+            # Check that min <= value < max
+            if not isinstance(value, int):
+                raise TypeError("Value should be an integer: {!s}"
+                                .format(value))
+            if not self.min <= value < self.max:
+                raise ValueError("Value outside range {}: [{} to {})"
+                                 .format(value, self.min, self.max))
+            self.data[instance] = value
+        else:
+            if self.allow_none:
+                self.data[instance] = None
+            else:
+                raise ValueError("Value may not be None")
 
 
 class ByteStringAttribute(object):
@@ -65,6 +74,8 @@ class SDPPacket(object):
     __slots__ = ['reply_expected', 'tag', 'dest_port', 'dest_cpu', 'src_port',
                  'src_cpu', 'dest_x', 'dest_y', 'src_x', 'src_y', 'data',
                  '__weakref__']
+    filter_on = __slots__[:-1]  # Indicates valid fields for filtering
+
     tag = RangedIntAttribute(0, 256)
     dest_port = RangedIntAttribute(0, 8)
     dest_cpu = RangedIntAttribute(0, 18)
@@ -172,9 +183,12 @@ class SCPPacket(SDPPacket):
     __slots__ = ['cmd_rc', 'seq', 'arg1', 'arg2', 'arg3', 'scp_data']
     cmd_rc = RangedIntAttribute(0, 0xFFFF, max_inclusive=True)
     seq = RangedIntAttribute(0, 0xFFFF, max_inclusive=True)
-    arg1 = RangedIntAttribute(0, 0xFFFFFFFF, max_inclusive=True)
-    arg2 = RangedIntAttribute(0, 0xFFFFFFFF, max_inclusive=True)
-    arg3 = RangedIntAttribute(0, 0xFFFFFFFF, max_inclusive=True)
+    arg1 = RangedIntAttribute(0, 0xFFFFFFFF, max_inclusive=True,
+                              allow_none=True)
+    arg2 = RangedIntAttribute(0, 0xFFFFFFFF, max_inclusive=True,
+                              allow_none=True)
+    arg3 = RangedIntAttribute(0, 0xFFFFFFFF, max_inclusive=True,
+                              allow_none=True)
     data = ByteStringAttribute(max_length=256)
 
     def __init__(self, reply_expected, tag, dest_port, dest_cpu, src_port,
@@ -192,17 +206,19 @@ class SCPPacket(SDPPacket):
         self.arg3 = arg3
 
     @classmethod
-    def from_sdp_packet(cls, sdp_packet):
+    def from_sdp_packet(cls, sdp_packet, n_args=3):
         """Create a new SCPPacket from an existing SDPPacket.
-        
+
         Parameters
         ----------
         sdp_packet : :py:class:`SDPPacket`
             An existing SDP packet.
+        n_args : int
+            The number of arguments to unpack from the SDP data.
         """
         # Get the SCP header from the SDP packet
         assert isinstance(sdp_packet, SDPPacket)
-        scp_header = cls.unpack_scp_header(sdp_packet.data)
+        scp_header = cls.unpack_scp_header(sdp_packet.data, n_args)
 
         # Create the new SCP packet and return
         # ***YUCK***
@@ -216,23 +232,81 @@ class SCPPacket(SDPPacket):
         )
 
     @classmethod
-    def unpack_scp_header(cls, data):
+    def unpack_scp_header(cls, data, n_args=3):
         """Unpack the SCP header from a bytestring."""
         # Unpack the SCP header from the data
-        (cmd_rc, seq, arg1, arg2, arg3) = struct.unpack(
-            '<2H3I', data[0:16])
+        (cmd_rc, seq) = struct.unpack('<2H', data[0:4])
+        data = data[4:]
+
+        # Unpack as much of the data as is present
+        arg1 = arg2 = arg3 = None
+        if n_args >= 1:
+            arg1 = struct.unpack('<I', data[0:4])[0]
+            data = data[4:]
+        if n_args >= 2:
+            arg2 = struct.unpack('<I', data[0:4])[0]
+            data = data[4:]
+        if n_args >= 3:
+            arg3 = struct.unpack('<I', data[0:4])[0]
+            data = data[4:]
 
         # Return the SCP header
         scp_header = {
             'cmd_rc': cmd_rc, 'seq': seq, 'arg1': arg1, 'arg2': arg2, 'arg3':
-            arg3, 'data': data[16:]}
+            arg3, 'data': data}
         return scp_header
 
     @property
     def packed_data(self):
         """Pack the data for the SCP packet."""
-        scp_header = struct.pack("<2H3I", self.cmd_rc, self.seq, self.arg1,
-                                 self.arg2, self.arg3)
+        scp_header = struct.pack("<2H", self.cmd_rc, self.seq)
+
+        for arg in (self.arg1, self.arg2, self.arg3):
+            if arg is not None:
+                scp_header += struct.pack('<I', arg)
 
         # Return the SCP header and the rest of the data
         return scp_header + self.data
+
+
+class SDPFilter(object):
+    """A callable filter which may be applied to SDP packets to determine
+    whether they fall within a given class of packet.
+    """
+    __slots__ = ['fields']
+
+    def __init__(self, **kwargs):
+        """Create a new filter.
+
+        Accepts keyword arguments mapping from valid attributes of an SDP
+        packet to constant values or functions which will return True or False
+        depending on whether the packet is to pass the filter.
+        """
+        self.fields = dict()
+
+        # For each valid field name get the filter value, if it is not None add
+        # it to the field list.
+        for field, field_filter in iteritems(kwargs):
+            if field not in SDPPacket.filter_on:
+                raise ValueError(
+                    "Cannot filter SDP packets on '{}'".format(field))
+
+            # Add callable field filters as they are, constants we check for
+            # equivalence.
+            if field_filter is not None:
+                if callable(field_filter):
+                    self.fields[field] = field_filter
+                else:
+                    self.fields[field] = lambda v: v == field_filter
+
+    def __call__(self, packet):
+        """Apply the filter to an SDP packet.
+
+        Returns
+        -------
+        bool
+            True if the packet matches the filter on ALL parameters, otherwise
+            False.
+        """
+        return all(ff(getattr(packet, fn)) for (fn, ff) in
+                   iteritems(self.fields))
