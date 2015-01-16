@@ -81,7 +81,7 @@ class SDPPacket(object):
     dest_port = RangedIntAttribute(0, 8)
     dest_cpu = RangedIntAttribute(0, 18, accept=[31])  # For IPtags
     src_port = RangedIntAttribute(0, 8)
-    src_cpu = RangedIntAttribute(0, 18)
+    src_cpu = RangedIntAttribute(0, 18, accept=[31])
     dest_x = RangedIntAttribute(0, 256)
     dest_y = RangedIntAttribute(0, 256)
     src_x = RangedIntAttribute(0, 256)
