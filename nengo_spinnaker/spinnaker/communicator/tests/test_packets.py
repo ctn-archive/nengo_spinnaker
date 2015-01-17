@@ -1,5 +1,5 @@
 import pytest
-from ..packets import SDPPacket, SCPPacket, SDPFilter
+from ..packets import SDPPacket, SCPPacket
 from .. import packets
 
 
@@ -398,56 +398,3 @@ class TestSCPPacket(object):
             SCPPacket(False, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                       0xFFFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
                       257*b'\x00')
-
-
-class TestSDPFilter(object):
-    """SDPFilters are used to determine whether a given packet should be passed
-    to a callback or not."""
-    def test_filter_x(self):
-        """Test the trying to create a filter using an invalid slot fails."""
-        with pytest.raises(ValueError):
-            SDPFilter(x=3)
-
-    def test_tag_filter(self):
-        """Test filtering SDP packets based on IPTag."""
-        # Create a new filters which accept varying values of IPTag
-        no_filter = SDPFilter(tag=None)
-        filter_0 = SDPFilter(tag=0)
-        filter_1_to_3 = SDPFilter(tag=lambda x: 1 <= x <= 3)
-
-        # Apply these filters to 4 different packets (with IPTags 0..3)
-        sdp1 = SDPPacket(False, 0, 1, 0, 0, 0, 1, 1, 0, 0, b'')
-        sdp2 = SDPPacket(False, 1, 1, 0, 0, 0, 1, 1, 0, 0, b'')
-        sdp3 = SDPPacket(False, 2, 1, 0, 0, 0, 1, 1, 0, 0, b'')
-        sdp4 = SDPPacket(False, 3, 1, 0, 0, 0, 1, 1, 0, 0, b'')
-
-        assert no_filter(sdp1)
-        assert no_filter(sdp2)
-        assert no_filter(sdp3)
-        assert no_filter(sdp4)
-
-        assert filter_0(sdp1)
-        assert not filter_0(sdp2)
-        assert not filter_0(sdp3)
-        assert not filter_0(sdp4)
-        
-        assert not filter_1_to_3(sdp1)
-        assert filter_1_to_3(sdp2)
-        assert filter_1_to_3(sdp3)
-        assert filter_1_to_3(sdp4)
-
-    def test_tag_src_x_y(self):
-        """Test filtering SDP packets based on Src X and Y."""
-        # Create a new filter with ranged X and Y.
-        xy_filter = SDPFilter(src_x=lambda x: 0 <= x < 4,
-                              src_y=lambda y: 0 <= y < 4)
-
-        # Create SDP packets within this range, check that they all pass
-        for x in range(4):
-            for y in range(4):
-                sdp = SDPPacket(False, 0, 0, 0, 0, 0, 0, 0, x, y, b'')
-                assert xy_filter(sdp)
-
-        # Check an SDP packet outside the range
-        sdp = SDPPacket(False, 0, 0, 0, 0, 0, 0, 0, x + 1, y + 1, b'')
-        assert not xy_filter(sdp)
