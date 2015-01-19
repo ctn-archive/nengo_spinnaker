@@ -310,18 +310,24 @@ class SDRAMFile(object):
         n_bytes : int
             A number of bytes to read.
         """
-        # Determine the data type
-        data_type = self._get_data_type_from_offset_and_size(
-            self._start_address + self._offset, n_bytes)
-
         # Make as many calls as must be made
         data = b''
-        while n_bytes > 0:
-            address = self._start_address + self._offset
-            data += self._communicator.read(self._x, self._y, 0, address,
-                                            min((256, n_bytes)), data_type)
-            self._offset += min((256, n_bytes))
-            n_bytes -= 256
+        while n_bytes > 0 and self.address <= self._end_address:
+            # Get the number of bytes we can actually read
+            _n_bytes = min((256, n_bytes,
+                            self._end_address - self.address + 1))
+
+            # Determine the data type
+            data_type = self._get_data_type_from_offset_and_size(self.address,
+                                                                 _n_bytes)
+
+            # Get the data
+            data += self._communicator.read(self._x, self._y, 0, self.address,
+                                            _n_bytes, data_type)
+
+            # Progress the pointer and decrease the count
+            self.seek(_n_bytes)
+            n_bytes -= _n_bytes
 
         # Return the data as read
         return data
@@ -334,9 +340,15 @@ class SDRAMFile(object):
         bytes : bytestring
             Data to write to the SDRAM as a bytestring.
         """
+        # Check that this will not go beyond the end of the SDRAM
+        if self.address + len(bytes) > self._end_address:
+            raise EOFError(
+                "Writing {} bytes would go beyond the range of SDRAM.".format(
+                    len(bytes)))
+
         # Determine the data type
-        data_type = self._get_data_type_from_offset_and_size(
-            self._start_address + self._offset, len(bytes))
+        data_type = self._get_data_type_from_offset_and_size(self.address,
+                                                             len(bytes))
 
         # Make as many calls as must be made
         while len(bytes) > 0:
@@ -344,8 +356,21 @@ class SDRAMFile(object):
             self._communicator.write(self._x, self._y, 0, address,
                                      bytes[:256], data_type)
 
-            self._offset += len(bytes[:256])
+            self.seek(len(bytes[:256]))
             bytes = bytes[256:]
+
+    def tell(self):
+        """Get the current offset in SDRAM."""
+        return self._offset
+
+    @property
+    def address(self):
+        """Get the current address (indexed from 0x00000000)."""
+        return self._offset + self._start_address
+
+    def seek(self, n_bytes):
+        """Seek to a new position in the file."""
+        self._offset += n_bytes
 
 class SCPError(IOError):
     """Base Error for SCP return codes."""

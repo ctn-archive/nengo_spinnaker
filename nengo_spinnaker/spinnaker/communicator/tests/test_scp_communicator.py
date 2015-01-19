@@ -163,7 +163,7 @@ def test_sdram_file_read_single_packet(mock_comms, n_bytes, data_type,
 
 @pytest.mark.parametrize(
     "n_bytes,data_type,start_address,n_packets", [
-    (257, scp_communicator.DataType.BYTE, 0x70000000, 2),
+    (257, scp_communicator.DataType.BYTE, 0x70000001, 2),
     (511, scp_communicator.DataType.BYTE, 0x70000001, 2),
     (258, scp_communicator.DataType.BYTE, 0x70000001, 2),
     (256, scp_communicator.DataType.BYTE, 0x70000001, 1),
@@ -247,3 +247,39 @@ def test_sdram_file_write(mock_comms, start_address, data, data_type):
         [mock.call(0, 0, 0, a, d, data_type) for (a, d) in
          zip(addresses, segments)]
     )
+
+
+def test_sdram_read_beyond(mock_comms):
+    """Test that any attempt to read beyond the range of SDRAM results in a
+    shortened string.
+    """
+    f = scp_communicator.SDRAMFile(mock_comms, 0, 0, 0, 4)
+    data = f.read(8)
+    assert len(data) == 5
+    mock_comms.read.assert_called_once_with(0, 0, 0, 0, 5,
+                                            scp_communicator.DataType.BYTE)
+
+def test_sdram_write_beyond(mock_comms):
+    """Test that any attempt to write beyond the range of SDRAM results in an
+    EOFError being raised.
+    """
+    f = scp_communicator.SDRAMFile(mock_comms, 0, 0, 0, 4)
+
+    with pytest.raises(EOFError):
+        f.write(8*'\x00')
+
+    assert not mock_comms.write.called
+
+
+def test_seek(mock_comms):
+    # Create the file-like object
+    f = scp_communicator.SDRAMFile(mock_comms, 0, 0)
+    addr = f.address
+
+    # Seek forward one
+    f.seek(1)
+    assert f.address == addr + 1
+
+    # Seek backward one
+    f.seek(-1)
+    assert f.address == addr
