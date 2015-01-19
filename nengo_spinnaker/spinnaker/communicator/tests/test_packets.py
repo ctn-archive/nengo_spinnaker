@@ -311,6 +311,21 @@ class TestSCPPacket(object):
         # we specified before.
         assert scp_packet.bytestring == packet
 
+    def test_from_bytestring_0_args_short(self):
+        """Test creating a new SCPPacket from a bytestring."""
+        packet = b'\x87\xf0\xef\xee\xa5\x5a\x0f\xf0\xAD\xDE\xEF\xBE'
+        sdp_packet = SDPPacket.from_bytestring(packet)
+        scp_packet = SCPPacket.from_sdp_packet(sdp_packet)
+
+        assert scp_packet.arg1 == None
+        assert scp_packet.arg2 == None
+        assert scp_packet.arg3 == None
+        assert scp_packet.data == b''
+
+        # Check that the bytestring this packet creates is the same as the one
+        # we specified before.
+        assert scp_packet.bytestring == packet
+
     def test_from_bytestring_1_args(self):
         """Test creating a new SCPPacket from a bytestring."""
         #     arg1: 0xA5A5B7B7
@@ -332,6 +347,23 @@ class TestSCPPacket(object):
         # we specified before.
         assert scp_packet.bytestring == packet
 
+    def test_from_bytestring_1_args_short(self):
+        """Test creating a new SCPPacket from a bytestring."""
+        #     arg1: 0xA5A5B7B7
+        packet = b'\x87\xf0\xef\xee\xa5\x5a\x0f\xf0\xAD\xDE\xEF\xBE' + \
+                 b'\xB7\xB7\xA5\xA5'
+        sdp_packet = SDPPacket.from_bytestring(packet)
+        scp_packet = SCPPacket.from_sdp_packet(sdp_packet)
+
+        assert scp_packet.arg1 == 0xA5A5B7B7
+        assert scp_packet.arg2 == None
+        assert scp_packet.arg3 == None
+        assert scp_packet.data == b''
+
+        # Check that the bytestring this packet creates is the same as the one
+        # we specified before.
+        assert scp_packet.bytestring == packet
+
     def test_from_bytestring_2_args(self):
         """Test creating a new SCPPacket from a bytestring."""
         #     arg1: 0xA5A5B7B7
@@ -347,6 +379,24 @@ class TestSCPPacket(object):
         assert scp_packet.arg2 == 0xCAFECAFE
         assert scp_packet.arg3 == None
         assert scp_packet.data == b'\x7B\x7B\x5A\x5A\xFE\xED\xDE\xAF\x01'
+
+        # Check that the bytestring this packet creates is the same as the one
+        # we specified before.
+        assert scp_packet.bytestring == packet
+
+    def test_from_bytestring_2_args_short(self):
+        """Test creating a new SCPPacket from a bytestring."""
+        #     arg1: 0xA5A5B7B7
+        #     arg2: 0xCAFECAFE
+        packet = b'\x87\xf0\xef\xee\xa5\x5a\x0f\xf0\xAD\xDE\xEF\xBE' + \
+                 b'\xB7\xB7\xA5\xA5\xFE\xCA\xFE\xCA'
+        sdp_packet = SDPPacket.from_bytestring(packet)
+        scp_packet = SCPPacket.from_sdp_packet(sdp_packet)
+
+        assert scp_packet.arg1 == 0xA5A5B7B7
+        assert scp_packet.arg2 == 0xCAFECAFE
+        assert scp_packet.arg3 == None
+        assert scp_packet.data == b''
 
         # Check that the bytestring this packet creates is the same as the one
         # we specified before.

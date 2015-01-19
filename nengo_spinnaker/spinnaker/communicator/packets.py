@@ -241,13 +241,13 @@ class SCPPacket(SDPPacket):
 
         # Unpack as much of the data as is present
         arg1 = arg2 = arg3 = None
-        if n_args >= 1:
+        if n_args >= 1 and len(data) >= 4:
             arg1 = struct.unpack('<I', data[0:4])[0]
             data = data[4:]
-        if n_args >= 2:
+        if n_args >= 2 and len(data) >= 4:
             arg2 = struct.unpack('<I', data[0:4])[0]
             data = data[4:]
-        if n_args >= 3:
+        if n_args >= 3 and len(data) >= 4:
             arg3 = struct.unpack('<I', data[0:4])[0]
             data = data[4:]
 
