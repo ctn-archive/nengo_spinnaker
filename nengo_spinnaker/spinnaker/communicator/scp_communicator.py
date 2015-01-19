@@ -251,6 +251,76 @@ class SCPCommunicator(object):
         self._send_scp(x, y, 0, SCPCommands.IPTAG,
                        int(IPTagCommands.CLEAR) << 16 | iptag)
 
+
+class SDRAMFile(object):
+    # Map of length & 0x3 => address & 0x3 => DataType
+    data_types = {
+        1: {n: DataType.BYTE for n in range(4)},
+        2: {n: DataType.BYTE if (n & 1) == 1 else DataType.SHORT
+            for n in range(4)},
+        3: {n: DataType.BYTE for n in range(4)},
+        0: {
+            0: DataType.WORD,
+            1: DataType.BYTE,
+            2: DataType.SHORT,
+            3: DataType.BYTE,
+        }
+    }
+
+    def __init__(self, communicator, x, y,
+                 start_address=0x70000000,
+                 end_address=0x7fffffff):
+        """Create a file-like view onto the SDRAM of a chip.
+
+        Parameters
+        ----------
+        communicator : :py:class:`SCPCommunicator`
+            A communicator to handle transmitting and receiving packets from
+            the SpiNNaker machine.
+        x : int
+            The x co-ordinate of the chip to represent the SDRAM of.
+        y : int
+            The y co-ordinate of the chip to represent the SDRAM of.
+        start_address : int
+            Starting address of the SDRAM.
+        end_address : int
+            End address of the SDRAM.
+        """
+        # Store parameters
+        self._x = x
+        self._y = y
+        self._communicator = communicator
+        self._start_address = start_address
+        self._end_address = end_address
+
+        # Current offset from start address
+        self._offset = 0
+
+    def read(self, n_bytes):
+        """Read a number of bytes from the SDRAM.
+
+        Parameters
+        ----------
+        n_bytes : int
+            A number of bytes to read.
+        """
+        # Determine the data type to use from the offset and the number of
+        # bytes.
+        data_type = self.data_types[n_bytes & 0x3]\
+            [self._start_address + self._offset & 0x3]
+
+        # Make as many calls as must be made
+        data = b''
+        while n_bytes > 0:
+            address = self._start_address + self._offset
+            data += self._communicator.read(self._x, self._y, 0, address,
+                                            min((256, n_bytes)), data_type)
+            self._offset += min((256, n_bytes))
+            n_bytes -= 256
+
+        # Return the data as read
+        return data
+
 class SCPError(IOError):
     """Base Error for SCP return codes."""
     pass

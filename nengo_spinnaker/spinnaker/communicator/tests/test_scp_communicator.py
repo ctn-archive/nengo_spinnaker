@@ -1,3 +1,4 @@
+import mock
 import pytest
 import socket
 import time
@@ -9,6 +10,18 @@ from .. import scp_communicator
 @pytest.fixture(scope='module')
 def comms(spinnaker_ip):
     return SCPCommunicator(spinnaker_ip)
+
+
+@pytest.fixture
+def mock_comms():
+    # Create the file-like object
+    comms = mock.Mock(spec=SCPCommunicator)
+
+    # Return NULLs for reads
+    comms.read.side_effect = \
+        lambda x, y, p, address, length_bytes, data_type: '\x00' * length_bytes
+
+    return comms
 
 
 @pytest.mark.spinnaker
@@ -120,3 +133,82 @@ def test_invalid_argument(spinnaker_ip):
     with pytest.raises(scp_communicator.InvalidArgsError):
         comms._send_scp(0, 0, 0, scp_communicator.SCPCommands.LED, 128)
 """
+
+
+@pytest.mark.parametrize(
+    "n_bytes,data_type,start_address", [
+    (1, scp_communicator.DataType.BYTE, 0x70000000),   # Only reading a byte
+    (3, scp_communicator.DataType.BYTE, 0x70000000),   # Can only read in bytes
+    (2, scp_communicator.DataType.BYTE, 0x70000001),   # Offset from short
+    (4, scp_communicator.DataType.BYTE, 0x70000001),   # Offset from word
+    (2, scp_communicator.DataType.SHORT, 0x70000002),  # Reading a short
+    (6, scp_communicator.DataType.SHORT, 0x70000002),  # Can read shorts
+    (4, scp_communicator.DataType.SHORT, 0x70000002),  # Offset from word
+    (4, scp_communicator.DataType.WORD, 0x70000004)    # Reading a word
+])
+def test_sdram_file_read_single_packet(mock_comms, n_bytes, data_type,
+                                       start_address):
+    f = scp_communicator.SDRAMFile(mock_comms, x=0, y=0,
+                                   start_address=start_address)
+
+    # Read an amount of memory specified by the size
+    data = f.read(n_bytes)
+    assert len(data) == n_bytes
+
+    # Assert that a call was made to the communicator with the correct
+    # parameters.
+    mock_comms.read.assert_called_once_with(0, 0, 0, start_address, n_bytes,
+                                            data_type)
+
+
+@pytest.mark.parametrize(
+    "n_bytes,data_type,start_address,n_packets", [
+    (257, scp_communicator.DataType.BYTE, 0x70000000, 2),
+    (511, scp_communicator.DataType.BYTE, 0x70000001, 2),
+    (258, scp_communicator.DataType.BYTE, 0x70000001, 2),
+    (256, scp_communicator.DataType.BYTE, 0x70000001, 1),
+    (258, scp_communicator.DataType.SHORT, 0x70000002, 2),
+    (514, scp_communicator.DataType.SHORT, 0x70000002, 3),
+    (516, scp_communicator.DataType.SHORT, 0x70000002, 3),
+    (256, scp_communicator.DataType.WORD, 0x70000004, 1)
+])
+def test_sdram_file_read_multiple_packets(mock_comms, n_bytes, data_type,
+                                          start_address, n_packets):
+    # Create the file-like object
+    f = scp_communicator.SDRAMFile(mock_comms, x=0, y=0,
+                                   start_address=start_address)
+
+    # Read an amount of memory specified by the size.
+    data = f.read(n_bytes)
+    assert len(data) == n_bytes
+
+    # Assert that n calls were made to the communicator with the correct
+    # parameters.
+    offset = start_address
+    offsets = []
+    lens = []
+    while n_bytes > 0:
+        offsets += [offset]
+        lens += [min((256, n_bytes))]
+        offset += lens[-1]
+        n_bytes -= 256
+
+    assert len(lens) == len(offsets) == n_packets, "Test is broken"
+
+    mock_comms.read.assert_has_calls(
+        [mock.call(0, 0, 0, offset, l, data_type) for (offset, l) in
+         zip(offsets, lens)]
+    )
+
+
+def test_sdram_file_read_subsequent(mock_comms):
+    """Check that subsequent reads increment the offset."""
+    start_address = 0x70000000
+    f = scp_communicator.SDRAMFile(mock_comms, 0, 0, start_address)
+
+    f.read(1)
+    mock_comms.read.assert_called_with(0, 0, 0, start_address, 1,
+                                       scp_communicator.DataType.BYTE)
+    f.read(2)
+    mock_comms.read.assert_called_with(0, 0, 0, start_address + 1, 2,
+                                       scp_communicator.DataType.BYTE)
