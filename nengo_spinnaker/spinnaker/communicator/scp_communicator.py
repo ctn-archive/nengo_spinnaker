@@ -253,20 +253,6 @@ class SCPCommunicator(object):
 
 
 class SDRAMFile(object):
-    # Map of length & 0x3 => address & 0x3 => DataType
-    data_types = {
-        1: {n: DataType.BYTE for n in range(4)},
-        2: {n: DataType.BYTE if (n & 1) == 1 else DataType.SHORT
-            for n in range(4)},
-        3: {n: DataType.BYTE for n in range(4)},
-        0: {
-            0: DataType.WORD,
-            1: DataType.BYTE,
-            2: DataType.SHORT,
-            3: DataType.BYTE,
-        }
-    }
-
     def __init__(self, communicator, x, y,
                  start_address=0x70000000,
                  end_address=0x7fffffff):
@@ -296,6 +282,26 @@ class SDRAMFile(object):
         # Current offset from start address
         self._offset = 0
 
+    @staticmethod
+    def _get_data_type_from_offset_and_size(address, n_bytes):
+        """Get the best data type to use based on an address and a number of
+        bytes.
+        """
+        # Map of length & 0x3 => address & 0x3 => DataType
+        data_types = {
+            1: {n: DataType.BYTE for n in range(4)},
+            2: {n: DataType.BYTE if (n & 1) == 1 else DataType.SHORT
+                for n in range(4)},
+            3: {n: DataType.BYTE for n in range(4)},
+            0: {
+                0: DataType.WORD,
+                1: DataType.BYTE,
+                2: DataType.SHORT,
+                3: DataType.BYTE,
+            }
+        }
+        return data_types[n_bytes & 0x3][address & 0x3]
+
     def read(self, n_bytes):
         """Read a number of bytes from the SDRAM.
 
@@ -304,10 +310,9 @@ class SDRAMFile(object):
         n_bytes : int
             A number of bytes to read.
         """
-        # Determine the data type to use from the offset and the number of
-        # bytes.
-        data_type = self.data_types[n_bytes & 0x3]\
-            [self._start_address + self._offset & 0x3]
+        # Determine the data type
+        data_type = self._get_data_type_from_offset_and_size(
+            self._start_address + self._offset, n_bytes)
 
         # Make as many calls as must be made
         data = b''
@@ -320,6 +325,27 @@ class SDRAMFile(object):
 
         # Return the data as read
         return data
+
+    def write(self, bytes):
+        """Write data to the SDRAM.
+
+        Parameters
+        ----------
+        bytes : bytestring
+            Data to write to the SDRAM as a bytestring.
+        """
+        # Determine the data type
+        data_type = self._get_data_type_from_offset_and_size(
+            self._start_address + self._offset, len(bytes))
+
+        # Make as many calls as must be made
+        while len(bytes) > 0:
+            address = self._start_address + self._offset
+            self._communicator.write(self._x, self._y, 0, address,
+                                     bytes[:256], data_type)
+
+            self._offset += len(bytes[:256])
+            bytes = bytes[256:]
 
 class SCPError(IOError):
     """Base Error for SCP return codes."""

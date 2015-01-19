@@ -212,3 +212,38 @@ def test_sdram_file_read_subsequent(mock_comms):
     f.read(2)
     mock_comms.read.assert_called_with(0, 0, 0, start_address + 1, 2,
                                        scp_communicator.DataType.BYTE)
+
+
+@pytest.mark.parametrize(
+    "start_address,data,data_type", [
+    (0x70000000, b'\x00', scp_communicator.DataType.BYTE),
+    (0x70000001, b'\x00', scp_communicator.DataType.BYTE),
+    (0x70000001, b'\x00\x00', scp_communicator.DataType.BYTE),
+    (0x70000001, b'\x00\x00\x00\x00', scp_communicator.DataType.BYTE),
+    (0x70000000, b'\x00\x00', scp_communicator.DataType.SHORT),
+    (0x70000002, b'\x00\x00\x00\x00', scp_communicator.DataType.SHORT),
+    (0x70000004, b'\x00\x00\x00\x00', scp_communicator.DataType.WORD),
+    (0x70000000, 512*b'\x00\x00\x00\x00', scp_communicator.DataType.WORD),
+])
+def test_sdram_file_write(mock_comms, start_address, data, data_type):
+    # Create the file-like object
+    f = scp_communicator.SDRAMFile(mock_comms, 0, 0, start_address)
+
+    # Write the data
+    f.write(data)
+
+    # Check that the correct calls to write were made
+    segments = []
+    address = start_address
+    addresses = []
+    while len(data) > 0:
+        addresses.append(address)
+        segments.append(data[0:256])
+
+        data = data[256:]
+        address += len(segments[-1])
+
+    mock_comms.write.assert_has_calls(
+        [mock.call(0, 0, 0, a, d, data_type) for (a, d) in
+         zip(addresses, segments)]
+    )
