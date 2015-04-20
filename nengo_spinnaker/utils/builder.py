@@ -2,7 +2,7 @@ import collections
 import numpy as np
 
 import nengo
-from nengo.utils.builder import full_transform
+## from nengo.utils.builder import full_transform
 
 
 class IntermediateConnection(object):
@@ -16,6 +16,7 @@ class IntermediateConnection(object):
         self.synapse = synapse
         self.function = function
         self.transform = transform
+        self.transform_full = transform
         self.solver = solver
         self.eval_points = eval_points
         self.keyspace = keyspace
@@ -37,7 +38,7 @@ class IntermediateConnection(object):
         """
         if isinstance(c, nengo.Connection):
             # Get the full transform
-            tr = nengo.utils.builder.full_transform(c, allow_scalars=False)
+            tr = c.transform_full##nengo.utils.builder.full_transform(c, allow_scalars=False)
 
             # Return a copy of this connection but with less information and
             # the full transform.
@@ -151,7 +152,8 @@ def _create_replacement_connection(c_in, c_out):
                         'function being computed on it')
 
     # compute the combined transform
-    transform = np.dot(full_transform(c_out), full_transform(c_in))
+    ##transform = np.dot(full_transform(c_out), full_transform(c_in))
+    transform = np.dot(c_out.transform_full, c_in.transform_full)
     # check if the transform is 0 (this happens a lot
     #  with things like identity transforms)
     if np.all(transform == 0):
